@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
 import { supabase } from "@/lib/supabase";
 import { startSession, updateSession } from "@/lib/studySessionClient";
+import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
 
 type QuestionRow = {
   id: number | string;
@@ -37,19 +38,37 @@ const renderDifficultyDots = (difficulty: number) => {
 };
 
 function PracticePageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const subjectFilter = searchParams.get("subject");
   const topicFilter = searchParams.get("topic");
+  const [studentName, setStudentName] = useState("Student");
+  const [studentId, setStudentId] = useState("demo-student");
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [trialQuestionsUsed, setTrialQuestionsUsed] = useState(0);
+  const [lastScore, setLastScore] = useState<string | null>(null);
+  const [isTrialBlocked, setIsTrialBlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
+    const hydrateUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      setStudentId(user.id);
+      setStudentName(String(user.user_metadata?.child_name ?? user.user_metadata?.name ?? "Student"));
+    };
+    void hydrateUser();
+  }, []);
+
+  useEffect(() => {
     const initSession = async () => {
       try {
         const status = await startSession({
-          studentId: "demo-student",
+          studentId,
           source: "practice",
           topic: topicFilter ?? undefined,
         });
@@ -59,21 +78,48 @@ function PracticePageContent() {
       }
     };
     void initSession();
-  }, [topicFilter]);
+  }, [studentId, topicFilter]);
 
   useEffect(() => {
     if (!sessionId) return;
     const timer = window.setInterval(() => {
-      void updateSession({ sessionId, studentId: "demo-student", incrementMinutes: 1 });
+      void updateSession({ sessionId, studentId, incrementMinutes: 1 });
     }, 60000);
     return () => window.clearInterval(timer);
-  }, [sessionId]);
+  }, [sessionId, studentId]);
 
   useEffect(() => {
     const loadQuestions = async () => {
       setIsLoading(true);
       setError(null);
 
+      const usage = await getTrialUsage(studentId);
+      setTrialQuestionsUsed(usage.questionsUsed);
+
+      if (usage.questionsUsed >= TRIAL_LIMITS.questions) {
+        const { data: lastAttempt } = await supabase
+          .from("attempts")
+          .select("marks_awarded,total_marks")
+          .eq("student_id", studentId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastAttempt) {
+          const awarded = Number((lastAttempt as { marks_awarded?: number }).marks_awarded ?? 0);
+          const total = Number((lastAttempt as { total_marks?: number }).total_marks ?? 0);
+          setLastScore(`${awarded}/${total}`);
+        } else {
+          setLastScore(null);
+        }
+
+        setIsTrialBlocked(true);
+        setQuestions([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsTrialBlocked(false);
       let query = supabase.from("questions").select("*").order("id", { ascending: true });
       if (subjectFilter) {
         query = query.eq("subject", subjectFilter);
@@ -109,7 +155,7 @@ function PracticePageContent() {
     };
 
     void loadQuestions();
-  }, [subjectFilter, topicFilter]);
+  }, [studentId, subjectFilter, topicFilter]);
 
   const heading = useMemo(() => {
     if (subjectFilter && topicFilter) return `${subjectFilter} · ${topicFilter}`;
@@ -120,6 +166,32 @@ function PracticePageContent() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-6 sm:px-6">
+      {isTrialBlocked && (
+        <section className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/75 px-4">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-7 text-center shadow-2xl">
+            <p className="text-2xl font-bold text-slate-900">You have completed your free trial</p>
+            <p className="mt-2 text-sm text-slate-700">
+              {studentName} answered {trialQuestionsUsed} questions during your trial.
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">
+              O Level exams are approaching - don&apos;t stop now.
+            </p>
+            {lastScore && (
+              <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-700">
+                Last score achieved: {lastScore}
+              </p>
+            )}
+            <button
+              onClick={() => router.push("/pricing")}
+              className="mt-5 w-full rounded-xl bg-brand-teal px-4 py-3 text-base font-semibold text-white"
+            >
+              Upgrade MyGradePal
+            </button>
+            <p className="mt-3 text-sm text-slate-600">hello@mygradepal.com to subscribe</p>
+          </div>
+        </section>
+      )}
+
       <h1 className="heading-font text-3xl font-bold text-slate-900">{heading}</h1>
 
       {isLoading && <p className="mt-4 text-sm text-slate-600">Loading questions...</p>}

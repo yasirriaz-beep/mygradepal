@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import Logo from "@/components/Logo";
 import { supabase } from "@/lib/supabase";
+import { getTrialInfo } from "@/lib/trialStatus";
 import Link from "next/link";
 
 const subjects = [
@@ -18,8 +19,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [studentName, setStudentName] = useState("Student");
+  const [userEmail, setUserEmail] = useState("");
+  const [childName, setChildName] = useState("");
+  const [childGrade, setChildGrade] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [trial, setTrial] = useState(() => getTrialInfo());
   const [subjectMastery, setSubjectMastery] = useState<Record<string, number>>({});
   const [weakestTopic, setWeakestTopic] = useState<{ subject: string; topic: string; mastery: number } | null>(
     null,
@@ -43,7 +50,11 @@ export default function DashboardPage() {
         "Student";
 
       setStudentName(String(displayName));
+      setUserEmail(sessionUser.email ?? "");
+      setChildName(String(metadata.child_name ?? displayName));
+      setChildGrade(String(metadata.grade ?? metadata.child_grade ?? ""));
       setStudentId(sessionUser.id);
+      setTrial(getTrialInfo());
       setIsCheckingSession(false);
     };
 
@@ -106,6 +117,29 @@ export default function DashboardPage() {
     router.refresh();
   };
 
+  const saveProfile = async () => {
+    setIsSavingProfile(true);
+    setSaveMessage("");
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        name: studentName,
+        child_name: childName,
+        grade: childGrade,
+        child_grade: childGrade,
+      },
+    });
+
+    if (error) {
+      setSaveMessage(error.message);
+      setIsSavingProfile(false);
+      return;
+    }
+
+    setSaveMessage("Profile saved successfully.");
+    setIsSavingProfile(false);
+  };
+
   if (isCheckingSession) {
     return (
       <main className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-6 sm:px-6">
@@ -150,6 +184,32 @@ export default function DashboardPage() {
         <h2 className="heading-font text-2xl font-bold text-slate-900">
           Good evening, {studentName}! Ready to study?
         </h2>
+      </section>
+
+      <section className="mb-5 rounded-2xl border border-orange-200 bg-white p-4 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              trial.status === "Free Trial" ? "bg-orange-500 text-white" : "bg-red-600 text-white"
+            }`}
+          >
+            {trial.status}
+          </span>
+          <span className="text-sm font-semibold text-slate-700">{trial.daysRemaining} days remaining</span>
+        </div>
+        <div className="mt-3 h-2 rounded-full bg-orange-100">
+          <div
+            className={`h-2 rounded-full ${trial.status === "Free Trial" ? "bg-orange-500" : "bg-red-600"}`}
+            style={{ width: `${trial.progressPercent}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-600">{Math.min(7, trial.daysElapsed)} of 7 trial days used</p>
+        <Link
+          href="/pricing"
+          className="mt-3 inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
+        >
+          Upgrade now
+        </Link>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -220,6 +280,45 @@ export default function DashboardPage() {
         >
           Start today&apos;s plan
         </Link>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
+        <h3 className="heading-font text-xl font-semibold text-slate-900">Student settings</h3>
+        <div className="mt-3 grid gap-2">
+          <input
+            value={studentName}
+            onChange={(event) => setStudentName(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Your name"
+          />
+          <input value={userEmail} disabled className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <input
+            value={childName}
+            onChange={(event) => setChildName(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Child name"
+          />
+          <select
+            value={childGrade}
+            onChange={(event) => setChildGrade(event.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="">Select grade</option>
+            {["Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10"].map((grade) => (
+              <option key={grade} value={grade}>
+                {grade}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => void saveProfile()}
+          disabled={isSavingProfile}
+          className="mt-3 rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+        >
+          {isSavingProfile ? "Saving..." : "Save profile"}
+        </button>
+        {saveMessage && <p className="mt-2 text-sm text-slate-700">{saveMessage}</p>}
       </section>
 
       <BottomNav />

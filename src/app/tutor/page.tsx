@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
+import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
+import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
 
 type ChatMessage = {
   id: string;
@@ -29,7 +31,7 @@ function TutorPageContent() {
   const searchParams = useSearchParams();
   const subject = searchParams.get("subject") ?? "Chemistry";
   const topic = searchParams.get("topic") ?? "General";
-  const studentId = "demo-student";
+  const [studentId, setStudentId] = useState("demo-student");
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -44,10 +46,22 @@ function TutorPageContent() {
   const [currentStep, setCurrentStep] = useState<LessonStep>("explain");
   const [testAnswer, setTestAnswer] = useState<string | null>(null);
   const [testPassed, setTestPassed] = useState(false);
+  const [messagesUsed, setMessagesUsed] = useState(0);
+  const [trialMessageLimitReached, setTrialMessageLimitReached] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechSynthRef = useRef<SpeechSynthesis | null>(null);
   const startedAtRef = useRef(new Date().toISOString());
   const hasSavedSessionRef = useRef(false);
+
+  useEffect(() => {
+    const hydrateUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.id) setStudentId(user.id);
+    };
+    void hydrateUser();
+  }, []);
 
   useEffect(() => {
     speechSynthRef.current = window.speechSynthesis;
@@ -87,6 +101,15 @@ function TutorPageContent() {
   useEffect(() => {
     localStorage.setItem("lastLearnTopic", JSON.stringify({ subject, topic }));
   }, [subject, topic]);
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      const usage = await getTrialUsage(studentId);
+      setMessagesUsed(usage.messagesUsed);
+      setTrialMessageLimitReached(usage.messagesUsed >= TRIAL_LIMITS.tutorMessages);
+    };
+    void loadUsage();
+  }, [studentId, messages.length]);
 
   useEffect(() => {
     const startSession = async () => {
@@ -211,6 +234,7 @@ function TutorPageContent() {
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    if (trialMessageLimitReached) return;
 
     const nextMessages: ChatMessage[] = [...messages, { id: crypto.randomUUID(), role: "user", content: trimmed }];
     setMessages(nextMessages);
@@ -239,6 +263,13 @@ function TutorPageContent() {
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: data.message as string },
       ]);
+      setMessagesUsed((prev) => {
+        const next = prev + 1;
+        if (next >= TRIAL_LIMITS.tutorMessages) {
+          setTrialMessageLimitReached(true);
+        }
+        return next;
+      });
 
       if (currentStep === "test" && testAnswer) {
         const normalized = trimmed.toLowerCase();
@@ -393,6 +424,15 @@ function TutorPageContent() {
           </div>
         ) : null}
         {error && <p className="text-sm text-red-600">{error}</p>}
+        {trialMessageLimitReached && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-slate-800">
+            You have used all 20 free trial messages. Upgrade to continue learning with your personal tutor.{" "}
+            <Link href="/pricing" className="font-semibold text-brand-teal underline">
+              Upgrade now
+            </Link>
+            .
+          </div>
+        )}
       </section>
 
       <section className="mt-2 rounded-2xl bg-white p-3 shadow-card">
@@ -438,7 +478,8 @@ function TutorPageContent() {
           />
           <button
             onClick={() => void sendMessage()}
-            className="rounded-full bg-brand-orange p-2 text-white"
+            disabled={trialMessageLimitReached}
+            className="rounded-full bg-brand-orange p-2 text-white disabled:opacity-60"
             aria-label="Send message"
           >
             <Send className="h-4 w-4" />

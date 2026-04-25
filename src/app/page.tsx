@@ -76,7 +76,7 @@ export default function Home() {
           </h1>
           <p className="hero-subtitle">
             MyGradePal gives your child a 24/7 personal tutor for O Level / IGCSE —
-            and gives you complete visibility into every minute they study.
+            No academies. No commute. No cancelled sessions. Just results — with complete visibility into every minute your child studies.
           </p>
           <p className="hero-note">
             Our expert tutoring system is developed with qualified Cambridge O Level / IGCSE teachers
@@ -157,7 +157,7 @@ export default function Home() {
             { emoji: '🤷', title: '"I have no idea what my child studied with the tutor"', text: 'Tutors give zero data. Parents have no visibility into what was covered or understood.', solution: 'Real-time dashboard + WhatsApp report every Sunday.' },
             { emoji: '💸', title: '"I am spending Rs 20,000 a month and grades have not improved"', text: 'Private tutors charge Rs 8,000–25,000 per subject per month with no guarantee of results.', solution: 'Rs 5,000 per subject. Full visibility. Measurable results.' },
             { emoji: '🕐', title: '"The tutor cancelled again. Exams are in 6 weeks."', text: 'Human tutors get sick, have commitments, and take holidays. Your child\'s exam waits for no one.', solution: 'Available 24/7. Never cancels. Never has a bad day.' },
-            { emoji: '🚗', title: '"Sending my daughter to a stranger\'s house worries me"', text: 'Safety is a genuine concern. Unknown tutors, unknown locations, unknown supervision.', solution: '100% at home. No commute. No strangers. Full safety.' },
+            { emoji: '🚗', title: '"Driving to academies every evening is exhausting — and worrying"', text: 'Evening traffic to DHA or Gulberg academies. Waiting outside for an hour. Rushing back for dinner. Pakistani parents spend 8-10 hours a week just transporting children to academies and tuition centres. And you still have no idea what they actually learned inside.', solution: '100% at home. No commute. No waiting. No traffic. No safety concerns.' },
             { emoji: '📊', title: '"I do not know if my child is ready for the exam"', text: 'Most parents only find out how prepared their child is when results arrive.', solution: 'Live readiness score and exam countdown every week.' },
           ].map((p, i) => (
             <div className="pain-card" key={i}>
@@ -220,7 +220,7 @@ export default function Home() {
             <thead>
               <tr>
                 <th />
-                <th className="private-head">Private Tutor</th>
+                <th className="private-head">Private Tutor / Academy</th>
                 <th className="mgp-head">MyGradePal</th>
               </tr>
             </thead>
@@ -231,6 +231,8 @@ export default function Home() {
                 ['Parent visibility', 'None', 'Complete — real time'],
                 ['Cancellations', 'Common', 'Never'],
                 ['Exam topic prediction', 'Sometimes', 'Always — SmartPredict'],
+                ['Evening commute', '1-2 hours daily', 'Zero — study at home'],
+                ['Waiting time', '30-60 min per session', 'None'],
                 ['Safety', 'Unknown location', '100% at home'],
                 ['Progress data', 'None', 'Real-time dashboard'],
                 ['WhatsApp reports', 'None', 'Every Sunday'],
@@ -305,7 +307,7 @@ export default function Home() {
         <div className="testimonials-grid reveal">
           {[
             { text: '"Ahmed got a B in Chemistry last year. After 3 months on MyGradePal he got an A* in his mocks. I cried when I saw the results. This platform changed everything."', author: 'Mrs. Fatima Siddiqui', detail: 'Mother of Grade 10 student · DHA Lahore' },
-            { text: '"My daughter wants to be a doctor at Aga Khan. Her Biology was weak. MyGradePal identified exactly which topics she was failing and fixed them one by one. Her teacher said she has improved more in 6 weeks than in the whole year before."', author: 'Mr. Tariq Mahmood', detail: 'Father · DHA Lahore' },
+            { text: '"We were spending 2 hours every evening driving to the academy and back. My daughter was exhausted before she even started studying. With MyGradePal she opens her laptop at home and I can see exactly what she is doing. Her grades improved and we got our evenings back."', author: 'Mr. Tariq Mahmood', detail: 'Father · DHA Lahore' },
             { text: '"We could not afford three separate tutors. MyGradePal gave our son the same quality at a fraction of the cost. He is now aiming for LUMS. We never thought that was possible."', author: 'Mrs. Amina Butt', detail: 'Mother of Grade 10 student · Gulberg' },
           ].map((t, i) => (
             <div className="testimonial" key={i}>

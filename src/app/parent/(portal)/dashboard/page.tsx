@@ -2,6 +2,10 @@
 
 import clsx from "clsx";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
+import { supabase } from "@/lib/supabase";
+import { getTrialInfo } from "@/lib/trialStatus";
 
 type DayStatus = "complete" | "missed" | "in_progress" | "rest";
 type DashboardData = {
@@ -52,15 +56,35 @@ function scoreLabel(score: number) {
 
 export default function ParentDashboardPage() {
   const [data, setData] = useState<DashboardData>(demo);
+  const [trial, setTrial] = useState(() => getTrialInfo());
   const [sendingReminder, setSendingReminder] = useState(false);
   useEffect(() => {
     const load = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const authChildName = String(user.user_metadata?.child_name ?? "").trim();
+        if (authChildName) {
+          setData((prev) => ({
+            ...prev,
+            childName: authChildName,
+            topAlert: {
+              ...prev.topAlert,
+              title: prev.topAlert.title.replace("Ahmed", authChildName),
+            },
+          }));
+        }
+      }
+
       try {
         const response = await fetch("/api/parent/dashboard");
         if (response.ok) setData((await response.json()) as DashboardData);
       } catch {
         // Keep demo data.
       }
+      setTrial(getTrialInfo());
     };
     void load();
   }, []);
@@ -85,6 +109,25 @@ export default function ParentDashboardPage() {
 
   return (
     <div className="space-y-4">
+      <section
+        className={clsx(
+          "rounded-2xl p-4 shadow-card",
+          trial.status === "Free Trial" ? "border border-orange-200 bg-orange-50" : "border border-red-200 bg-red-50",
+        )}
+      >
+        <p className={clsx("font-semibold", trial.status === "Free Trial" ? "text-orange-700" : "text-red-700")}>
+          {trial.status === "Free Trial"
+            ? `Free Trial - ${trial.daysRemaining} days remaining. Upgrade to keep ${data.childName}'s sessions going after trial ends.`
+            : `Free Trial ended. ${data.childName} cannot access new questions. Upgrade to continue.`}
+        </p>
+        <Link
+          href="/pricing"
+          className="mt-3 inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
+        >
+          Upgrade now →
+        </Link>
+      </section>
+
       <section
         className={clsx(
           "rounded-2xl p-4 shadow-card",
@@ -139,7 +182,9 @@ export default function ParentDashboardPage() {
           <h2 className="heading-font text-xl font-bold text-white">Streak Counter</h2>
           <p className="mt-3 text-4xl">🔥</p>
           <p className="text-3xl font-bold">{data.streakDays} day streak</p>
-          <p className="text-sm font-semibold text-orange-100">Ahmed&apos;s longest ever: {data.longestStreak} days</p>
+          <p className="text-sm font-semibold text-orange-100">
+            {data.childName}&apos;s longest ever: {data.longestStreak} days
+          </p>
           <p className="mt-3 text-xs text-orange-100">Sessions cannot be skipped without you knowing.</p>
         </article>
       </section>
@@ -208,7 +253,7 @@ export default function ParentDashboardPage() {
         </article>
         <article className="rounded-2xl bg-brand-teal p-4 text-white shadow-card">
           <p className="text-2xl">⏱</p>
-          <p className="mt-2 text-sm font-semibold">You see every minute Ahmed studies — in real time.</p>
+          <p className="mt-2 text-sm font-semibold">You see every minute {data.childName} studies — in real time.</p>
         </article>
         <article className="rounded-2xl bg-brand-teal p-4 text-white shadow-card">
           <p className="text-2xl">🛡️</p>
