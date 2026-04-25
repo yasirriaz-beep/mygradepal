@@ -11,7 +11,7 @@ const grades = ['igcse','lower_secondary']
 
 function AdminPanel() {
   const [tab, setTab] = useState('add')
-  const [questions, setQuestions] = useState([])
+  const [questions, setQuestions] = useState<any[]>([])
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const [msg, setMsg] = useState('')
   const [form, setForm] = useState({
@@ -79,7 +79,7 @@ function AdminPanel() {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({id})
     })
-    setQuestions((q: any[]) => q.filter((x: any) => x.id !== id))
+    setQuestions(prev => prev.filter((x: any) => x.id !== id))
   }
 
   function getPreview(text: string) {
