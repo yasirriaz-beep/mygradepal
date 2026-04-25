@@ -50,7 +50,7 @@ export default function Home() {
         </ul>
         <div className="nav-cta">
           <Link href="/parent/login" className="btn-outline">Parent login</Link>
-          <Link href="/dashboard" className="btn-primary">Start free trial</Link>
+          <Link href="/login" className="btn-primary">Start free trial</Link>
         </div>
       </nav>
 
@@ -82,7 +82,7 @@ export default function Home() {
             Our expert tutoring system is developed with qualified Cambridge O Level teachers
           </p>
           <div className="hero-actions">
-            <Link href="/dashboard" className="btn-hero">Start free 7-day trial →</Link>
+            <Link href="/login" className="btn-hero">Start free 7-day trial →</Link>
             <a href="#how" className="btn-hero-secondary">See how it works</a>
           </div>
         </div>
@@ -286,14 +286,14 @@ export default function Home() {
               Your total: <strong>Rs {total.toLocaleString()}/month</strong>
             </div>
             <div className="price-cta">
-              <Link href="/dashboard" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '16px' }}>
+              <Link href="/login" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '16px' }}>
                 Start free 7-day trial
               </Link>
             </div>
             <div className="price-foot">✓ 7 days free &nbsp; ✓ Cancel anytime &nbsp; ✓ No credit card needed</div>
             <div className="referral-banner">
               <div className="referral-title">🎁 Refer a friend — you both get Rs 1,000 off next month</div>
-              <Link href="/dashboard" className="referral-btn">Get your referral link →</Link>
+              <Link href="/referral" className="referral-btn">Get your referral link →</Link>
             </div>
           </div>
         </div>
@@ -351,7 +351,7 @@ export default function Home() {
           <h2>Your child&apos;s future starts today</h2>
           <p>Join the parents who chose action over hope</p>
           <div className="hero-actions" style={{ justifyContent: 'center' }}>
-            <Link href="/dashboard" className="btn-hero">Start free trial — 7 days free</Link>
+            <Link href="/login" className="btn-hero">Start free trial — 7 days free</Link>
             <Link href="/parent/login" className="btn-hero-secondary">Parent login →</Link>
           </div>
           <div className="cta-meta">
@@ -381,18 +381,18 @@ export default function Home() {
               <li><a href="#how">How it works</a></li>
               <li><Link href="/login">Student login</Link></li>
               <li><Link href="/parent/login">Parent login</Link></li>
-              <li><Link href="/dashboard">Referral programme</Link></li>
+              <li><Link href="/referral">Referral programme</Link></li>
             </ul>
           </div>
           <div>
             <div className="footer-col-title">Subjects</div>
             <ul className="footer-links">
-              <li><a href="#">Chemistry IGCSE</a></li>
-              <li><a href="#">Physics IGCSE</a></li>
-              <li><a href="#">Mathematics IGCSE</a></li>
-              <li><a href="#">Biology IGCSE</a></li>
-              <li><a href="#">Pakistan Studies</a></li>
-              <li><a href="#">Islamiyat</a></li>
+              <li><Link href="/login">Chemistry IGCSE</Link></li>
+              <li><Link href="/login">Physics IGCSE</Link></li>
+              <li><Link href="/login">Mathematics IGCSE</Link></li>
+              <li><Link href="/login">Biology IGCSE</Link></li>
+              <li><Link href="/login">Pakistan Studies</Link></li>
+              <li><Link href="/login">Islamiyat</Link></li>
             </ul>
           </div>
           <div>
