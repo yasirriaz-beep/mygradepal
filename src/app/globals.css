@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-teal-50 text-slate-900;
+}
+
+.heading-font {
+  font-family: var(--font-sora), sans-serif;
+}
+
+.body-font {
+  font-family: var(--font-dm-sans), sans-serif;
+}
