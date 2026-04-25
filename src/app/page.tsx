@@ -66,7 +66,7 @@ export default function Home() {
         </div>
         <div className="hero-overlay" />
         <div className="hero-inner">
-          <p className="hero-eyebrow">Pakistan&apos;s most advanced O Level tutoring platform</p>
+          <p className="hero-eyebrow">Pakistan&apos;s most advanced O Level / IGCSE tutoring platform</p>
           <h1 className="hero-title">
             Your child&apos;s
             <br />
@@ -75,11 +75,11 @@ export default function Home() {
             <span className="accent-orange">at home.</span>
           </h1>
           <p className="hero-subtitle">
-            MyGradePal gives your child a 24/7 personal tutor for O Level —
+            MyGradePal gives your child a 24/7 personal tutor for O Level / IGCSE —
             and gives you complete visibility into every minute they study.
           </p>
           <p className="hero-note">
-            Our expert tutoring system is developed with qualified Cambridge O Level teachers
+            Our expert tutoring system is developed with qualified Cambridge O Level / IGCSE teachers
           </p>
           <div className="hero-actions">
             <Link href="/login" className="btn-hero">Start free 7-day trial →</Link>
@@ -104,7 +104,7 @@ export default function Home() {
             </div>
             <div className="dream-content">
               <div className="dream-caption">Top universities in Pakistan and abroad</div>
-              <p className="dream-text">LUMS, NUST, Aga Khan, IBA — and beyond. Strong O Level grades open every door.</p>
+              <p className="dream-text">LUMS, NUST, Aga Khan, IBA — and beyond. Strong O Level / IGCSE grades open every door.</p>
             </div>
           </div>
           <div className="dream-card">
@@ -142,7 +142,7 @@ export default function Home() {
         <div className="stats-grid">
           <div className="stat"><div className="stat-value">6,800+</div><div className="stat-label">Past paper questions</div></div>
           <div className="stat"><div className="stat-value">15 years</div><div className="stat-label">Cambridge data analysed</div></div>
-          <div className="stat"><div className="stat-value">7</div><div className="stat-label">O Level subjects covered</div></div>
+          <div className="stat"><div className="stat-value">7</div><div className="stat-label">O Level / IGCSE subjects covered</div></div>
           <div className="stat"><div className="stat-value">24/7</div><div className="stat-label">Always available</div></div>
         </div>
       </div>
@@ -172,8 +172,8 @@ export default function Home() {
 
       <section className="features-section" id="features">
         <div className="section-label">What is included</div>
-        <h2 className="section-title">Everything your child needs to excel at O Level</h2>
-        <p className="section-sub">Built by experienced O Level teachers and subject experts from across Pakistan.</p>
+        <h2 className="section-title">Everything your child needs to excel at O Level / IGCSE</h2>
+        <p className="section-sub">Built by experienced O Level / IGCSE teachers and subject experts from across Pakistan.</p>
         <div className="features-grid reveal">
           {[
             { icon: '🔒', title: 'Session lock and discipline', text: 'Set a daily study window. The system enforces it every day. You get a WhatsApp alert if the session is missed.' },
@@ -247,7 +247,7 @@ export default function Home() {
       </section>
 
       <section className="logos-section">
-        <div className="section-label" style={{ textAlign: 'center' }}>Your child&apos;s O Level grades open these doors</div>
+        <div className="section-label" style={{ textAlign: 'center' }}>Your child&apos;s O Level / IGCSE grades open these doors</div>
         <div className="logo-strip">
           <div className="marquee">
             {['LUMS', 'NUST', 'Aga Khan University', 'IBA Karachi', 'COMSATS', 'University of London', 'University of Toronto', 'King\'s College London', 'University of Edinburgh', 'FAST NUCES', 'NED University', 'Lahore University',
@@ -321,10 +321,10 @@ export default function Home() {
       <section className="vision-section">
         <div className="section-label">Our vision</div>
         <h2 className="section-title" style={{ color: 'white' }}>Building the future of education in Pakistan</h2>
-        <p className="section-sub" style={{ color: 'var(--teal-200)' }}>Starting with O Level. Growing into something much bigger.</p>
+        <p className="section-sub" style={{ color: 'var(--teal-200)' }}>Starting with O Level / IGCSE. Growing into something much bigger.</p>
         <div className="vision-grid reveal">
           {[
-            { year: 'Today · 2025', title: 'O Level excellence from home', text: 'Grade 9-10 students across Pakistan get world-class exam preparation at home. Chemistry, Physics, Mathematics, Biology, English, Pakistan Studies, Islamiyat.' },
+            { year: 'Today · 2025', title: 'O Level / IGCSE excellence from home', text: 'Grade 9-10 students across Pakistan get world-class exam preparation at home. Chemistry, Physics, Mathematics, Biology, English, Pakistan Studies, Islamiyat.' },
             { year: 'Next · 2026', title: 'Complete secondary education', text: 'Grade 6-8 Lower Secondary curriculum. Quran learning and Tajweed. A Level preparation. Every subject a Pakistani student needs.' },
             { year: 'Vision · 2027+', title: 'Pakistan\'s home education platform', text: 'Homeschooling support for parents who want full control. Available in every city across Pakistan. Affordable enough for every family.' },
           ].map((v, i) => (
@@ -369,7 +369,7 @@ export default function Home() {
               <span className="my">My</span>Grade<span className="pal">Pal</span>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--teal-300)', lineHeight: '1.7', maxWidth: '260px', marginBottom: '16px' }}>
-              Expert-backed O Level tutoring system with complete parent accountability. Your child&apos;s academy — at home.
+              Expert-backed O Level / IGCSE tutoring system with complete parent accountability. Your child&apos;s academy — at home.
             </p>
             <p style={{ fontSize: '13px', color: 'var(--teal-300)' }}>hello@mygradepal.com<br />Lahore, Pakistan</p>
           </div>
@@ -387,10 +387,10 @@ export default function Home() {
           <div>
             <div className="footer-col-title">Subjects</div>
             <ul className="footer-links">
-              <li><Link href="/login">Chemistry IGCSE</Link></li>
-              <li><Link href="/login">Physics IGCSE</Link></li>
-              <li><Link href="/login">Mathematics IGCSE</Link></li>
-              <li><Link href="/login">Biology IGCSE</Link></li>
+              <li><Link href="/login">Chemistry O Level / IGCSE</Link></li>
+              <li><Link href="/login">Physics O Level / IGCSE</Link></li>
+              <li><Link href="/login">Mathematics O Level / IGCSE</Link></li>
+              <li><Link href="/login">Biology O Level / IGCSE</Link></li>
               <li><Link href="/login">Pakistan Studies</Link></li>
               <li><Link href="/login">Islamiyat</Link></li>
             </ul>
@@ -402,7 +402,7 @@ export default function Home() {
               <li><a href="#">Grade 7</a></li>
               <li><a href="#">Grade 8</a></li>
               <li><a href="#">Grade 9</a></li>
-              <li><a href="#">Grade 10 — O Level</a></li>
+              <li><a href="#">Grade 10 — O Level / IGCSE</a></li>
             </ul>
           </div>
         </div>
