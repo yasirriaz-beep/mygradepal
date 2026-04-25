@@ -944,6 +944,80 @@ footer {
 .testimonial-text { font-size: 14px; color: #5a8a88; line-height: 1.8; margin-bottom: 16px; font-style: italic; }
 .testimonial-author { font-size: 13px; font-weight: 700; color: #137066; }
 
+/* FAQ accordion — between testimonials and vision */
+.faq-section {
+  padding: 96px 6vw;
+  background: white;
+}
+.faq-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.faq-accordion {
+  margin-top: 28px;
+  border: 1px solid #d0f7f2;
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+}
+.faq-item {
+  border-bottom: 1px solid #eef4f3;
+}
+.faq-item:last-child {
+  border-bottom: none;
+}
+.faq-question {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: white;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0e1a1a;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.faq-question:hover {
+  color: #189080;
+}
+.faq-arrow {
+  flex-shrink: 0;
+  display: inline-block;
+  transition: transform 0.28s ease;
+  color: #189080;
+  font-size: 10px;
+  line-height: 1;
+}
+.faq-item-open .faq-arrow {
+  transform: rotate(-180deg);
+}
+.faq-answer-wrap {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.faq-item-open .faq-answer-wrap {
+  max-height: 900px;
+}
+.faq-answer-inner {
+  overflow: hidden;
+}
+.faq-answer {
+  padding: 16px 20px 22px;
+  margin: 0 12px 12px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #5a8a88;
+  background: #edfaf8;
+  border-radius: 12px;
+}
+
 .vision-section { padding: 96px 6vw; background: #0a2e2e; }
 .vision-grid {
   display: grid;

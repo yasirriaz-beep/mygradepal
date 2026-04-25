@@ -4,8 +4,60 @@ import Link from 'next/link'
 import Image from 'next/image'
 import './landing.css'
 
+const FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: 'What is the difference between O Level and IGCSE?',
+    a: 'They are the same qualification. O Level is the traditional name most Pakistani parents grew up with. IGCSE is the current official name used by Cambridge. Both refer to the same Cambridge exams your child sits in Grade 10. MyGradePal covers both completely.',
+  },
+  {
+    q: 'Which schools in Pakistan use Cambridge O Level / IGCSE?',
+    a: 'Most private English-medium schools use Cambridge — Beaconhouse, City School, Lahore Grammar School, The Educators, and most schools in DHA, Gulberg, Bahria Town, and Clifton. If your child\'s school uses Cambridge exam codes like 0620 for Chemistry or 0580 for Mathematics, MyGradePal is built for them.',
+  },
+  {
+    q: 'When do O Level / IGCSE exams take place?',
+    a: 'Cambridge runs two exam sessions every year. May/June is the main session — most Pakistani students appear in this one in Grade 10. October/November is the resit session. MyGradePal prepares students for both sessions with past papers from every sitting.',
+  },
+  {
+    q: 'How is MyGradePal different from a private tutor?',
+    a: 'Private tutors come 3 times a week at most — and academies mean driving your child across the city every evening, sitting in traffic, waiting outside for hours. MyGradePal is available 24 hours a day, 7 days a week from your own home. No commute. No waiting. No cancelled sessions. And unlike a tutor or academy, you get a full report of exactly what your child studied — sent to your WhatsApp every Sunday evening.',
+  },
+  {
+    q: 'Is there a real teacher involved or is it just software?',
+    a: 'MyGradePal\'s tutoring system is built on the knowledge of experienced Cambridge O Level teachers and subject specialists. Every explanation and every mark scheme is grounded in real Cambridge marking standards. Our question bank is sourced directly from Cambridge past papers going back 15 years.',
+  },
+  {
+    q: 'How does the expert marking work?',
+    a: 'When your child submits an answer, our system marks it against the official Cambridge mark scheme — the same document Cambridge examiners use. It shows exactly which marks were awarded, which were missed, and why. This is more detailed feedback than most private tutors provide.',
+  },
+  {
+    q: 'My child is weak in one subject. Can I subscribe to just that one?',
+    a: 'Yes. MyGradePal is priced at Rs 5,000 per subject per month. You choose exactly which subjects your child needs. Start with one, add more whenever you are ready. No bundle required.',
+  },
+  {
+    q: 'How do I know my child is actually studying and not just opening the app?',
+    a: 'MyGradePal tracks active study time — questions attempted, answers submitted, tutor messages exchanged. Simply opening the app does not count. You see the real numbers every day on your parent dashboard and receive a WhatsApp report every Sunday evening.',
+  },
+  {
+    q: 'Can I control when my child must study?',
+    a: 'Yes. The session lock feature lets you set a daily study window — for example 7pm to 9pm. If your child does not complete their minimum session during that window, you receive a WhatsApp alert immediately. You have full visibility and control every single day.',
+  },
+  {
+    q: 'Is it safe for my daughter to use?',
+    a: 'Completely. MyGradePal is used entirely at home on your child\'s own device. There is no contact with any person, no video calls, no chat with strangers. It is as safe as a textbook — but far more effective.',
+  },
+  {
+    q: 'Can my child use it in Urdu?',
+    a: 'Yes. Your child can ask questions and receive explanations in Urdu, English, or a mix of both — whichever feels most natural to them. Many Pakistani students find complex Chemistry and Physics concepts easier to understand when explained in Urdu first.',
+  },
+  {
+    q: 'What happens after the 7-day free trial?',
+    a: 'After your free trial you choose which subjects to continue with at Rs 5,000 per subject per month. Contact us at hello@mygradepal.com or WhatsApp us and we activate your subscription within 2 hours. No automatic charges — you only pay when you decide to continue.',
+  },
+]
+
 export default function Home() {
   const [total, setTotal] = useState(0)
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
   const subjects = [
     'Chemistry (0620)',
     'Physics (0625)',
@@ -317,6 +369,38 @@ export default function Home() {
               <div style={{ fontSize: '12px', color: 'var(--ink-300)', marginTop: '3px' }}>{t.detail}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="faq-section" id="faq">
+        <div className="faq-inner reveal">
+          <div className="section-label">Frequently asked questions</div>
+          <h2 className="section-title">Everything parents ask before signing up</h2>
+          <div className="faq-accordion">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaqIndex === index
+              return (
+                <div key={item.q} className={`faq-item${isOpen ? ' faq-item-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="faq-question"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                  >
+                    <span>{item.q}</span>
+                    <span className="faq-arrow" aria-hidden>
+                      ▼
+                    </span>
+                  </button>
+                  <div className="faq-answer-wrap">
+                    <div className="faq-answer-inner">
+                      <div className="faq-answer">{item.a}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </section>
 
