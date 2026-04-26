@@ -64,22 +64,18 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: signupEmail,
-      password: signupPassword,
+    const email = signupEmail;
+    const password = signupPassword;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
       options: {
-        data: {
-          role: "student",
-          parent_name: parentName,
-          child_name: childName,
-          child_grade: childGrade,
-          name: childName || parentName,
-        },
-      },
-    });
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+      }
+    })
 
-    if (signUpError) {
-      setError(signUpError.message);
+    if (error) {
+      setError(error.message);
       setIsSubmitting(false);
       return;
     }
