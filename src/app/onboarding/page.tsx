@@ -47,6 +47,24 @@ const GRADE_OPTIONS = [
 const STUDY_DAYS = [3, 4, 5, 6, 7];
 const STUDY_MINUTES = [30, 45, 60, 90];
 
+function getExamDate(session: string, year: number): Date {
+  const month = session === "May/June" ? 4 : 9;
+  return new Date(year, month, 15);
+}
+
+function getDaysUntilExam(session: string, year: number): number {
+  const examDate = getExamDate(session, year);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getStudyMode(daysUntilExam: number): "crash" | "rapid" | "full" {
+  if (daysUntilExam <= 28) return "crash";
+  if (daysUntilExam <= 60) return "rapid";
+  return "full";
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -134,6 +152,17 @@ export default function OnboardingPage() {
 
   const generateWelcomeMessage = async () => {
     setLoading(true);
+    const daysUntilExam = getDaysUntilExam(form.examSession, form.examYear);
+    const weeksUntilExam = Math.max(1, Math.ceil(daysUntilExam / 7));
+    const studyMode = getStudyMode(daysUntilExam);
+    const urgency =
+      daysUntilExam <= 14
+        ? "very high"
+        : daysUntilExam <= 28
+          ? "high"
+          : daysUntilExam <= 60
+            ? "medium"
+            : "steady";
 
     try {
       const controller = new AbortController();
@@ -146,7 +175,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           subject: form.subject,
           topic: "Welcome",
-          message: `Write a warm 3-sentence welcome message for ${studentName} who is targeting Grade ${form.targetGrade} in ${form.subject} for ${form.examSession} ${form.examYear}. They will study ${form.studyDaysPerWeek} days a week for ${form.studyMinutesPerDay} minutes. Be encouraging and friendly.`,
+          message: `Write a warm 3-sentence welcome message for ${studentName} who is targeting Grade ${form.targetGrade} in ${form.subject} for ${form.examSession} ${form.examYear}. They have ${daysUntilExam} days (${weeksUntilExam} weeks) until the exam, urgency is ${urgency}, and recommended study mode is ${studyMode}. They will study ${form.studyDaysPerWeek} days a week for ${form.studyMinutesPerDay} minutes. Mention one practical next step and keep it encouraging.`,
           history: [],
           mode: "chat",
         }),
@@ -169,51 +198,58 @@ export default function OnboardingPage() {
   };
 
   const saveAndFinish = async () => {
-    setLoading(true)
-  
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    console.log('User:', user?.id, 'Error:', userError)
-  
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
-      console.log('No user found, redirecting to login')
-      router.push('/login')
-      return
+      router.push("/login");
+      return;
     }
 
-    const updateData = {
-      target_grade: form.targetGrade,
-      exam_session: form.examSession,
-      exam_year: form.examYear,
-      study_days_per_week: form.studyDaysPerWeek,
-      study_minutes_per_day: form.studyMinutesPerDay,
-      onboarding_complete: true,
-      onboarding_subject: form.subject,
-      welcome_message: welcomeMessage || '',
-      subscription_subjects: [form.subject],
-    }
-
-    console.log('Saving:', updateData)
-  
-    const { data, error } = await supabase
-      .from('students')
-      .upsert({
+    const { error } = await supabase
+      .from("students")
+      .upsert(
+        {
         id: user.id,
-        email: user.email ?? '',
+        email: user.email ?? "",
         name: studentName,
-        ...updateData,
-      }, { onConflict: 'id' })
-      .select()
-  
-    console.log('Save result:', data, 'Error:', error)
+        target_grade: form.targetGrade,
+        exam_session: form.examSession,
+        exam_year: form.examYear,
+        study_days_per_week: form.studyDaysPerWeek,
+        study_minutes_per_day: form.studyMinutesPerDay,
+        onboarding_complete: true,
+        onboarding_subject: form.subject,
+        welcome_message: welcomeMessage || "",
+        subscription_subjects: [form.subject],
+        },
+        { onConflict: "id" },
+      );
 
     if (error) {
-      console.error('Failed to save:', error.message)
-      setLoading(false)
-      return
+      console.error("Save error:", error);
+      setLoading(false);
+      return;
     }
 
-    console.log('Saved successfully, going to dashboard')
-    router.push('/dashboard')
+    await fetch("/api/generate-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentId: user.id,
+        subject: form.subject,
+        examSession: form.examSession,
+        examYear: form.examYear,
+        targetGrade: form.targetGrade,
+        studyDaysPerWeek: form.studyDaysPerWeek,
+        studyMinutesPerDay: form.studyMinutesPerDay,
+      }),
+    });
+
+    router.push("/dashboard");
   };
 
   const teal = "#189080";

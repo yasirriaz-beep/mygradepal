@@ -34,6 +34,22 @@ export default function DashboardPage() {
   const [weakestTopic, setWeakestTopic] = useState<{ subject: string; topic: string; mastery: number } | null>(
     null,
   );
+  const [todayPlan, setTodayPlan] = useState<{
+    subject: string;
+    topic: string;
+    subtopic: string;
+    mode: string;
+    minutesPlanned: number;
+  } | null>(null);
+  const [weekPlan, setWeekPlan] = useState<
+    Array<{
+      scheduledDate: string;
+      topic: string;
+      subtopic: string;
+      mode: string;
+      completed: boolean;
+    }>
+  >([]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -142,6 +158,66 @@ export default function DashboardPage() {
     };
 
     void loadMastery();
+  }, [studentId]);
+
+  useEffect(() => {
+    if (!studentId) return;
+
+    const loadStudyPlan = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getDay();
+      const monday = new Date(today);
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      monday.setDate(today.getDate() + diff);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const todayStr = today.toISOString().split("T")[0];
+      const mondayStr = monday.toISOString().split("T")[0];
+      const sundayStr = sunday.toISOString().split("T")[0];
+
+      const { data, error } = await supabase
+        .from("study_plan")
+        .select("subject, topic, subtopic, mode, completed, scheduled_date, minutes_planned")
+        .eq("student_id", studentId)
+        .gte("scheduled_date", mondayStr)
+        .lte("scheduled_date", sundayStr)
+        .order("scheduled_date", { ascending: true })
+        .order("day_number", { ascending: true });
+
+      if (error || !data) {
+        setTodayPlan(null);
+        setWeekPlan([]);
+        return;
+      }
+
+      const rows = data as Array<Record<string, unknown>>;
+      const todayEntry = rows.find((row) => String(row.scheduled_date ?? "") === todayStr);
+      if (todayEntry) {
+        setTodayPlan({
+          subject: String(todayEntry.subject ?? "Chemistry"),
+          topic: String(todayEntry.topic ?? ""),
+          subtopic: String(todayEntry.subtopic ?? ""),
+          mode: String(todayEntry.mode ?? "learn"),
+          minutesPlanned: Number(todayEntry.minutes_planned ?? 45),
+        });
+      } else {
+        setTodayPlan(null);
+      }
+
+      setWeekPlan(
+        rows.map((row) => ({
+          scheduledDate: String(row.scheduled_date ?? ""),
+          topic: String(row.topic ?? ""),
+          subtopic: String(row.subtopic ?? ""),
+          mode: String(row.mode ?? "learn"),
+          completed: Boolean(row.completed),
+        })),
+      );
+    };
+
+    void loadStudyPlan();
   }, [studentId]);
 
   const masteryBySubject = useMemo(() => subjectMastery, [subjectMastery]);
@@ -318,23 +394,69 @@ export default function DashboardPage() {
 
       <section className="mt-5 rounded-2xl border border-teal-200 bg-white p-4 shadow-card">
         <h3 className="heading-font text-xl font-semibold text-slate-900">Study plan for today</h3>
-        <p className="mt-2 text-sm text-slate-700">
-          Today focus on:{" "}
-          <span className="font-semibold">
-            {weakestTopic ? `${weakestTopic.topic} (${weakestTopic.mastery}% mastery)` : "Stoichiometry (38% mastery)"}
-          </span>
-        </p>
-        <p className="mt-1 text-sm text-slate-600">Suggested: 20 min lesson + 5 practice questions</p>
+        {todayPlan ? (
+          <>
+            <p className="mt-2 text-sm text-slate-700">
+              Today focus on: <span className="font-semibold">{todayPlan.topic}</span>
+            </p>
+            <p className="mt-1 text-sm text-slate-600">{todayPlan.subtopic}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Mode: <span className="font-medium capitalize">{todayPlan.mode.replace("_", " ")}</span> ·{" "}
+              {todayPlan.minutesPlanned} min planned
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-slate-700">
+              Today focus on:{" "}
+              <span className="font-semibold">
+                {weakestTopic ? `${weakestTopic.topic} (${weakestTopic.mastery}% mastery)` : "No scheduled study today"}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-slate-600">Suggested: 20 min lesson + 5 practice questions</p>
+          </>
+        )}
         <Link
           href={
-            weakestTopic
-              ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
-              : "/tutor?subject=Chemistry&topic=Stoichiometry"
+            todayPlan
+              ? `/tutor?subject=${encodeURIComponent(todayPlan.subject)}&topic=${encodeURIComponent(todayPlan.topic)}`
+              : weakestTopic
+                ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
+                : "/tutor?subject=Chemistry&topic=Stoichiometry"
           }
           className="mt-3 inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
         >
           Start today&apos;s plan
         </Link>
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
+        <h3 className="heading-font text-xl font-semibold text-slate-900">This week&apos;s study plan</h3>
+        {weekPlan.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">No plan scheduled for this week yet.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {weekPlan.map((entry) => (
+              <div
+                key={`${entry.scheduledDate}-${entry.topic}-${entry.subtopic}`}
+                className="flex items-start justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {entry.scheduledDate} · {entry.topic}
+                  </p>
+                  <p className="text-xs text-slate-600">{entry.subtopic}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs capitalize text-teal-700">{entry.mode.replace("_", " ")}</p>
+                  <p className={`text-xs ${entry.completed ? "text-green-600" : "text-slate-500"}`}>
+                    {entry.completed ? "Completed" : "Planned"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
