@@ -73,7 +73,7 @@ export default function DashboardPage() {
       .eq("id", studentId)
       .single()
       .then(({ data }) => {
-        if (data && !data.onboarding_complete) {
+        if (!data || !data.onboarding_complete) {
           router.push("/onboarding");
         }
       });

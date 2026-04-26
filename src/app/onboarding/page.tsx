@@ -134,9 +134,12 @@ Keep it conversational, warm and motivating. Write as if you are their personal 
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase
-      .from("students")
-      .update({
+    await supabase.from("students").upsert(
+      {
+        id: user.id,
+        email: user.email ?? "",
+        name: user.user_metadata?.child_name ?? user.user_metadata?.name ?? "Student",
+        grade: user.user_metadata?.child_grade ?? user.user_metadata?.grade ?? "Grade 10",
         target_grade: form.targetGrade,
         exam_session: form.examSession,
         exam_year: form.examYear,
@@ -146,8 +149,9 @@ Keep it conversational, warm and motivating. Write as if you are their personal 
         onboarding_subject: form.subject,
         welcome_message: welcomeMessage,
         subscription_subjects: [form.subject],
-      })
-      .eq("id", user.id);
+      },
+      { onConflict: "id" },
+    );
 
     setLoading(false);
     router.push("/dashboard");

@@ -45,13 +45,13 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: student } = await supabase
+    const { data: student, error: studentError } = await supabase
       .from("students")
       .select("onboarding_complete")
       .eq("id", user.id)
       .single();
 
-    if (!student?.onboarding_complete) {
+    if (studentError || !student?.onboarding_complete) {
       router.push("/onboarding");
     } else {
       router.push("/dashboard");
@@ -91,13 +91,13 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: student } = await supabase
+    const { data: student, error: studentError } = await supabase
       .from("students")
       .select("onboarding_complete")
       .eq("id", user.id)
       .single();
 
-    if (!student?.onboarding_complete) {
+    if (studentError || !student?.onboarding_complete) {
       router.push("/onboarding");
     } else {
       router.push("/dashboard");
