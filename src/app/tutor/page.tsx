@@ -183,8 +183,8 @@ function TutorPageContent() {
 
   const startVoiceInput = () => {
     const recognitionCtor =
-      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition; SpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition; SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition;
+      (window as any).webkitSpeechRecognition ||
+      (window as any).SpeechRecognition;
     if (!recognitionCtor) {
       alert("Voice input only works in Chrome. Please use Chrome or type your question.");
       return;
