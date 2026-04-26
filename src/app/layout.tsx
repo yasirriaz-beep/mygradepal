@@ -5,13 +5,15 @@ import "./globals.css";
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
-  weight: ["400", "600", "700"]
+  weight: ["400", "600", "700"],
+  preload: false
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
-  weight: ["400", "500", "700"]
+  weight: ["400", "500", "700"],
+  preload: false
 });
 
 export const metadata: Metadata = {
@@ -26,12 +28,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body className={`${sora.variable} ${dmSans.variable} body-font antialiased`}>
         {children}
       </body>
