@@ -238,9 +238,24 @@ export async function POST(request: Request) {
         const batch = planEntries.slice(i, i + batchSize);
         const { error } = await supabase.from("study_plan").insert(batch);
         if (error) {
-          console.error("[generate-plan] insert batch failed:", error.message, error);
+          console.error(
+            "[generate-plan] insert batch failed:",
+            JSON.stringify({
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code,
+              firstRow: batch[0],
+            }),
+          );
           return NextResponse.json(
-            { error: error.message, details: error.details, hint: error.hint, code: error.code },
+            {
+              error: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code,
+              sampleRow: batch[0],
+            },
             { status: 500 },
           );
         }
