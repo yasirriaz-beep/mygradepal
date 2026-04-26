@@ -69,43 +69,30 @@ export default function OnboardingPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
-    let mounted = true;
+    let attempts = 0;
+    const maxAttempts = 10;
 
-    const init = async () => {
+    const checkSession = async () => {
+      attempts++;
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (session?.user && mounted) {
+      if (session?.user) {
         const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
         setStudentName(name);
         setAuthReady(true);
         return;
       }
 
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, authSession) => {
-        if (authSession?.user && mounted) {
-          const name = authSession.user.user_metadata?.child_name ?? authSession.user.user_metadata?.name ?? "Student";
-          setStudentName(name);
-          setAuthReady(true);
-          subscription.unsubscribe();
-        }
-      });
-
-      setTimeout(() => {
-        if (!mounted) return;
-        subscription.unsubscribe();
+      if (attempts < maxAttempts) {
+        setTimeout(checkSession, 500);
+      } else {
         router.push("/login");
-      }, 5000);
+      }
     };
 
-    void init();
-
-    return () => {
-      mounted = false;
-    };
+    void checkSession();
   }, []);
 
   if (!authReady) {

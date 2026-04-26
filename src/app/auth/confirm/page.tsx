@@ -21,11 +21,7 @@ export default function AuthConfirm() {
         .eq("id", user.id)
         .single()
 
-      if (!student?.onboarding_complete) {
-        router.push("/onboarding")
-      } else {
-        router.push("/dashboard")
-      }
+      router.push(student?.onboarding_complete ? "/dashboard" : "/onboarding")
     }
     void handleConfirm()
   }, [router])

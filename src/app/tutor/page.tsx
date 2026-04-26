@@ -182,15 +182,15 @@ function TutorPageContent() {
   };
 
   const startVoiceInput = () => {
-    const recognitionCtor =
-      (window as any).webkitSpeechRecognition ||
-      (window as any).SpeechRecognition;
-    if (!recognitionCtor) {
+    const w = window as any;
+    const SpeechRecognitionAPI = w.webkitSpeechRecognition || w.SpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
       alert("Voice input only works in Chrome. Please use Chrome or type your question.");
       return;
     }
 
-    const recognition = new recognitionCtor();
+    const recognition = new SpeechRecognitionAPI();
     recognition.lang = "en-US";
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -201,12 +201,8 @@ function TutorPageContent() {
       setInput(transcript);
       setIsListening(false);
     };
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
 
     recognition.start();
   };
