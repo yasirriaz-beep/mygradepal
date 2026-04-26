@@ -38,9 +38,9 @@ export default function LoginPage() {
       return;
     }
 
-    const user = data.user;
+    const user = data.user ?? (await supabase.auth.getUser()).data.user;
     if (!user) {
-      router.push("/dashboard");
+      router.push("/login");
       router.refresh();
       return;
     }
@@ -90,9 +90,9 @@ export default function LoginPage() {
       });
     }
 
-    const user = data.user;
+    const user = data.user ?? (await supabase.auth.getUser()).data.user;
     if (!user) {
-      router.push("/dashboard");
+      router.push("/login");
       router.refresh();
       return;
     }
