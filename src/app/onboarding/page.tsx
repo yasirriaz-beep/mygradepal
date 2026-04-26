@@ -69,34 +69,44 @@ export default function OnboardingPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
-    const checkAuth = async () => {
+    let mounted = true;
+
+    const init = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (!session) {
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, authSession) => {
-          if (authSession) {
-            const name = authSession.user.user_metadata?.child_name ?? authSession.user.user_metadata?.name ?? "Student";
-            setStudentName(name);
-            setAuthReady(true);
-            subscription.unsubscribe();
-          } else if (event === "SIGNED_OUT") {
-            router.push("/login");
-          }
-        });
+      if (session?.user && mounted) {
+        const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
+        setStudentName(name);
+        setAuthReady(true);
         return;
       }
 
-      const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
-      setStudentName(name);
-      setAuthReady(true);
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, authSession) => {
+        if (authSession?.user && mounted) {
+          const name = authSession.user.user_metadata?.child_name ?? authSession.user.user_metadata?.name ?? "Student";
+          setStudentName(name);
+          setAuthReady(true);
+          subscription.unsubscribe();
+        }
+      });
+
+      setTimeout(() => {
+        if (!mounted) return;
+        subscription.unsubscribe();
+        router.push("/login");
+      }, 5000);
     };
 
-    void checkAuth();
-  }, [router, supabase]);
+    void init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!authReady) {
     return (
