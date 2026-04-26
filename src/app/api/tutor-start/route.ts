@@ -27,15 +27,13 @@ export async function POST(request: Request) {
     const supabase = getSupabaseServiceClient();
     const { data: scoreRow } = await supabase
       .from("topic_scores")
-      .select("mastery, score_percent")
+      .select("mastery")
       .eq("student_id", studentId)
       .eq("subject", subject)
       .eq("topic", topic)
       .maybeSingle();
 
-    const mastery = Math.round(
-      Number((scoreRow?.mastery as number) ?? (scoreRow?.score_percent as number) ?? 0),
-    );
+    const mastery = Math.round(Number((scoreRow?.mastery as number) ?? 0));
 
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",

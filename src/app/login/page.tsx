@@ -80,6 +80,16 @@ export default function LoginPage() {
       return;
     }
 
+    if (data.user && !error) {
+      await supabase.from("students").insert({
+        id: data.user.id,
+        email: email,
+        name: childName || email.split("@")[0],
+        onboarding_complete: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+
     const user = data.user;
     if (!user) {
       router.push("/dashboard");

@@ -169,33 +169,51 @@ export default function OnboardingPage() {
   };
 
   const saveAndFinish = async () => {
-    setLoading(true);
-    
-    const { data: { user } } = await supabase.auth.getUser();
+    setLoading(true)
+  
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    console.log('User:', user?.id, 'Error:', userError)
+  
     if (!user) {
-      router.push("/login");
-      return;
+      console.log('No user found, redirecting to login')
+      router.push('/login')
+      return
     }
 
-    const { error } = await supabase.from("students").update({
-        target_grade: form.targetGrade,
-        exam_session: form.examSession,
-        exam_year: form.examYear,
-        study_days_per_week: form.studyDaysPerWeek,
-        study_minutes_per_day: form.studyMinutesPerDay,
-        onboarding_complete: true,
-        onboarding_subject: form.subject,
-        welcome_message: welcomeMessage || `Targeting Grade ${form.targetGrade} in ${form.subject}`,
-        subscription_subjects: [form.subject],
-      }).eq("id", user.id);
+    const updateData = {
+      target_grade: form.targetGrade,
+      exam_session: form.examSession,
+      exam_year: form.examYear,
+      study_days_per_week: form.studyDaysPerWeek,
+      study_minutes_per_day: form.studyMinutesPerDay,
+      onboarding_complete: true,
+      onboarding_subject: form.subject,
+      welcome_message: welcomeMessage || '',
+      subscription_subjects: [form.subject],
+    }
+
+    console.log('Saving:', updateData)
+  
+    const { data, error } = await supabase
+      .from('students')
+      .upsert({
+        id: user.id,
+        email: user.email ?? '',
+        name: studentName,
+        ...updateData,
+      }, { onConflict: 'id' })
+      .select()
+  
+    console.log('Save result:', data, 'Error:', error)
 
     if (error) {
-      console.error("Save error:", error);
-      setLoading(false);
-      return;
+      console.error('Failed to save:', error.message)
+      setLoading(false)
+      return
     }
 
-    router.push("/dashboard");
+    console.log('Saved successfully, going to dashboard')
+    router.push('/dashboard')
   };
 
   const teal = "#189080";

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const gradeInstruction = gradeGuidance[resolvedTargetGrade] ?? gradeGuidance.C;
     const { data: weakTopicData } = await supabase
       .from("topic_scores")
-      .select("topic, mastery, score_percent")
+      .select("topic, mastery")
       .eq("student_id", studentId)
       .eq("subject", subject)
       .order("mastery", { ascending: true })

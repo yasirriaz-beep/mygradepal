@@ -103,7 +103,7 @@ export default function DashboardPage() {
     const loadMastery = async () => {
       const { data, error } = await supabase
         .from("topic_scores")
-        .select("subject, topic, mastery, score_percent")
+        .select("subject, topic, mastery")
         .eq("student_id", studentId);
 
       if (error || !data) {
@@ -118,7 +118,7 @@ export default function DashboardPage() {
         const topic = String((row.topic as string) ?? "").trim();
         if (!subject) continue;
 
-        const masteryValue = Number((row.mastery as number) ?? (row.score_percent as number) ?? 0);
+        const masteryValue = Number((row.mastery as number) ?? 0);
         const safeMastery = Math.min(100, Math.max(0, masteryValue));
         if (topic) {
           if (!weakest || safeMastery < weakest.mastery) {
