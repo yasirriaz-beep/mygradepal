@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [childGrade, setChildGrade] = useState("Grade 6");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupComplete, setSignupComplete] = useState(false);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -64,15 +65,18 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const email = signupEmail;
-    const password = signupPassword;
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: signupEmail,
+      password: signupPassword,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/confirm`,
-      }
-    })
+        data: {
+          child_name: childName,
+          parent_name: parentName,
+          grade: childGrade,
+        },
+      },
+    });
 
     if (error) {
       setError(error.message);
@@ -80,36 +84,83 @@ export default function LoginPage() {
       return;
     }
 
-    if (data.user && !error) {
-      await supabase.from("students").insert({
-        id: data.user.id,
-        email: email,
-        name: childName || email.split("@")[0],
-        onboarding_complete: false,
-        created_at: new Date().toISOString(),
-      });
+    if (data.user) {
+      await supabase.from("students").upsert(
+        {
+          id: data.user.id,
+          email: signupEmail,
+          name: childName || signupEmail.split("@")[0],
+          grade: childGrade,
+          onboarding_complete: false,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
     }
 
-    const user = data.user ?? (await supabase.auth.getUser()).data.user;
-    if (!user) {
-      router.push("/login");
-      router.refresh();
-      return;
-    }
-
-    const { data: student, error: studentError } = await supabase
-      .from("students")
-      .select("onboarding_complete")
-      .eq("id", user.id)
-      .single();
-
-    if (studentError || !student?.onboarding_complete) {
-      router.push("/onboarding");
-    } else {
-      router.push("/dashboard");
-    }
-    router.refresh();
+    setIsSubmitting(false);
+    setSignupComplete(true);
   };
+
+  if (signupComplete) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f9fafb",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            borderRadius: 16,
+            padding: "40px 32px",
+            textAlign: "center",
+            maxWidth: 400,
+            width: "100%",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+          <h2
+            style={{
+              fontFamily: "'Sora', sans-serif",
+              fontSize: 20,
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            Check your email!
+          </h2>
+          <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6, marginBottom: 24 }}>
+            We sent a confirmation link to <strong>{signupEmail}</strong>. Click the link in the email to activate your
+            account and start your study plan.
+          </p>
+          <p style={{ fontSize: 13, color: "#9ca3af" }}>
+            Didn&apos;t get it? Check your spam folder or{" "}
+            <button
+              type="button"
+              onClick={() => setSignupComplete(false)}
+              style={{
+                color: "#189080",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                textDecoration: "underline",
+              }}
+            >
+              try again
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-6 py-10">
