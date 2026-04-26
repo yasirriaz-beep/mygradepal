@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mic, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
@@ -15,6 +15,7 @@ type ChatMessage = {
   id: string;
   role: "assistant" | "user";
   content: string;
+  audioUrl?: string | null;
 };
 
 type LessonStep = "explain" | "formulas" | "example" | "test" | "past-paper";
@@ -36,7 +37,6 @@ type StaticTopicContent = {
   quick_check: string;
   urdu_summary: string;
   audio_url_en: string | null;
-  audio_url_ur: string | null;
 };
 
 function TutorPageContent() {
@@ -48,21 +48,31 @@ function TutorPageContent() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [languageMode, setLanguageMode] = useState<"english" | "urdu">("english");
-  const [autoRead, setAutoRead] = useState(false);
-  const [audioRate, setAudioRate] = useState(1.0);
+  const [audioState, setAudioState] = useState<"idle" | "playing" | "paused">("idle");
+  const [audioSpeed, setAudioSpeed] = useState(1);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [studySessionId, setStudySessionId] = useState<string | null>(null);
+  const [targetGrade, setTargetGrade] = useState<"C" | "B" | "A" | "A*" | null>(null);
   const [currentStep, setCurrentStep] = useState<LessonStep>("explain");
   const [staticContent, setStaticContent] = useState<StaticTopicContent | null>(null);
-  const [showTestAnswer, setShowTestAnswer] = useState(false);
+  const [testAnswer, setTestAnswer] = useState("");
+  const [testResult, setTestResult] = useState<{
+    correct: boolean;
+    feedback: string;
+    correct_answer: string;
+  } | null>(null);
+  const [isMarking, setIsMarking] = useState(false);
   const [showUrdu, setShowUrdu] = useState(false);
   const [testScore, setTestScore] = useState({ correct: 0, total: 0 });
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [trialMessageLimitReached, setTrialMessageLimitReached] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const chatAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speechSynthRef = useRef<SpeechSynthesis | null>(null);
   const startedAtRef = useRef(new Date().toISOString());
@@ -91,6 +101,15 @@ function TutorPageContent() {
     setSpeakingMessageId(null);
   };
 
+  const handleStop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setAudioState("idle");
+  };
+
   const speakText = (text: string, messageId: string) => {
     if (!speechSynthRef.current) return;
     if (speakingMessageId === messageId) {
@@ -100,18 +119,129 @@ function TutorPageContent() {
 
     stopSpeaking();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = audioRate;
-    if (languageMode === "urdu") {
-      utterance.lang = "ur-PK";
-    } else {
-      utterance.lang = "en-US";
-    }
+    utterance.rate = 1;
+    utterance.lang = "en-US";
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
     utteranceRef.current = utterance;
     setSpeakingMessageId(messageId);
     speechSynthRef.current.speak(utterance);
   };
+
+  const initAudio = () => {
+    if (!staticContent?.audio_url_en) return;
+    if (audioRef.current) {
+      return;
+    }
+    const audio = new Audio(staticContent.audio_url_en);
+    audio.playbackRate = audioSpeed;
+    audio.onended = () => setAudioState("idle");
+    audioRef.current = audio;
+  };
+
+  const handlePlay = () => {
+    initAudio();
+    void audioRef.current?.play();
+    setAudioState("playing");
+  };
+
+  const handlePause = () => {
+    audioRef.current?.pause();
+    setAudioState("paused");
+  };
+
+  const playChatAudio = (audioUrl: string, index: number) => {
+    if (chatAudioRef.current) {
+      chatAudioRef.current.pause();
+      chatAudioRef.current.currentTime = 0;
+      chatAudioRef.current = null;
+    }
+
+    if (playingMsgIndex === index) {
+      setPlayingMsgIndex(null);
+      return;
+    }
+
+    const audio = new Audio(audioUrl);
+    chatAudioRef.current = audio;
+    setPlayingMsgIndex(index);
+    void audio.play();
+    audio.onended = () => {
+      setPlayingMsgIndex(null);
+      chatAudioRef.current = null;
+    };
+  };
+
+  const stopChatAudio = () => {
+    if (chatAudioRef.current) {
+      chatAudioRef.current.pause();
+      chatAudioRef.current.currentTime = 0;
+      chatAudioRef.current = null;
+    }
+    setPlayingMsgIndex(null);
+  };
+
+  const startVoiceInput = () => {
+    const recognitionCtor =
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition; SpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition; SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition;
+    if (!recognitionCtor) {
+      alert("Voice input only works in Chrome. Please use Chrome or type your question.");
+      return;
+    }
+
+    const recognition = new recognitionCtor();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  useEffect(() => {
+    handleStop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic]);
+
+  useEffect(() => {
+    if (currentStep !== "explain") {
+      handleStop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = audioSpeed;
+    }
+  }, [audioSpeed]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (chatAudioRef.current) {
+        chatAudioRef.current.pause();
+        chatAudioRef.current = null;
+      }
+      setAudioState("idle");
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("lastLearnTopic", JSON.stringify({ subject, topic }));
@@ -140,6 +270,21 @@ function TutorPageContent() {
       })
       .finally(() => setIsLoadingContent(false));
   }, [subject, topic]);
+
+  useEffect(() => {
+    if (!studentId || studentId === "demo-student") return;
+    const loadTargetGrade = async () => {
+      const { data } = await supabase
+        .from("students")
+        .select("target_grade")
+        .eq("id", studentId)
+        .single();
+      if (data?.target_grade) {
+        setTargetGrade(data.target_grade as "C" | "B" | "A" | "A*");
+      }
+    };
+    void loadTargetGrade();
+  }, [studentId]);
 
   useEffect(() => {
     const initStudySession = async () => {
@@ -192,8 +337,11 @@ function TutorPageContent() {
     }
 
     setCurrentStep(action);
-    if (action === "test") setShowTestAnswer(false);
   };
+
+  useEffect(() => {
+    setShowUrdu(false);
+  }, [currentStep]);
 
   const sendMessage = async () => {
     const trimmed = input.trim();
@@ -208,7 +356,12 @@ function TutorPageContent() {
 
     try {
       const messageWithContext = staticContent
-        ? `[Topic context: ${staticContent.definition}. Key points: ${staticContent.key_points.join(". ")}]\n\nStudent question: ${trimmed}`
+        ? `You are teaching the topic: "${topic}" in ${subject}. 
+Here is the topic content for reference:
+Definition: ${staticContent.definition}
+Key points: ${staticContent.key_points?.join(". ")}
+
+Student question: ${trimmed}`
         : trimmed;
       const response = await fetch("/api/tutor", {
         method: "POST",
@@ -219,17 +372,29 @@ function TutorPageContent() {
           message: messageWithContext,
           history: nextMessages.map((m) => ({ role: m.role, content: m.content })),
           mode: "chat",
-          languageMode,
           studentId,
+          targetGrade: targetGrade ?? undefined,
         }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error ?? "Tutor request failed.");
       }
+      const claudeResponse = String(data.message ?? "");
+      const ttsRes = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: claudeResponse }),
+      });
+      const ttsData = ttsRes.ok ? await ttsRes.json() : null;
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: data.message as string },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: claudeResponse,
+          audioUrl: ttsData?.audioUrl ?? null,
+        },
       ]);
       setMessagesUsed((prev) => {
         const next = prev + 1;
@@ -247,14 +412,78 @@ function TutorPageContent() {
     }
   };
 
-  useEffect(() => {
-    if (!autoRead || !messages.length) return;
-    const last = messages[messages.length - 1];
-    if (last.role === "assistant") {
-      speakText(last.content, last.id);
+  const submitTestAnswer = async () => {
+    if (!testAnswer.trim() || !staticContent?.quick_check) return;
+    setIsMarking(true);
+    setTestResult(null);
+
+    try {
+      const res = await fetch("/api/tutor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          topic,
+          mode: "chat",
+          history: [],
+          studentId,
+          targetGrade: targetGrade ?? undefined,
+          message: `You are marking a student's answer for an O Level Chemistry question.
+
+Question: ${staticContent.quick_check}
+Student's answer: ${testAnswer}
+
+Respond ONLY with a JSON object like this:
+{
+  "correct": true or false,
+  "correct_answer": "The full correct answer in 1-2 sentences",
+  "feedback": "Brief encouraging feedback - what they got right, what to improve"
+}
+
+No markdown, no extra text, just raw JSON.`,
+        }),
+      });
+
+      const data = await res.json();
+      const rawMessage = String(data?.message ?? "");
+      try {
+        const clean = rawMessage.replace(/```json|```/g, "").trim();
+        const result = JSON.parse(clean) as {
+          correct: boolean;
+          correct_answer: string;
+          feedback: string;
+        };
+        setTestResult(result);
+        setTestScore((prev) => ({
+          correct: prev.correct + (result.correct ? 1 : 0),
+          total: prev.total + 1,
+        }));
+      } catch {
+        setTestResult({
+          correct: false,
+          correct_answer: "",
+          feedback: rawMessage || "Could not parse the marking response. Please try again.",
+        });
+        setTestScore((prev) => ({
+          correct: prev.correct,
+          total: prev.total + 1,
+        }));
+      }
+    } catch {
+      setTestResult({
+        correct: false,
+        correct_answer: "",
+        feedback: "Could not mark right now. Please try again.",
+      });
+    } finally {
+      setIsMarking(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, autoRead, audioRate, languageMode]);
+  };
+
+  const resetTest = () => {
+    setTestAnswer("");
+    setTestResult(null);
+  };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-3 pb-24 pt-4 sm:px-5">
@@ -285,34 +514,6 @@ function TutorPageContent() {
             })}
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="rounded-xl bg-slate-100 p-1">
-            <button
-              onClick={() => setLanguageMode("english")}
-              className={`rounded-lg px-3 py-1 text-sm font-medium ${
-                languageMode === "english" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-              }`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setLanguageMode("urdu")}
-              className={`rounded-lg px-3 py-1 text-sm font-medium ${
-                languageMode === "urdu" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
-              }`}
-            >
-              اردو
-            </button>
-          </div>
-          <button
-            onClick={() => setAutoRead((prev) => !prev)}
-            className={`rounded-lg px-3 py-1 text-sm font-medium ${
-              autoRead ? "bg-teal-100 text-brand-teal" : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            Auto-read responses 🔊
-          </button>
-        </div>
       </header>
 
       <section className="relative z-20 mt-3 rounded-2xl bg-white p-3 shadow-card">
@@ -329,31 +530,112 @@ function TutorPageContent() {
         {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
         {currentStep !== "past-paper" && (
           <div className="rounded-2xl bg-teal-50 p-4">
-            {staticContent?.audio_url_en && (
-              <button
-                onClick={() => new Audio(staticContent.audio_url_en!).play()}
-                style={{
-                  background: "#189080", color: "white", border: "none",
-                  borderRadius: 8, padding: "8px 16px", fontSize: 13,
-                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6
-                }}
-              >
-                🔊 Listen in English
-              </button>
-            )}
-
-            {staticContent?.urdu_summary && (
-              <div className="mt-2">
-                <button
-                  onClick={() => setShowUrdu(!showUrdu)}
+            {currentStep === "explain" && staticContent?.audio_url_en && (
+              <>
+                <div
                   style={{
-                    background: "#f5731e", color: "white", border: "none",
-                    borderRadius: 8, padding: "8px 16px", fontSize: 13,
-                    cursor: "pointer", display: "flex", alignItems: "center", gap: 6
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    background: "#f9fafb", borderRadius: 12, padding: "10px 16px",
+                    border: "1px solid #e5e7eb", marginBottom: 4
                   }}
                 >
-                  اردو میں پڑھیں
-                </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={handlePlay}
+                      disabled={audioState === "playing"}
+                      style={{
+                        width: 36, height: 36, borderRadius: "50%", border: "none",
+                        background: audioState === "playing" ? "#ccc" : "#189080",
+                        color: "white", fontSize: 14, cursor: audioState === "playing" ? "default" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center"
+                      }}
+                    >
+                      ▶
+                    </button>
+                    <button
+                      onClick={handlePause}
+                      disabled={audioState !== "playing"}
+                      style={{
+                        width: 36, height: 36, borderRadius: "50%", border: "none",
+                        background: audioState === "playing" ? "#f5731e" : "#ccc",
+                        color: "white", fontSize: 14, cursor: audioState === "playing" ? "pointer" : "default",
+                        display: "flex", alignItems: "center", justifyContent: "center"
+                      }}
+                    >
+                      ⏸
+                    </button>
+                    <button
+                      onClick={handleStop}
+                      disabled={audioState === "idle"}
+                      style={{
+                        width: 36, height: 36, borderRadius: "50%", border: "none",
+                        background: audioState === "idle" ? "#ccc" : "#374151",
+                        color: "white", fontSize: 14, cursor: audioState === "idle" ? "default" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center"
+                      }}
+                    >
+                      ⏹
+                    </button>
+                    <span style={{ fontSize: 12, color: "#189080", marginLeft: 4 }}>
+                      {audioState === "playing" ? "🔊 Playing..." : audioState === "paused" ? "⏸ Paused" : "🎧 Listen"}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 11, color: "#888" }}>Speed:</span>
+                    {[0.75, 1, 1.25, 1.5].map(speed => (
+                      <button
+                        key={speed}
+                        onClick={() => {
+                          setAudioSpeed(speed);
+                          if (audioRef.current) audioRef.current.playbackRate = speed;
+                        }}
+                        style={{
+                          padding: "3px 8px", borderRadius: 20, fontSize: 11,
+                          border: "1px solid #189080",
+                          background: audioSpeed === speed ? "#189080" : "white",
+                          color: audioSpeed === speed ? "white" : "#189080",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {speed}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p
+                  style={{
+                    fontSize: 11, color: "#888", textAlign: "center", marginTop: 4, marginBottom: 12
+                  }}
+                >
+                  Use the play controls above to listen to this topic in English
+                </p>
+              </>
+            )}
+
+            {currentStep === "explain" && staticContent?.urdu_summary && (
+              <div className="mt-2">
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button
+                    onClick={() => setShowUrdu(!showUrdu)}
+                    style={{
+                      background: "#f5731e",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: 40,
+                      height: 40,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "serif",
+                    }}
+                  >
+                    اردو
+                  </button>
+                </div>
                 {showUrdu && (
                   <div style={{
                     background: "#FFF8F0", border: "1px solid rgba(245,115,30,0.3)",
@@ -362,18 +644,6 @@ function TutorPageContent() {
                     direction: "rtl", textAlign: "right"
                   }}>
                     <p>{staticContent.urdu_summary}</p>
-                    {staticContent.audio_url_ur && (
-                      <button
-                        onClick={() => new Audio(staticContent.audio_url_ur!).play()}
-                        style={{
-                          background: "#f5731e", color: "white", border: "none",
-                          borderRadius: 8, padding: "6px 14px", fontSize: 13,
-                          cursor: "pointer", marginTop: 8, direction: "ltr"
-                        }}
-                      >
-                        🔊 سنیں
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
@@ -389,76 +659,349 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
               />
             )}
             {currentStep === "formulas" && (
-              <LearnContent
-                topic={topic}
-                text={(staticContent?.formulas ?? [])
-                  .map((formula) => `FORMULA: ${formula.formula}\nVARIABLES: ${formula.variables ?? ""}`)
-                  .join("\n")}
-              />
+              <>
+                {staticContent?.formulas && staticContent.formulas.length > 0 ? (
+                  <LearnContent
+                    topic={topic}
+                    text={staticContent.formulas
+                      .map((formula) => `FORMULA: ${formula.formula}\nVARIABLES: ${formula.variables ?? ""}`)
+                      .join("\n")}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      textAlign: "center", padding: "40px 20px",
+                      background: "white", borderRadius: 12,
+                      border: "1px solid #e5e7eb"
+                    }}
+                  >
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🧮</div>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                      No formulas for this topic
+                    </p>
+                    <p style={{ fontSize: 13, color: "#888", maxWidth: 280, margin: "0 auto" }}>
+                      This topic is concept-based. Use the Explain tab to understand it,
+                      then test yourself with Test me.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
             {currentStep === "example" && (
-              <LearnContent
-                topic={topic}
-                text={`WORKED EXAMPLE:
-QUESTION: ${staticContent?.worked_example?.question ?? ""}
-${(staticContent?.worked_example?.steps ?? []).map((step, i) => `STEP ${i + 1}: ${step}`).join("\n")}
-ANSWER: ${staticContent?.worked_example?.answer ?? ""}
-TAKEAWAY: ${staticContent?.worked_example?.takeaway ?? ""}`}
-              />
+              <>
+                {staticContent?.worked_example ? (
+                  <LearnContent
+                    topic={topic}
+                    text={`WORKED EXAMPLE:
+QUESTION: ${staticContent.worked_example.question ?? ""}
+${(staticContent.worked_example.steps ?? []).map((step, i) => `STEP ${i + 1}: ${step}`).join("\n")}
+ANSWER: ${staticContent.worked_example.answer ?? ""}
+TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      textAlign: "center", padding: "40px 20px",
+                      background: "white", borderRadius: 12,
+                      border: "1px solid #e5e7eb"
+                    }}
+                  >
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>✏️</div>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                      No worked example for this topic
+                    </p>
+                    <p style={{ fontSize: 13, color: "#888", maxWidth: 280, margin: "0 auto" }}>
+                      This topic is best understood through explanation.
+                      Try asking your tutor a specific question below.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
             {currentStep === "test" && (
-              <div className="space-y-4">
-                <p className="text-sm font-semibold text-slate-700">
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#189080" }}>
                   {testScore.correct} out of {testScore.total} correct
-                </p>
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <p className="text-sm text-slate-900">{staticContent?.quick_check || "No quick check available."}</p>
-                  {showTestAnswer ? (
-                    <p className="mt-3 text-sm font-semibold text-teal-800">
-                      Ask in chat and compare with your own answer.
-                    </p>
-                  ) : null}
                 </div>
-                <div className="flex gap-2">
-                  {!showTestAnswer ? (
-                    <button
-                      onClick={() => setShowTestAnswer(true)}
-                      className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
-                    >
-                      Show Answer
-                    </button>
-                  ) : (
+
+                <div
+                  style={{
+                    background: "white",
+                    borderRadius: 12,
+                    border: "1px solid #e5e7eb",
+                    padding: "20px",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#189080",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 10,
+                    }}
+                  >
+                    ? Test Yourself
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 15,
+                      color: "#1a1a1a",
+                      lineHeight: 1.6,
+                      marginBottom: 16,
+                    }}
+                  >
+                    {staticContent?.quick_check || "No quick check available for this topic yet."}
+                  </p>
+
+                  {!testResult && (
                     <>
-                      <button
-                        onClick={() => {
-                          setTestScore((prev) => ({ correct: prev.correct + 1, total: prev.total + 1 }));
-                          void runLessonAction("test");
+                      <textarea
+                        value={testAnswer}
+                        onChange={(e) => setTestAnswer(e.target.value)}
+                        placeholder="Type your answer here..."
+                        rows={3}
+                        style={{
+                          width: "100%",
+                          borderRadius: 8,
+                          padding: "10px 14px",
+                          border: "1.5px solid #e5e7eb",
+                          fontSize: 14,
+                          fontFamily: "inherit",
+                          resize: "vertical",
+                          outline: "none",
+                          boxSizing: "border-box",
                         }}
-                        className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        I got it
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTestScore((prev) => ({ correct: prev.correct, total: prev.total + 1 }));
-                          void runLessonAction("test");
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "#189080";
                         }}
-                        className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "#e5e7eb";
+                        }}
+                      />
+                      <button
+                        onClick={() => void submitTestAnswer()}
+                        disabled={!testAnswer.trim() || isMarking || !staticContent?.quick_check}
+                        style={{
+                          marginTop: 10,
+                          background: testAnswer.trim() ? "#189080" : "#ccc",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "10px 24px",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: testAnswer.trim() ? "pointer" : "default",
+                        }}
                       >
-                        Try again
+                        {isMarking ? "Marking..." : "Submit Answer"}
                       </button>
                     </>
                   )}
                 </div>
+
+                {testResult && (
+                  <div
+                    style={{
+                      background: testResult.correct ? "#E8F8F4" : "#FEF2F2",
+                      border: `1.5px solid ${testResult.correct ? "#189080" : "#FCA5A5"}`,
+                      borderRadius: 12,
+                      padding: "20px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                      <span style={{ fontSize: 28 }}>{testResult.correct ? "✅" : "❌"}</span>
+                      <p
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: testResult.correct ? "#0a5c4a" : "#b91c1c",
+                          margin: 0,
+                        }}
+                      >
+                        {testResult.correct ? "Correct! Well done!" : "Not quite right"}
+                      </p>
+                    </div>
+
+                    <div style={{ marginBottom: 12 }}>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#888",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Your answer
+                      </p>
+                      <p style={{ fontSize: 14, color: "#374151", margin: 0 }}>{testAnswer}</p>
+                    </div>
+
+                    <div
+                      style={{
+                        background: "white",
+                        borderRadius: 8,
+                        padding: "12px 14px",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#189080",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Correct answer
+                      </p>
+                      <p style={{ fontSize: 14, color: "#0a5c4a", margin: 0, fontWeight: 500 }}>
+                        {testResult.correct_answer || "No model answer provided."}
+                      </p>
+                    </div>
+
+                    <p style={{ fontSize: 13, color: "#374151", fontStyle: "italic", marginBottom: 16 }}>
+                      💬 {testResult.feedback}
+                    </p>
+
+                    <button
+                      onClick={resetTest}
+                      style={{
+                        background: "#189080",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "8px 20px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
-        {isTyping && (
-          <div className="max-w-[85%] rounded-2xl bg-teal-100 px-4 py-3 text-sm text-slate-700">
-            <span className="animate-pulse">MyGradePal is typing...</span>
+        <div
+          style={{
+            background: "#EEF6FF",
+            borderRadius: 16,
+            padding: "16px",
+            marginTop: 24,
+            border: "1px solid #BFDBFE"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <span
+              style={{
+                fontSize: 13, fontWeight: 700, color: "#1D4ED8",
+                textTransform: "uppercase", letterSpacing: "0.08em"
+              }}
+            >
+              🤖 Ask Your Tutor
+            </span>
           </div>
-        )}
+
+          <div
+            style={{
+              background: "#f9fafb", borderRadius: 12, padding: 16,
+              minHeight: 80, maxHeight: 320, overflowY: "auto",
+              marginBottom: 12, display: "flex", flexDirection: "column", gap: 10
+            }}
+          >
+            {messages.length === 0 && !isTyping && (
+              <p style={{ fontSize: 13, color: "#888", textAlign: "center", margin: "auto" }}>
+                Have a question about this topic? Ask below 👇
+              </p>
+            )}
+            {messages.map((msg, i) => (
+              <div
+                key={msg.id}
+                style={{
+                  display: "flex",
+                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                  alignItems: "flex-end",
+                  gap: 8,
+                }}
+              >
+                {msg.role === "assistant" && <span style={{ fontSize: 18, marginBottom: 4 }}>🤖</span>}
+                <div
+                  style={{
+                    maxWidth: "80%",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    background: msg.role === "user" ? "#189080" : "white",
+                    color: msg.role === "user" ? "white" : "#1a1a1a",
+                    borderRadius:
+                      msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  {msg.content}
+                  {msg.role === "assistant" && msg.audioUrl && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                      <button
+                        onClick={() => playChatAudio(msg.audioUrl!, i)}
+                        style={{
+                          width: 28, height: 28, borderRadius: "50%", border: "none",
+                          background: playingMsgIndex === i ? "#f5731e" : "#189080",
+                          color: "white", fontSize: 12, cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center"
+                        }}
+                      >
+                        {playingMsgIndex === i ? "⏸" : "▶"}
+                      </button>
+                      {playingMsgIndex === i && (
+                        <button
+                          onClick={stopChatAudio}
+                          style={{
+                            width: 28, height: 28, borderRadius: "50%", border: "none",
+                            background: "#374151", color: "white", fontSize: 12,
+                            cursor: "pointer", display: "flex", alignItems: "center",
+                            justifyContent: "center"
+                          }}
+                        >
+                          ⏹
+                        </button>
+                      )}
+                      <span style={{ fontSize: 11, color: "#888" }}>
+                        {playingMsgIndex === i ? "Playing..." : "Listen"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {isTyping && (
+              <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>🤖</span>
+                <div
+                  style={{
+                    maxWidth: "80%",
+                    padding: "10px 14px",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    background: "white",
+                    color: "#1a1a1a",
+                    borderRadius: "18px 18px 18px 4px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  <span className="animate-pulse">MyGradePal is typing...</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {promptPractice && (
           <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-slate-800">
@@ -483,34 +1026,23 @@ TAKEAWAY: ${staticContent?.worked_example?.takeaway ?? ""}`}
         )}
       </section>
 
-      <section className="mt-2 rounded-2xl bg-white p-3 shadow-card">
-        <p className="text-xs text-slate-600">Audio speed: Slow - Normal - Fast</p>
-        <input
-          type="range"
-          min={0}
-          max={2}
-          step={1}
-          value={audioRate === 0.7 ? 0 : audioRate === 1.4 ? 2 : 1}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            const rate = value === 0 ? 0.7 : value === 2 ? 1.4 : 1.0;
-            setAudioRate(rate);
-            if (speakingMessageId) {
-              stopSpeaking();
-            }
-          }}
-          className="mt-2 w-full accent-brand-teal"
-        />
-      </section>
-
       <section className="mt-3 rounded-2xl bg-white p-3 shadow-card">
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded-full bg-slate-100 p-2 text-slate-700"
-            title="Voice input (Urdu/English) - coming soon"
+            onClick={startVoiceInput}
+            title={isListening ? "Listening..." : "Speak your question"}
+            style={{
+              width: 36, height: 36, borderRadius: "50%", border: "none",
+              background: isListening ? "#f5731e" : "#e5e7eb",
+              color: isListening ? "white" : "#666",
+              fontSize: 16, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+              animation: isListening ? "pulse 1s infinite" : "none"
+            }}
           >
-            <Mic className="h-4 w-4" />
+            🎤
           </button>
           <input
             value={input}
@@ -521,7 +1053,7 @@ TAKEAWAY: ${staticContent?.worked_example?.takeaway ?? ""}`}
                 void sendMessage();
               }
             }}
-            placeholder="Ask anything about this topic..."
+            placeholder="Type or speak your question..."
             className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none ring-brand-teal focus:ring-2"
           />
           <button

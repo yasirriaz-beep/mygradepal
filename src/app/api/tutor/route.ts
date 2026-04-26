@@ -23,12 +23,13 @@ type TutorRequest = {
   mode?: "explain" | "formulas" | "example" | "test" | "chat";
   languageMode?: "english" | "urdu";
   studentId?: string;
+  targetGrade?: "C" | "B" | "A" | "A*";
 };
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TutorRequest;
-    const { subject, topic, message, history, mode = "chat", languageMode = "english", studentId = "demo-student" } = body;
+    const { subject, topic, message, history, mode = "chat", languageMode = "english", studentId = "demo-student", targetGrade } = body;
 
     if (!subject || !topic || !message) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -40,6 +41,20 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServiceClient();
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("target_grade")
+      .eq("id", studentId)
+      .single();
+
+    const resolvedTargetGrade = String(targetGrade ?? studentData?.target_grade ?? "C") as "C" | "B" | "A" | "A*";
+    const gradeGuidance: Record<"C" | "B" | "A" | "A*", string> = {
+      C: "Focus on Core syllabus content only. Keep explanations simple. Test questions should be straightforward recall and basic application.",
+      B: "Cover Core content thoroughly. Include some application questions. Test questions should mix recall with problem-solving.",
+      A: "Cover both Core and Supplement content. Push for deeper understanding. Test questions should include analysis and multi-step problems.",
+      "A*": "Cover all Core and Supplement content in full depth. Challenge the student with complex problems. Test questions should match the hardest Cambridge exam questions.",
+    };
+    const gradeInstruction = gradeGuidance[resolvedTargetGrade] ?? gradeGuidance.C;
     const { data: weakTopicData } = await supabase
       .from("topic_scores")
       .select("topic, mastery, score_percent")
@@ -100,7 +115,9 @@ One short question for the student to try themselves.`;
       chat: `You are MyGradePal, a friendly and expert IGCSE tutor for Pakistani students aged 14-16. You are currently teaching ${subject} — specifically the topic: ${topic}.
 Keep responses concise and practical for exams. No markdown, no stars, no backticks.`,
     };
-    const systemPrompt = promptsByMode[mode];
+    const systemPrompt = `${promptsByMode[mode]}
+
+The student is targeting Grade ${resolvedTargetGrade}. ${gradeInstruction}`;
 
     const anthropicMessages = [
       ...recentHistory.map((item) => ({

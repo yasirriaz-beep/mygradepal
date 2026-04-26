@@ -22,6 +22,9 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [childName, setChildName] = useState("");
   const [childGrade, setChildGrade] = useState("");
+  const [targetGrade, setTargetGrade] = useState("");
+  const [examSession, setExamSession] = useState("");
+  const [examYear, setExamYear] = useState<number | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -60,6 +63,39 @@ export default function DashboardPage() {
 
     void checkSession();
   }, [router]);
+
+  useEffect(() => {
+    if (!studentId) return;
+
+    supabase
+      .from("students")
+      .select("onboarding_complete")
+      .eq("id", studentId)
+      .single()
+      .then(({ data }) => {
+        if (data && !data.onboarding_complete) {
+          router.push("/onboarding");
+        }
+      });
+  }, [studentId, router]);
+
+  useEffect(() => {
+    if (!studentId) return;
+
+    const loadStudentPlan = async () => {
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("name, target_grade, exam_session, exam_year, onboarding_subject")
+        .eq("id", studentId)
+        .single();
+
+      if (studentData?.target_grade) setTargetGrade(String(studentData.target_grade));
+      if (studentData?.exam_session) setExamSession(String(studentData.exam_session));
+      if (studentData?.exam_year) setExamYear(Number(studentData.exam_year));
+    };
+
+    void loadStudentPlan();
+  }, [studentId]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -184,6 +220,25 @@ export default function DashboardPage() {
         <h2 className="heading-font text-2xl font-bold text-slate-900">
           Good evening, {studentName}! Ready to study?
         </h2>
+        {targetGrade && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "#E8F8F4",
+              borderRadius: 20,
+              padding: "4px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#189080",
+              marginTop: 8,
+            }}
+          >
+            🎯 Targeting Grade {targetGrade}
+            {examSession && examYear ? ` · ${examSession} ${examYear}` : ""}
+          </div>
+        )}
       </section>
 
       <section className="mb-5 rounded-2xl border border-orange-200 bg-white p-4 shadow-card">

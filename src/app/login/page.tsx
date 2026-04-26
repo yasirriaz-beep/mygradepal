@@ -27,7 +27,7 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
@@ -38,7 +38,24 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    const user = data.user;
+    if (!user) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("onboarding_complete")
+      .eq("id", user.id)
+      .single();
+
+    if (!student?.onboarding_complete) {
+      router.push("/onboarding");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   };
 
@@ -47,7 +64,7 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email: signupEmail,
       password: signupPassword,
       options: {
@@ -67,7 +84,24 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    const user = data.user;
+    if (!user) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("onboarding_complete")
+      .eq("id", user.id)
+      .single();
+
+    if (!student?.onboarding_complete) {
+      router.push("/onboarding");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   };
 
