@@ -1,14 +1,10 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase'
 
 export default function AuthConfirm() {
   const router = useRouter()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
 
   useEffect(() => {
     const handleConfirm = async () => {
@@ -41,7 +37,7 @@ export default function AuthConfirm() {
     }
 
     void handleConfirm()
-  }, [router, supabase])
+  }, [router])
 
   return (
     <div style={{

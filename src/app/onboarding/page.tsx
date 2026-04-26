@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/auth-helpers-nextjs";
+import { supabase } from "@/lib/supabase";
 
 const SUBJECTS = ["Chemistry", "Physics", "Mathematics", "Biology", "English"];
 
@@ -49,9 +49,6 @@ const STUDY_MINUTES = [30, 45, 60, 90];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [supabase] = useState(() =>
-    createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!),
-  );
   const [step, setStep] = useState(1);
   const [studentName, setStudentName] = useState("");
   const [authReady, setAuthReady] = useState(false);
@@ -69,28 +66,38 @@ export default function OnboardingPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const init = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (session?.user) {
-        const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
+        const { data: student } = await supabase
+          .from("students")
+          .select("onboarding_complete, name")
+          .eq("id", session.user.id)
+          .single();
+
+        if (student?.onboarding_complete) {
+          router.push("/dashboard");
+          return;
+        }
+
+        const name =
+          session.user.user_metadata?.child_name ??
+          session.user.user_metadata?.name ??
+          student?.name ??
+          "Student";
         setStudentName(name);
         setAuthReady(true);
-      } else if (event === "SIGNED_OUT") {
-        router.push("/login");
+        return;
       }
-    });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
-        setStudentName(name);
-        setAuthReady(true);
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
+      router.push("/login");
     };
-  }, [router, supabase]);
+
+    void init();
+  }, [router]);
 
   if (!authReady) {
     return (
