@@ -20,256 +20,198 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const CHEMISTRY_TOPICS = [
   {
     chapter: 1,
-    title: "Experimental Chemistry",
-    section: "Matter — Structures and Properties",
+    title: "States of Matter",
+    section: "Physical Chemistry",
     subtopics: [
-      "How Are Physical Quantities Measured?",
-      "How Are Gases Collected?",
-      "How Are Substances in Mixtures Separated?",
-      "How Can the Purity of Substances Be Determined?",
+      "Solids, Liquids and Gases — Properties and Particle Theory",
+      "Changes of State — Melting, Boiling, Evaporating, Freezing, Condensing",
+      "Effect of Temperature and Pressure on Gas Volume",
+      "Diffusion — Definition, Examples and Rate",
     ],
   },
   {
     chapter: 2,
-    title: "Kinetic Particle Theory",
-    section: "Matter — Structures and Properties",
+    title: "Atoms, Elements and Compounds",
+    section: "Physical Chemistry",
     subtopics: [
-      "How Are Solids, Liquids and Gases Different?",
-      "How Do Particles Move?",
+      "Elements, Compounds and Mixtures — Differences",
+      "Atomic Structure — Nucleus, Protons, Neutrons and Electrons",
+      "Proton Number, Mass Number and Electronic Configuration",
+      "Isotopes — Definition and Properties",
+      "Ions and Ionic Bonds — Formation and Properties",
+      "Simple Molecules and Covalent Bonds",
+      "Giant Covalent Structures — Diamond and Graphite",
+      "Metallic Bonding — Structure and Properties",
     ],
   },
   {
     chapter: 3,
-    title: "Atomic Structure",
-    section: "Matter — Structures and Properties",
+    title: "Stoichiometry",
+    section: "Physical Chemistry",
     subtopics: [
-      "What Is An Atom Made Up Of?",
-      "How Many Sub-atomic Particles Does An Atom Have?",
-      "How Are Sub-atomic Particles Distributed in An Atom?",
+      "Chemical Formulae — Molecular and Empirical",
+      "Word Equations and Symbol Equations with State Symbols",
+      "Relative Atomic Mass and Relative Molecular Mass",
+      "The Mole and Avogadro Constant",
+      "Mole Calculations — Mass, Volume and Concentration",
+      "Stoichiometric Calculations and Limiting Reactants",
+      "Percentage Yield, Percentage Composition and Percentage Purity",
     ],
   },
   {
     chapter: 4,
-    title: "Chemical Bonding",
-    section: "Matter — Structures and Properties",
+    title: "Electrochemistry",
+    section: "Physical Chemistry",
     subtopics: [
-      "Why Do Atoms Combine?",
-      "What Is Ionic Bonding?",
-      "What Is Covalent Bonding?",
-      "What Is Metallic Bonding?",
+      "Electrolysis — Definition, Electrodes and Electrolytes",
+      "Products of Electrolysis — Predicting at Anode and Cathode",
+      "Electrolysis of Molten Lead Bromide, Sodium Chloride Solution and Sulfuric Acid",
+      "Electroplating — Purpose and Process",
+      "Hydrogen-Oxygen Fuel Cells",
     ],
   },
   {
     chapter: 5,
-    title: "Structure and Properties of Materials",
-    section: "Matter — Structures and Properties",
+    title: "Chemical Energetics",
+    section: "Physical Chemistry",
     subtopics: [
-      "How Are Elements, Compounds and Mixtures Different?",
-      "What Are the Properties of Ionic Substances?",
-      "What Are the Properties of Covalent Substances?",
-      "What Are the Properties of Metals and Alloys?",
-      "What Can Properties Tell Us About the Structure and Bonding of Substances?",
+      "Exothermic and Endothermic Reactions",
+      "Enthalpy Change and Reaction Pathway Diagrams",
+      "Activation Energy",
+      "Bond Breaking and Bond Making — Energy Changes",
+      "Calculating Enthalpy Change Using Bond Energies",
     ],
   },
   {
     chapter: 6,
-    title: "Chemical Formulae and Equations",
-    section: "Chemical Reactions",
+    title: "Chemical Reactions",
+    section: "Physical Chemistry",
     subtopics: [
-      "What Are Chemical Formulae?",
-      "How Are Chemical Formulae Constructed?",
-      "What Are Chemical Equations and How Do We Balance Them?",
+      "Physical and Chemical Changes",
+      "Rate of Reaction — Factors Affecting Rate",
+      "Collision Theory — Concentration, Temperature, Surface Area, Catalysts",
+      "Measuring Rate of Reaction — Practical Methods",
+      "Reversible Reactions and Equilibrium",
+      "Haber Process — Conditions and Equation",
+      "Contact Process — Conditions and Equation",
+      "Redox Reactions — Oxidation and Reduction Definitions",
+      "Oxidation Numbers and Identifying Redox Reactions",
+      "Oxidising Agents and Reducing Agents",
     ],
   },
   {
     chapter: 7,
-    title: "Mole Concept and Stoichiometry",
-    section: "Chemical Reactions",
+    title: "Acids, Bases and Salts",
+    section: "Inorganic Chemistry",
     subtopics: [
-      "What Are Relative Atomic Mass and Relative Molecular Mass?",
-      "What Is Percentage Mass?",
-      "What Is the Mole?",
-      "What Are Empirical and Molecular Formulae?",
-      "What Is Stoichiometry?",
-      "What Are Percentage Yield and Percentage Purity?",
+      "Properties of Acids — Reactions with Metals, Bases and Carbonates",
+      "Properties of Bases and Alkalis",
+      "pH Scale and Universal Indicator",
+      "Strong and Weak Acids",
+      "Neutralisation Reactions",
+      "Oxides — Acidic, Basic and Amphoteric",
+      "Preparation of Soluble Salts",
+      "Solubility Rules for Salts",
+      "Preparation of Insoluble Salts by Precipitation",
     ],
   },
   {
     chapter: 8,
-    title: "Acids and Bases",
-    section: "Chemical Reactions",
+    title: "The Periodic Table",
+    section: "Inorganic Chemistry",
     subtopics: [
-      "What Is an Acid?",
-      "What Are Strong and Weak Acids?",
-      "What Is a Base?",
-      "How Do We Compare Relative Acidity and Alkalinity?",
-      "How Is the pH of Soil Controlled?",
-      "How Are Oxides Classified?",
+      "Arrangement of Elements — Periods, Groups and Atomic Number",
+      "Trends Across a Period — Metallic to Non-metallic Character",
+      "Group I Alkali Metals — Properties and Trends",
+      "Group VII Halogens — Properties, Trends and Displacement Reactions",
+      "Group VIII Noble Gases — Properties and Electronic Configuration",
+      "Transition Elements — Properties and Uses",
     ],
   },
   {
     chapter: 9,
-    title: "Salts",
-    section: "Chemical Reactions",
+    title: "Metals",
+    section: "Inorganic Chemistry",
     subtopics: [
-      "What Are Salts?",
-      "How Are Salts Prepared?",
+      "Physical and Chemical Properties of Metals",
+      "Uses of Metals — Aluminium and Copper",
+      "Alloys — Brass, Stainless Steel and Their Properties",
+      "Reactivity Series — Order and Reactions with Water and Acid",
+      "Rusting — Conditions and Prevention",
+      "Sacrificial Protection and Galvanising",
+      "Extraction of Iron in the Blast Furnace",
+      "Extraction of Aluminium by Electrolysis",
     ],
   },
   {
     chapter: 10,
-    title: "Ammonia",
-    section: "Chemical Reactions",
+    title: "Chemistry of the Environment",
+    section: "Inorganic Chemistry",
     subtopics: [
-      "How Can Ammonia Be Made?",
-      "What Are Some Reversible Reactions?",
+      "Water — Tests for Purity and Treatment of Domestic Supply",
+      "Substances in Water — Beneficial and Harmful",
+      "Fertilisers — Ammonium Salts, Nitrates and NPK",
+      "Composition of Air — Nitrogen, Oxygen and Noble Gases",
+      "Air Pollutants — Sources and Harmful Effects",
+      "Climate Change — Greenhouse Effect and Global Warming",
+      "Acid Rain — Causes and Reduction Strategies",
+      "Photosynthesis — Equation and Importance",
     ],
   },
   {
     chapter: 11,
-    title: "Qualitative Analysis",
-    section: "Chemical Reactions",
+    title: "Organic Chemistry",
+    section: "Organic Chemistry",
     subtopics: [
-      "How Do We Test for Cations?",
-      "How Do We Test for Anions?",
-      "How Do We Test for Gases?",
+      "Homologous Series — Definition and General Characteristics",
+      "Alkanes — Structure, Properties and Combustion",
+      "Alkenes — Structure, Properties and Addition Reactions",
+      "Cracking of Hydrocarbons",
+      "Saturated vs Unsaturated — Bromine Water Test",
+      "Alcohols — Manufacture by Fermentation and Hydration",
+      "Carboxylic Acids — Reactions and Formation",
+      "Esters — Formation from Acids and Alcohols",
+      "Addition Polymerisation — Poly(ethene) and Plastics",
+      "Condensation Polymerisation — Nylon and Polyesters",
+      "Fuels and Fractional Distillation of Petroleum",
+      "Environmental Impact of Plastics",
     ],
   },
   {
     chapter: 12,
-    title: "Oxidation and Reduction",
-    section: "Chemical Reactions",
+    title: "Experimental Techniques and Chemical Analysis",
+    section: "Practical Chemistry",
     subtopics: [
-      "What Are Oxidation and Reduction?",
-      "How Do We Identify and Analyse Redox Reactions?",
-    ],
-  },
-  {
-    chapter: 13,
-    title: "Electrochemistry",
-    section: "Chemical Reactions",
-    subtopics: [
-      "What Is Electrolysis?",
-      "How Do We Predict the Products of Electrolysis?",
-      "How Is Electrolysis Used in Industries?",
-      "What Are Simple Cells and Hydrogen Fuel Cells?",
-    ],
-  },
-  {
-    chapter: 14,
-    title: "The Periodic Table",
-    section: "Chemistry of Materials",
-    subtopics: [
-      "How Are Elements Arranged in the Periodic Table?",
-      "What Group Trends Are There?",
-      "What Are Transition Elements?",
-    ],
-  },
-  {
-    chapter: 15,
-    title: "The Reactivity Series",
-    section: "Chemistry of Materials",
-    subtopics: [
-      "What Is the Order of Reactivity of Metals?",
-      "How Does the Reactivity of Metals Affect Their Tendency to Form Positive Ions?",
-      "How Are Metals Extracted from Their Ores?",
-      "What Are the Conditions for Rusting?",
-    ],
-  },
-  {
-    chapter: 16,
-    title: "Chemical Energetics",
-    section: "Chemistry of Materials",
-    subtopics: [
-      "What Is Enthalpy Change?",
-      "How Do We Calculate Enthalpy Changes?",
-    ],
-  },
-  {
-    chapter: 17,
-    title: "Rate of Reactions",
-    section: "Chemistry of Materials",
-    subtopics: [
-      "How Do We Measure the Rate of Reactions?",
-      "What Determines the Rate of Reactions?",
-      "What Are Catalysts and How Do They Affect the Rate of Reactions?",
-    ],
-  },
-  {
-    chapter: 18,
-    title: "Fuels and Crude Oil",
-    section: "Chemistry in a Sustainable World",
-    subtopics: [
-      "Why Are Natural Gas and Crude Oil Important in Our Lives?",
-      "How Can Crude Oil Be Separated?",
-      "Are Biofuels More Environmentally Sustainable?",
-    ],
-  },
-  {
-    chapter: 19,
-    title: "Hydrocarbons",
-    section: "Chemistry in a Sustainable World",
-    subtopics: [
-      "What Is a Homologous Series?",
-      "What Are Alkanes?",
-      "What Are Alkenes?",
-      "What Are Isomers?",
-      "How Do Saturated and Unsaturated Compounds Differ?",
-    ],
-  },
-  {
-    chapter: 20,
-    title: "Alcohols, Carboxylic Acids and Esters",
-    section: "Chemistry in a Sustainable World",
-    subtopics: [
-      "What Are Alcohols?",
-      "What Are Carboxylic Acids?",
-      "What Are Esters?",
-    ],
-  },
-  {
-    chapter: 21,
-    title: "Polymers",
-    section: "Chemistry in a Sustainable World",
-    subtopics: [
-      "What Are Polymers?",
-      "How Are Addition Polymers Formed and Used?",
-      "How Are Condensation Polymers Formed and Used?",
-      "How Does the Disposal of Plastics Affect Our Environment?",
-      "How Are Plastics Recycled and What Are the Issues Related to Recycling Plastics?",
-    ],
-  },
-  {
-    chapter: 22,
-    title: "Maintaining Air Quality",
-    section: "Chemistry in a Sustainable World",
-    subtopics: [
-      "What Is Air Made Up of?",
-      "What Are Air Pollutants?",
-      "What Is the Ozone Layer?",
-      "What Is the Carbon Cycle?",
-      "What Are Global Warming and Climate Change?",
+      "Separation Techniques — Filtration, Crystallisation, Distillation, Chromatography",
+      "Purity — Melting Point and Boiling Point Tests",
+      "Chromatography — Paper Chromatography and Rf Values",
+      "Acid-Base Titrations — Procedure and Calculations",
+      "Tests for Anions — Carbonate, Chloride, Bromide, Iodide, Sulfate, Nitrate",
+      "Tests for Cations — Using Sodium Hydroxide and Ammonia Solution",
+      "Tests for Gases — Ammonia, Carbon Dioxide, Chlorine, Hydrogen, Oxygen, Sulfur Dioxide",
+      "Flame Tests — Identifying Metal Ions by Colour",
     ],
   },
 ];
 
 // ─── Claude: Generate English content ────────────────────────────────────────
 
-const ENGLISH_SYSTEM_PROMPT = `You are a friendly O Level / IGCSE Chemistry tutor explaining topics to 14-16 year old students in Pakistan.
+const ENGLISH_SYSTEM_PROMPT = `You are a friendly O Level / IGCSE Chemistry tutor explaining topics to 14-16 year old students in Pakistan. You are teaching content from the Cambridge IGCSE Chemistry 0620 syllabus.
 
-Write like a tutor talking to a student — simple, clear, encouraging. NOT like a textbook.
-Use local Pakistani examples where helpful (chai, roti, biryani, CNG, karachi weather, etc).
+Write like a tutor talking to a student — simple, clear and encouraging. NOT like a textbook.
+Use local Pakistani examples where helpful (chai, roti, biryani, CNG, petrol, Karachi weather, mobile phones, cooking, etc).
+Make sure you cover EVERYTHING Cambridge requires students to know for this specific subtopic.
 
 Respond ONLY with a valid JSON object. No markdown, no backticks, just raw JSON.
 
 {
   "definition": "One friendly sentence explaining what this topic is about. Start with something relatable.",
   "key_points": [
-    "Point 1 — simple language, max 15 words",
-    "Point 2",
+    "Point 1 — include every specific thing Cambridge requires students to know",
+    "Point 2 — use simple language but be accurate",
     "Point 3",
-    "Point 4 (optional)",
-    "Point 5 (optional, max 5)"
+    "Point 4",
+    "Point 5 (max 6 points)"
   ],
   "formulas": [
     {
@@ -278,24 +220,25 @@ Respond ONLY with a valid JSON object. No markdown, no backticks, just raw JSON.
     }
   ],
   "worked_example": {
-    "question": "A real O Level past paper style question",
+    "question": "A real O Level past paper style question for this specific subtopic",
     "steps": [
       "Step 1: what to do first and why",
       "Step 2: the calculation",
       "Step 3: if needed"
     ],
     "answer": "Final answer with units",
-    "takeaway": "One sentence — what should the student remember from this?"
+    "takeaway": "One sentence — what should the student remember?"
   },
-  "exam_tip": "The one thing students always get wrong in the exam and how to avoid it",
-  "quick_check": "One short question to test understanding — not too hard"
+  "exam_tip": "The one thing students always get wrong in the Cambridge exam for this topic and how to avoid it",
+  "quick_check": "One short question to test understanding of this specific subtopic"
 }
 
 Rules:
-- formulas: empty array [] if topic has no equations
-- worked_example: null if topic is purely conceptual
+- formulas: empty array [] if subtopic has no equations
+- worked_example: null if subtopic is purely conceptual with no calculations
+- key_points: cover ALL Cambridge syllabus requirements for this subtopic — check both Core and Supplement content
 - Never use LaTeX, markdown, stars, or backticks
-- Keep language simple — imagine explaining to a bright student who finds chemistry confusing`;
+- Keep language simple but scientifically accurate`;
 
 // ─── Claude: Generate Urdu summary ───────────────────────────────────────────
 
@@ -310,22 +253,46 @@ Local misalein dein jaise chai, roti, Karachi ki garmi, CNG wagera.
 Sirf text return karein — koi JSON nahi, koi formatting nahi.`;
 
 async function generateEnglishContent(chapter: typeof CHEMISTRY_TOPICS[0], subtopic: string) {
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 1200,
-    system: ENGLISH_SYSTEM_PROMPT,
-    messages: [{
-      role: "user",
-      content: `Generate content for:
+  const buildPrompt = (retry: boolean) => `${retry ? "Your previous output was invalid JSON. " : ""}Generate content for:
 Chapter ${chapter.chapter}: ${chapter.title}
 Subtopic: ${subtopic}
-Section: ${chapter.section}`
-    }],
-  });
+Section: ${chapter.section}
+${retry ? "Return strict JSON only. Ensure all quotes are escaped and every property/value is valid JSON." : ""}`;
 
-  const text = response.content.find((b) => b.type === "text")?.text ?? "";
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1200,
+        system: ENGLISH_SYSTEM_PROMPT,
+        messages: [{
+          role: "user",
+          content: buildPrompt(attempt > 1),
+        }],
+      });
+
+      const text = response.content.find((b) => b.type === "text")?.text ?? "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      try {
+        return JSON.parse(clean);
+      } catch {
+        const start = clean.indexOf("{");
+        const end = clean.lastIndexOf("}");
+        if (start >= 0 && end > start) {
+          const extracted = clean.slice(start, end + 1);
+          return JSON.parse(extracted);
+        }
+        throw new Error("No JSON object found in model response");
+      }
+    } catch (err) {
+      lastError = err;
+      if (attempt < 3) {
+        await sleep(400);
+      }
+    }
+  }
+  throw lastError ?? new Error("Failed to generate valid JSON content.");
 }
 
 async function generateUrduSummary(chapter: typeof CHEMISTRY_TOPICS[0], subtopic: string, englishDefinition: string) {
@@ -449,18 +416,18 @@ async function main() {
       // Check if already fully processed
       const { data: existing } = await supabase
         .from("topic_content")
-        .select("audio_url_ur, definition, urdu_summary")
+        .select("urdu_summary, definition, audio_url_en")
         .eq("subject", "Chemistry")
         .eq("subtopic", subtopic)
         .single();
 
-      // Skip if Urdu audio already exists
-      if (existing?.audio_url_ur) {
+      // Skip if content already has Urdu summary and English audio
+      if (existing?.urdu_summary && existing?.audio_url_en) {
         console.log(`  ↷ Skipping — already complete`);
         continue;
       }
 
-      // If row exists but missing Urdu audio, only generate Urdu audio
+      // If row exists but missing some fields, update only what is missing
       const urduOnly = !!existing;
 
       // 1. Generate English content
@@ -525,27 +492,13 @@ async function main() {
         }
       }
 
-      // 4. Generate Urdu audio
-      let audioUrlUr: string | null = null;
-      if (urduSummary) {
-        const urAudio = await generateAudio(
-          urduSummary,
-          "ur-IN",
-          "ur-IN-Standard-A"
-        );
-        if (urAudio) {
-          audioUrlUr = await uploadAudio(urAudio, `chemistry/ur/${safeFilename}.mp3`);
-          if (audioUrlUr) console.log(`  ✓ Urdu audio uploaded`);
-        }
-      }
-
-      // 5. Save to Supabase
+      // 4. Save to Supabase
       const { error: dbError } = urduOnly
         ? await supabase
             .from("topic_content")
             .update({
               urdu_summary: urduSummary || existing?.urdu_summary || null,
-              audio_url_ur: audioUrlUr,
+              audio_url_en: audioUrlEn ?? existing?.audio_url_en ?? null,
               updated_at: new Date().toISOString(),
             })
             .eq("subject", "Chemistry")
@@ -565,7 +518,6 @@ async function main() {
               quick_check: content?.quick_check,
               urdu_summary: urduSummary || null,
               audio_url_en: audioUrlEn,
-              audio_url_ur: audioUrlUr,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "subject,subtopic" }
