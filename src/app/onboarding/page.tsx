@@ -54,6 +54,7 @@ export default function OnboardingPage() {
   );
   const [step, setStep] = useState(1);
   const [studentName, setStudentName] = useState("");
+  const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -68,15 +69,64 @@ export default function OnboardingPage() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.push("/login");
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, authSession) => {
+          if (authSession) {
+            const name = authSession.user.user_metadata?.child_name ?? authSession.user.user_metadata?.name ?? "Student";
+            setStudentName(name);
+            setAuthReady(true);
+            subscription.unsubscribe();
+          } else if (event === "SIGNED_OUT") {
+            router.push("/login");
+          }
+        });
         return;
       }
-      const name = user.user_metadata?.child_name ?? user.user_metadata?.name ?? "Student";
+
+      const name = session.user.user_metadata?.child_name ?? session.user.user_metadata?.name ?? "Student";
       setStudentName(name);
-    });
+      setAuthReady(true);
+    };
+
+    void checkAuth();
   }, [router, supabase]);
+
+  if (!authReady) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f9fafb",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              border: "3px solid #e5e7eb",
+              borderTop: "3px solid #189080",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+              margin: "0 auto 16px",
+            }}
+          />
+          <p style={{ color: "#6b7280", fontSize: 14 }}>Setting up your account...</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   const next = () => setStep((s) => s + 1);
   const back = () => setStep((s) => s - 1);

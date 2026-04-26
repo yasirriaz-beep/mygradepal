@@ -9,14 +9,26 @@ export default function AuthConfirm() {
   useEffect(() => {
     const handleConfirm = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        router.push('/dashboard')
-      } else {
+      if (!session) {
         router.push('/login')
+        return
+      }
+
+      const user = session.user
+      const { data: student } = await supabase
+        .from("students")
+        .select("onboarding_complete")
+        .eq("id", user.id)
+        .single()
+
+      if (!student?.onboarding_complete) {
+        router.push("/onboarding")
+      } else {
+        router.push("/dashboard")
       }
     }
-    handleConfirm()
-  }, [])
+    void handleConfirm()
+  }, [router])
 
   return (
     <div style={{
@@ -40,7 +52,7 @@ export default function AuthConfirm() {
           Email confirmed!
         </h2>
         <p style={{color:'#5a8a88'}}>
-          Taking you to your dashboard...
+          Taking you to your account...
         </p>
       </div>
     </div>
