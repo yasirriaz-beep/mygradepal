@@ -235,7 +235,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    await fetch("/api/generate-plan", {
+    const planResponse = await fetch("/api/generate-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -248,6 +248,18 @@ export default function OnboardingPage() {
         studyMinutesPerDay: form.studyMinutesPerDay,
       }),
     });
+
+    let planResult: unknown;
+    try {
+      planResult = await planResponse.json();
+    } catch {
+      planResult = { parseError: "Response was not JSON", status: planResponse.status };
+    }
+    console.log("Plan generation result:", planResult);
+
+    if (!planResponse.ok) {
+      console.error("Plan generation failed:", planResult);
+    }
 
     router.push("/dashboard");
   };

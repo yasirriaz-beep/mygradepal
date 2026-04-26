@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
       const { data, error } = await supabase
         .from("study_plan")
-        .select("subject, topic, subtopic, mode, completed, scheduled_date, minutes_planned")
+        .select("subject, topic, subtopic, mode, completed, scheduled_date")
         .eq("student_id", studentId)
         .gte("scheduled_date", mondayStr)
         .lte("scheduled_date", sundayStr)
@@ -200,7 +200,7 @@ export default function DashboardPage() {
           topic: String(todayEntry.topic ?? ""),
           subtopic: String(todayEntry.subtopic ?? ""),
           mode: String(todayEntry.mode ?? "learn"),
-          minutesPlanned: Number(todayEntry.minutes_planned ?? 45),
+          minutesPlanned: 45,
         });
       } else {
         setTodayPlan(null);

@@ -92,16 +92,29 @@ export async function POST(request: Request) {
       studyMinutesPerDay?: number;
     };
 
-    if (!studentId || !subject || !examSession || !examYear || !targetGrade) {
+    if (!studentId || !subject || !examSession || examYear === undefined || examYear === null || !targetGrade) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const yearNum = Number(examYear);
+    if (!Number.isFinite(yearNum)) {
+      return NextResponse.json({ error: "Invalid examYear" }, { status: 400 });
+    }
+
     const supabase = getSupabaseServiceClient();
-    const daysUntilExam = getDaysUntilExam(examSession, examYear);
+    const daysUntilExam = getDaysUntilExam(examSession, yearNum);
     const studyMode = getStudyMode(daysUntilExam);
     const selectedTopics = selectTopics(studyMode, targetGrade);
 
-    await supabase.from("study_plan").delete().eq("student_id", studentId).eq("subject", subject);
+    const { error: deleteError } = await supabase
+      .from("study_plan")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("subject", subject);
+    if (deleteError) {
+      console.error("[generate-plan] delete existing plan failed:", deleteError);
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -117,7 +130,6 @@ export async function POST(request: Request) {
       mode: SessionMode;
       priority: Priority;
       completed: boolean;
-      minutes_planned: number;
     }> = [];
 
     let currentDate = new Date(today);
@@ -126,7 +138,7 @@ export async function POST(request: Request) {
     let weekNumber = 1;
     let remainingDaysForCurrentTopic = selectedTopics[0]?.days ?? 1;
 
-    const examDate = getExamDate(examSession, examYear);
+    const examDate = getExamDate(examSession, yearNum);
 
     while (currentDate < examDate && topicIndex < selectedTopics.length) {
       const dayOfWeek = currentDate.getDay();
@@ -165,7 +177,6 @@ export async function POST(request: Request) {
           mode: sessionMode,
           priority: currentTopic.priority,
           completed: false,
-          minutes_planned: studyMinutesPerDay ?? 45,
         });
 
         dayNumber++;
@@ -211,7 +222,6 @@ export async function POST(request: Request) {
             mode: "past_paper",
             priority: "high",
             completed: false,
-            minutes_planned: studyMinutesPerDay ?? 45,
           });
           ppDayNumber++;
         }
@@ -228,7 +238,11 @@ export async function POST(request: Request) {
         const batch = planEntries.slice(i, i + batchSize);
         const { error } = await supabase.from("study_plan").insert(batch);
         if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
+          console.error("[generate-plan] insert batch failed:", error.message, error);
+          return NextResponse.json(
+            { error: error.message, details: error.details, hint: error.hint, code: error.code },
+            { status: 500 },
+          );
         }
       }
     }
@@ -243,6 +257,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Plan generation failed";
+    console.error("[generate-plan] unexpected error:", message, error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
