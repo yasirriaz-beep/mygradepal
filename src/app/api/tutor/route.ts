@@ -20,6 +20,7 @@ type TutorRequest = {
   topic: string;
   message: string;
   history: Array<{ role: "assistant" | "user"; content: string }>;
+  mode?: "explain" | "formulas" | "example" | "test" | "chat";
   languageMode?: "english" | "urdu";
   studentId?: string;
 };
@@ -27,7 +28,7 @@ type TutorRequest = {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TutorRequest;
-    const { subject, topic, message, history, languageMode = "english", studentId = "demo-student" } = body;
+    const { subject, topic, message, history, mode = "chat", languageMode = "english", studentId = "demo-student" } = body;
 
     if (!subject || !topic || !message) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -57,22 +58,49 @@ export async function POST(request: Request) {
       content: item.content,
     }));
 
-    const systemPrompt = `You are MyGradePal, a friendly and expert IGCSE tutor for Pakistani students aged 14-16. You are currently teaching ${subject} — specifically the topic: ${topic}.
+    const learnPrompt = `You are an expert O Level / IGCSE tutor on MyGradePal for Pakistani students.
 
-Teaching style:
-- Start by asking what the student already knows
-- Explain concepts in simple English, use Pakistani examples where natural (cricket, local food, cities)
-- Break complex ideas into small steps
-- After every explanation ask a quick check question
-- If student is confused, try a completely different explanation approach
-- Celebrate correct answers warmly
-- Never make student feel bad for wrong answers
-- Keep responses under 120 words unless explaining a complex concept that needs more space
-- If student writes in Urdu or Roman Urdu, reply in the same language naturally
+When teaching a topic, respond using ONLY these exact section headers. No markdown. No stars. No backticks. Plain text only.
 
-Current student weak topics (prioritise these): ${weakTopics || "No weak topic data yet"}
-Exam is approaching — focus on exam technique too.
-${languageMode === "urdu" ? `The student has selected Urdu mode. Respond in simple Urdu mixed with English technical terms. Write in Roman Urdu (English letters) not Nastaliq script, as it is easier to read on screen for most Pakistani students. Example: "Photosynthesis mein plants sunlight use karte hain food banane ke liye"` : ""}`;
+DEFINITION:
+One clear sentence defining the concept.
+
+KEY POINTS:
+- Point 1
+- Point 2
+- Point 3
+- Point 4 (optional)
+- Point 5 (optional, max 5)
+
+FORMULA:
+Write the formula in plain text (e.g. Moles = Mass / Molar Mass)
+VARIABLES:
+Explain what each variable means in one line.
+(Repeat FORMULA / VARIABLES block for each formula if there are multiple)
+
+WORKED EXAMPLE:
+QUESTION: A clear past paper style question
+STEP 1: First step
+STEP 2: Second step
+STEP 3: Third step (if needed)
+ANSWER: The final answer clearly stated
+TAKEAWAY: One sentence on what this example teaches
+
+EXAM TIP:
+The single most important exam tip or common mistake to avoid.
+
+QUICK CHECK:
+One short question for the student to try themselves.`;
+
+    const promptsByMode: Record<NonNullable<TutorRequest["mode"]>, string> = {
+      explain: learnPrompt,
+      formulas: learnPrompt,
+      example: learnPrompt,
+      test: learnPrompt,
+      chat: `You are MyGradePal, a friendly and expert IGCSE tutor for Pakistani students aged 14-16. You are currently teaching ${subject} — specifically the topic: ${topic}.
+Keep responses concise and practical for exams. No markdown, no stars, no backticks.`,
+    };
+    const systemPrompt = promptsByMode[mode];
 
     const anthropicMessages = [
       ...recentHistory.map((item) => ({
@@ -106,12 +134,17 @@ ${languageMode === "urdu" ? `The student has selected Urdu mode. Respond in simp
     }
 
     const data = await response.json();
-    const text = data?.content?.find((item: { type?: string }) => item.type === "text")?.text;
-    if (!text) {
+    const responseText = data?.content?.find((item: { type?: string }) => item.type === "text")?.text;
+    if (!responseText) {
       return NextResponse.json({ error: "No tutor response from Claude." }, { status: 500 });
     }
+    const cleanedText = String(responseText)
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/`{1,3}/g, "")
+      .trim();
 
-    return NextResponse.json({ message: String(text).trim() });
+    return NextResponse.json({ message: cleanedText });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Tutor route failed.";
     return NextResponse.json({ error: message }, { status: 500 });

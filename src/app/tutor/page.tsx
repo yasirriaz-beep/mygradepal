@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
+import LearnContent from "@/components/LearnContent";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
 import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
@@ -26,6 +27,18 @@ const lessonSteps: Array<{ key: LessonStep; label: string }> = [
   { key: "past-paper", label: "Past Paper" },
 ];
 
+type StaticTopicContent = {
+  definition: string;
+  key_points: string[];
+  formulas: { formula: string; variables: string }[];
+  worked_example: { question: string; steps: string[]; answer: string; takeaway: string } | null;
+  exam_tip: string;
+  quick_check: string;
+  urdu_summary: string;
+  audio_url_en: string | null;
+  audio_url_ur: string | null;
+};
+
 function TutorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,7 +49,7 @@ function TutorPageContent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isLoadingStart, setIsLoadingStart] = useState(true);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [languageMode, setLanguageMode] = useState<"english" | "urdu">("english");
   const [autoRead, setAutoRead] = useState(false);
@@ -44,8 +57,10 @@ function TutorPageContent() {
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [studySessionId, setStudySessionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<LessonStep>("explain");
-  const [testAnswer, setTestAnswer] = useState<string | null>(null);
-  const [testPassed, setTestPassed] = useState(false);
+  const [staticContent, setStaticContent] = useState<StaticTopicContent | null>(null);
+  const [showTestAnswer, setShowTestAnswer] = useState(false);
+  const [showUrdu, setShowUrdu] = useState(false);
+  const [testScore, setTestScore] = useState({ correct: 0, total: 0 });
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [trialMessageLimitReached, setTrialMessageLimitReached] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -112,32 +127,19 @@ function TutorPageContent() {
   }, [studentId, messages.length]);
 
   useEffect(() => {
-    const startSession = async () => {
-      setIsLoadingStart(true);
-      setError(null);
-      try {
-        const response = await fetch("/api/tutor-start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject, topic, studentId, languageMode }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data?.error ?? "Could not start tutor session.");
-        }
-
-        setMessages([{ id: crypto.randomUUID(), role: "assistant", content: data.message as string }]);
-      } catch (startError) {
-        const message =
-          startError instanceof Error ? startError.message : "Could not start tutor session.";
-        setError(message);
-      } finally {
-        setIsLoadingStart(false);
-      }
-    };
-
-    void startSession();
-  }, [subject, topic, languageMode]);
+    if (!subject || !topic) return;
+    setIsLoadingContent(true);
+    fetch(`/api/topic-content?subject=${encodeURIComponent(subject)}&subtopic=${encodeURIComponent(topic)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        setStaticContent(data);
+        setShowUrdu(false);
+      })
+      .catch(() => {
+        // ignore, page can still use chat fallback
+      })
+      .finally(() => setIsLoadingContent(false));
+  }, [subject, topic]);
 
   useEffect(() => {
     const initStudySession = async () => {
@@ -190,45 +192,7 @@ function TutorPageContent() {
     }
 
     setCurrentStep(action);
-    setError(null);
-    setIsTyping(true);
-    const prompts: Record<Exclude<LessonStep, "past-paper">, string> = {
-      explain: `Explain ${topic} in a clear textbook style for a grade 10 student. Use 4 short sections and simple language.`,
-      formulas: `List all key formulas for ${topic} in ${subject}. For each: formula, what each symbol means, when to use it.`,
-      example: `Give one worked example for ${topic} from a past-paper style question. Show numbered steps and final answer.`,
-      test: `Give one quick quiz question on ${topic}. Include "Answer:" on the last line with only the correct short answer.`,
-    };
-
-    try {
-      const response = await fetch("/api/tutor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject,
-          topic,
-          message: prompts[action],
-          history: messages.map((m) => ({ role: m.role, content: m.content })),
-          languageMode,
-          studentId,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error ?? "Could not load lesson step.");
-
-      let content = String(data.message ?? "").trim();
-      if (action === "test") {
-        const answerMatch = content.match(/Answer:\s*(.+)$/im);
-        setTestAnswer(answerMatch?.[1]?.trim().toLowerCase() ?? null);
-        setTestPassed(false);
-        content = content.replace(/\n*Answer:\s*(.+)$/im, "").trim();
-      }
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content }]);
-    } catch (actionError) {
-      const message = actionError instanceof Error ? actionError.message : "Could not load lesson step.";
-      setError(message);
-    } finally {
-      setIsTyping(false);
-    }
+    if (action === "test") setShowTestAnswer(false);
   };
 
   const sendMessage = async () => {
@@ -243,14 +207,18 @@ function TutorPageContent() {
     setError(null);
 
     try {
+      const messageWithContext = staticContent
+        ? `[Topic context: ${staticContent.definition}. Key points: ${staticContent.key_points.join(". ")}]\n\nStudent question: ${trimmed}`
+        : trimmed;
       const response = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject,
           topic,
-          message: trimmed,
+          message: messageWithContext,
           history: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+          mode: "chat",
           languageMode,
           studentId,
         }),
@@ -271,12 +239,6 @@ function TutorPageContent() {
         return next;
       });
 
-      if (currentStep === "test" && testAnswer) {
-        const normalized = trimmed.toLowerCase();
-        if (normalized.includes(testAnswer) || testAnswer.includes(normalized)) {
-          setTestPassed(true);
-        }
-      }
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Tutor request failed.";
       setError(message);
@@ -353,7 +315,7 @@ function TutorPageContent() {
         </div>
       </header>
 
-      <section className="mt-3 rounded-2xl bg-white p-3 shadow-card">
+      <section className="relative z-20 mt-3 rounded-2xl bg-white p-3 shadow-card">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <button onClick={() => void runLessonAction("explain")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">📖 Explain this topic</button>
           <button onClick={() => void runLessonAction("formulas")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">📝 Key formulas</button>
@@ -363,36 +325,135 @@ function TutorPageContent() {
         </div>
       </section>
 
-      <section className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
-        {isLoadingStart && <p className="text-sm text-slate-600">Starting tutor...</p>}
-        {messages.map((message) => (
-          <div key={message.id} className={message.role === "assistant" ? "" : "ml-auto"}>
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                message.role === "assistant"
-                  ? "bg-teal-100 text-slate-900"
-                  : "ml-auto bg-orange-100 text-slate-900"
-              }`}
-            >
-              {message.content}
-            </div>
-            {message.role === "assistant" && (
+      <section className="relative z-0 mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
+        {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
+        {currentStep !== "past-paper" && (
+          <div className="rounded-2xl bg-teal-50 p-4">
+            {staticContent?.audio_url_en && (
               <button
-                onClick={() => speakText(message.content, message.id)}
-                className={`mt-1 flex items-center gap-1 text-xs ${
-                  speakingMessageId === message.id
-                    ? "animate-pulse text-brand-orange"
-                    : "text-[#189080]"
-                }`}
+                onClick={() => new Audio(staticContent.audio_url_en!).play()}
+                style={{
+                  background: "#189080", color: "white", border: "none",
+                  borderRadius: 8, padding: "8px 16px", fontSize: 13,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6
+                }}
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
-                  <path d="M3 10v4h4l5 4V6L7 10H3zm13.5 2c0-1.8-1-3.3-2.5-4.1v8.2c1.5-.8 2.5-2.3 2.5-4.1zm2.5 0c0 3-1.7 5.6-4.2 6.9l1 1.7c3.1-1.7 5.2-5 5.2-8.6s-2.1-6.9-5.2-8.6l-1 1.7c2.5 1.3 4.2 3.9 4.2 6.9z" />
-                </svg>
-                {speakingMessageId === message.id ? "Stop" : "Listen"}
+                🔊 Listen in English
               </button>
             )}
+
+            {staticContent?.urdu_summary && (
+              <div className="mt-2">
+                <button
+                  onClick={() => setShowUrdu(!showUrdu)}
+                  style={{
+                    background: "#f5731e", color: "white", border: "none",
+                    borderRadius: 8, padding: "8px 16px", fontSize: 13,
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 6
+                  }}
+                >
+                  اردو میں پڑھیں
+                </button>
+                {showUrdu && (
+                  <div style={{
+                    background: "#FFF8F0", border: "1px solid rgba(245,115,30,0.3)",
+                    borderRadius: 12, padding: "16px", marginTop: 10,
+                    fontFamily: "serif", fontSize: 16, lineHeight: 1.8,
+                    direction: "rtl", textAlign: "right"
+                  }}>
+                    <p>{staticContent.urdu_summary}</p>
+                    {staticContent.audio_url_ur && (
+                      <button
+                        onClick={() => new Audio(staticContent.audio_url_ur!).play()}
+                        style={{
+                          background: "#f5731e", color: "white", border: "none",
+                          borderRadius: 8, padding: "6px 14px", fontSize: 13,
+                          cursor: "pointer", marginTop: 8, direction: "ltr"
+                        }}
+                      >
+                        🔊 سنیں
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === "explain" && (
+              <LearnContent
+                topic={topic}
+                text={`DEFINITION: ${staticContent?.definition ?? ""}
+KEY POINTS:
+${(staticContent?.key_points ?? []).map((point) => `- ${point}`).join("\n")}
+EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
+              />
+            )}
+            {currentStep === "formulas" && (
+              <LearnContent
+                topic={topic}
+                text={(staticContent?.formulas ?? [])
+                  .map((formula) => `FORMULA: ${formula.formula}\nVARIABLES: ${formula.variables ?? ""}`)
+                  .join("\n")}
+              />
+            )}
+            {currentStep === "example" && (
+              <LearnContent
+                topic={topic}
+                text={`WORKED EXAMPLE:
+QUESTION: ${staticContent?.worked_example?.question ?? ""}
+${(staticContent?.worked_example?.steps ?? []).map((step, i) => `STEP ${i + 1}: ${step}`).join("\n")}
+ANSWER: ${staticContent?.worked_example?.answer ?? ""}
+TAKEAWAY: ${staticContent?.worked_example?.takeaway ?? ""}`}
+              />
+            )}
+            {currentStep === "test" && (
+              <div className="space-y-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  {testScore.correct} out of {testScore.total} correct
+                </p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <p className="text-sm text-slate-900">{staticContent?.quick_check || "No quick check available."}</p>
+                  {showTestAnswer ? (
+                    <p className="mt-3 text-sm font-semibold text-teal-800">
+                      Ask in chat and compare with your own answer.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  {!showTestAnswer ? (
+                    <button
+                      onClick={() => setShowTestAnswer(true)}
+                      className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Show Answer
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setTestScore((prev) => ({ correct: prev.correct + 1, total: prev.total + 1 }));
+                          void runLessonAction("test");
+                        }}
+                        className="rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        I got it
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTestScore((prev) => ({ correct: prev.correct, total: prev.total + 1 }));
+                          void runLessonAction("test");
+                        }}
+                        className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                      >
+                        Try again
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        ))}
+        )}
         {isTyping && (
           <div className="max-w-[85%] rounded-2xl bg-teal-100 px-4 py-3 text-sm text-slate-700">
             <span className="animate-pulse">MyGradePal is typing...</span>
@@ -410,19 +471,6 @@ function TutorPageContent() {
             </Link>
           </div>
         )}
-        {testPassed ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-            <p className="font-semibold">
-              Great! You understand the concept. Ready for a real past paper question? →
-            </p>
-            <Link
-              href={`/practice?topic=${encodeURIComponent(topic)}&subject=${encodeURIComponent(subject)}`}
-              className="mt-2 inline-block rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"
-            >
-              Go to past paper practice
-            </Link>
-          </div>
-        ) : null}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {trialMessageLimitReached && (
           <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-slate-800">

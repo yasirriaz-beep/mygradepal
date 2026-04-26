@@ -91,8 +91,13 @@ Keep it concise and student-friendly.`,
     if (!message) {
       return NextResponse.json({ error: "No opening message generated." }, { status: 500 });
     }
+    const cleanedMessage = String(message)
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/`{1,3}/g, "")
+      .trim();
 
-    return NextResponse.json({ message: String(message).trim(), mastery });
+    return NextResponse.json({ message: cleanedMessage, mastery });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to start tutor.";
     return NextResponse.json({ error: message }, { status: 500 });

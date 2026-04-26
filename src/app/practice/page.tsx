@@ -54,9 +54,14 @@ function PracticePageContent() {
 
   useEffect(() => {
     const hydrateUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      let user = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        user = data.user;
+      } catch (err) {
+        console.warn("Auth lock conflict, retrying...", err);
+        return;
+      }
       if (!user) return;
       setStudentId(user.id);
       setStudentName(String(user.user_metadata?.child_name ?? user.user_metadata?.name ?? "Student"));
