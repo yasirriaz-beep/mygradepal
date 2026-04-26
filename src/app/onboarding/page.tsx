@@ -127,63 +127,50 @@ export default function OnboardingPage() {
 
   const generateWelcomeMessage = async () => {
     setLoading(true);
-    const gradeLabel = GRADE_OPTIONS.find((g) => g.grade === form.targetGrade)?.label ?? form.targetGrade;
-
-    const prompt = `You are a friendly personal tutor at MyGradePal, a tutoring platform for Pakistani O Level / IGCSE students.
-
-A new student has just signed up. Write them a warm, encouraging welcome message in plain English (no markdown, no stars, no formatting).
-
-Student details:
-- Name: ${studentName}
-- Subject: ${form.subject}
-- Exam: ${form.examSession} ${form.examYear}
-- Target grade: ${form.targetGrade} (${gradeLabel})
-- Study plan: ${form.studyDaysPerWeek} days per week, ${form.studyMinutesPerDay} minutes per day
-
-Write 3-4 short paragraphs like a real tutor would speak. Include:
-1. A warm greeting using their name
-2. Acknowledge their target grade and say it is achievable with the right plan
-3. Explain briefly what MyGradePal will focus on for their target (e.g. for Grade C focus on core concepts, for A* cover everything including extension)
-4. An encouraging closing line
-
-Keep it conversational, warm and motivating. Write as if you are their personal tutor who genuinely cares about their success. Use a Pakistani-friendly tone — not too formal, not too casual.`;
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
       const res = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           subject: form.subject,
           topic: "Welcome",
-          message: prompt,
+          message: `Write a warm 3-sentence welcome message for ${studentName} who is targeting Grade ${form.targetGrade} in ${form.subject} for ${form.examSession} ${form.examYear}. They will study ${form.studyDaysPerWeek} days a week for ${form.studyMinutesPerDay} minutes. Be encouraging and friendly.`,
           history: [],
           mode: "chat",
         }),
       });
+
+      clearTimeout(timeout);
       const data = await res.json();
-      setWelcomeMessage(data.message ?? "Welcome to MyGradePal! We're excited to help you achieve your goals.");
+      setWelcomeMessage(
+        data.message ??
+          `Welcome to MyGradePal, ${studentName}! You're targeting Grade ${form.targetGrade} in ${form.subject}. Let's build your plan and get you there!`,
+      );
     } catch {
       setWelcomeMessage(
-        `Welcome to MyGradePal, ${studentName}! We're excited to help you achieve your ${form.targetGrade} in ${form.subject}. Let's get started!`,
+        `Welcome to MyGradePal, ${studentName}! You're targeting Grade ${form.targetGrade} in ${form.subject} for ${form.examSession} ${form.examYear}. Study ${form.studyDaysPerWeek} days a week and we'll get you there!`,
       );
     }
+
     setLoading(false);
     setStep(5);
   };
 
   const saveAndFinish = async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
 
-    await supabase.from("students").upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        name: user.user_metadata?.child_name ?? user.user_metadata?.name ?? "Student",
-        grade: user.user_metadata?.child_grade ?? user.user_metadata?.grade ?? "Grade 10",
+    const { error } = await supabase.from("students").update({
         target_grade: form.targetGrade,
         exam_session: form.examSession,
         exam_year: form.examYear,
@@ -191,13 +178,16 @@ Keep it conversational, warm and motivating. Write as if you are their personal 
         study_minutes_per_day: form.studyMinutesPerDay,
         onboarding_complete: true,
         onboarding_subject: form.subject,
-        welcome_message: welcomeMessage,
+        welcome_message: welcomeMessage || `Targeting Grade ${form.targetGrade} in ${form.subject}`,
         subscription_subjects: [form.subject],
-      },
-      { onConflict: "id" },
-    );
+      }).eq("id", user.id);
 
-    setLoading(false);
+    if (error) {
+      console.error("Save error:", error);
+      setLoading(false);
+      return;
+    }
+
     router.push("/dashboard");
   };
 
@@ -712,20 +702,21 @@ Keep it conversational, warm and motivating. Write as if you are their personal 
 
               <button
                 onClick={() => void saveAndFinish()}
-                disabled={loading}
+                disabled={loading && !welcomeMessage}
                 style={{
                   width: "100%",
                   padding: "14px",
                   borderRadius: 10,
-                  background: teal,
+                  background: "#189080",
                   border: "none",
                   color: "white",
                   fontSize: 15,
                   fontWeight: 700,
-                  cursor: loading ? "default" : "pointer",
+                  cursor: "pointer",
+                  opacity: loading && !welcomeMessage ? 0.7 : 1,
                 }}
               >
-                {loading ? "Saving..." : "Start Learning →"}
+                {loading && !welcomeMessage ? "Building your plan..." : "Start Learning →"}
               </button>
             </div>
           )}
