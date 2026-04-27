@@ -41,15 +41,6 @@ export default function DashboardPage() {
     mode: string;
     minutesPlanned: number;
   } | null>(null);
-  const [weekPlan, setWeekPlan] = useState<
-    Array<{
-      scheduledDate: string;
-      topic: string;
-      subtopic: string;
-      mode: string;
-      completed: boolean;
-    }>
-  >([]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -63,10 +54,11 @@ export default function DashboardPage() {
 
       const metadata = sessionUser.user_metadata ?? {};
       const displayName =
-        metadata.child_name ??
-        metadata.name ??
-        sessionUser.email?.split("@")[0] ??
-        "Student";
+        metadata.child_name && metadata.child_name !== "###"
+          ? metadata.child_name
+          : metadata.name && metadata.name !== "###"
+            ? metadata.name
+            : sessionUser.email?.split("@")[0] ?? "Student";
 
       setStudentName(String(displayName));
       setUserEmail(sessionUser.email ?? "");
@@ -166,55 +158,29 @@ export default function DashboardPage() {
     const loadStudyPlan = async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dayOfWeek = today.getDay();
-      const monday = new Date(today);
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      monday.setDate(today.getDate() + diff);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-
       const todayStr = today.toISOString().split("T")[0];
-      const mondayStr = monday.toISOString().split("T")[0];
-      const sundayStr = sunday.toISOString().split("T")[0];
 
       const { data, error } = await supabase
         .from("study_plan")
         .select("subject, topic, subtopic, mode, completed, scheduled_date")
         .eq("student_id", studentId)
-        .gte("scheduled_date", mondayStr)
-        .lte("scheduled_date", sundayStr)
-        .order("scheduled_date", { ascending: true })
-        .order("day_number", { ascending: true });
+        .eq("scheduled_date", todayStr)
+        .order("day_number", { ascending: true })
+        .limit(1);
 
-      if (error || !data) {
+      if (error || !data?.length) {
         setTodayPlan(null);
-        setWeekPlan([]);
         return;
       }
 
-      const rows = data as Array<Record<string, unknown>>;
-      const todayEntry = rows.find((row) => String(row.scheduled_date ?? "") === todayStr);
-      if (todayEntry) {
-        setTodayPlan({
-          subject: String(todayEntry.subject ?? "Chemistry"),
-          topic: String(todayEntry.topic ?? ""),
-          subtopic: String(todayEntry.subtopic ?? ""),
-          mode: String(todayEntry.mode ?? "learn"),
-          minutesPlanned: 45,
-        });
-      } else {
-        setTodayPlan(null);
-      }
-
-      setWeekPlan(
-        rows.map((row) => ({
-          scheduledDate: String(row.scheduled_date ?? ""),
-          topic: String(row.topic ?? ""),
-          subtopic: String(row.subtopic ?? ""),
-          mode: String(row.mode ?? "learn"),
-          completed: Boolean(row.completed),
-        })),
-      );
+      const row = data[0] as Record<string, unknown>;
+      setTodayPlan({
+        subject: String(row.subject ?? "Chemistry"),
+        topic: String(row.topic ?? ""),
+        subtopic: String(row.subtopic ?? ""),
+        mode: String(row.mode ?? "learn"),
+        minutesPlanned: 45,
+      });
     };
 
     void loadStudyPlan();
@@ -392,78 +358,81 @@ export default function DashboardPage() {
         </article>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-teal-200 bg-white p-4 shadow-card">
-        <h3 className="heading-font text-xl font-semibold text-slate-900">Study plan for today</h3>
+      <section className="mt-5 rounded-2xl border-2 border-brand-teal bg-white p-4 shadow-card">
         {todayPlan ? (
           <>
-            <p className="mt-2 text-sm text-slate-700">
-              Today focus on: <span className="font-semibold">{todayPlan.topic}</span>
-            </p>
-            <p className="mt-1 text-sm text-slate-600">{todayPlan.subtopic}</p>
-            <p className="mt-1 text-sm text-slate-600">
-              Mode: <span className="font-medium capitalize">{todayPlan.mode.replace("_", " ")}</span> ·{" "}
-              {todayPlan.minutesPlanned} min planned
-            </p>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="heading-font text-lg font-semibold text-slate-900">Today&apos;s Session</h3>
+              {examSession &&
+                examYear !== null &&
+                (() => {
+                  const startOfToday = new Date();
+                  startOfToday.setHours(0, 0, 0, 0);
+                  const exam = new Date(examYear, examSession === "May/June" ? 4 : 9, 15);
+                  exam.setHours(0, 0, 0, 0);
+                  const days = Math.ceil((exam.getTime() - startOfToday.getTime()) / 86400000);
+                  const mode =
+                    days <= 28
+                      ? { label: "Crash Mode", color: "bg-red-100 text-red-600" }
+                      : days <= 60
+                        ? { label: "Rapid Mode", color: "bg-orange-100 text-orange-600" }
+                        : { label: "Full Course", color: "bg-teal-50 text-brand-teal" };
+                  return (
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${mode.color}`}>{mode.label}</span>
+                  );
+                })()}
+            </div>
+            <p className="text-xl font-bold text-slate-900">{todayPlan.topic}</p>
+            <p className="mt-1 text-sm text-slate-500">{todayPlan.subtopic}</p>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-xs font-semibold capitalize text-brand-teal">
+                {todayPlan.mode.replace("_", " ")}
+              </span>
+              <span className="text-xs text-slate-500">⏱ {todayPlan.minutesPlanned} min</span>
+              <span className="text-xs font-semibold text-red-500">🎯 Must Cover</span>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Link
+                href={`/tutor?subject=${encodeURIComponent(todayPlan.subject)}&topic=${encodeURIComponent(todayPlan.topic)}`}
+                className="rounded-lg bg-brand-teal px-5 py-2 text-sm font-semibold text-white"
+              >
+                Start now →
+              </Link>
+              <Link
+                href="/study-plan"
+                className="rounded-lg border border-brand-teal px-5 py-2 text-sm font-semibold text-brand-teal"
+              >
+                View full plan
+              </Link>
+            </div>
           </>
         ) : (
           <>
-            <p className="mt-2 text-sm text-slate-700">
-              Today focus on:{" "}
-              <span className="font-semibold">
-                {weakestTopic ? `${weakestTopic.topic} (${weakestTopic.mastery}% mastery)` : "No scheduled study today"}
-              </span>
+            <h3 className="heading-font mb-2 text-lg font-semibold text-slate-900">Today&apos;s Session</h3>
+            <p className="text-sm text-slate-600">
+              {weakestTopic
+                ? `Focus on ${weakestTopic.topic} — your weakest area at ${weakestTopic.mastery}% mastery`
+                : "No session scheduled for today. Check your full plan."}
             </p>
-            <p className="mt-1 text-sm text-slate-600">Suggested: 20 min lesson + 5 practice questions</p>
-          </>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Link
-            href={
-              todayPlan
-                ? `/tutor?subject=${encodeURIComponent(todayPlan.subject)}&topic=${encodeURIComponent(todayPlan.topic)}`
-                : weakestTopic
-                  ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
-                  : "/tutor?subject=Chemistry&topic=Stoichiometry"
-            }
-            className="inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
-          >
-            Start today&apos;s plan
-          </Link>
-          <Link
-            href="/study-plan"
-            className="mt-3 ml-2 inline-block rounded-lg border border-brand-teal px-4 py-2 text-sm font-semibold text-brand-teal"
-          >
-            View full plan →
-          </Link>
-        </div>
-      </section>
-
-      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
-        <h3 className="heading-font text-xl font-semibold text-slate-900">This week&apos;s study plan</h3>
-        {weekPlan.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">No plan scheduled for this week yet.</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {weekPlan.map((entry) => (
-              <div
-                key={`${entry.scheduledDate}-${entry.topic}-${entry.subtopic}`}
-                className="flex items-start justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={
+                  weakestTopic
+                    ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
+                    : "/tutor"
+                }
+                className="rounded-lg bg-brand-teal px-5 py-2 text-sm font-semibold text-white"
               >
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    {entry.scheduledDate} · {entry.topic}
-                  </p>
-                  <p className="text-xs text-slate-600">{entry.subtopic}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs capitalize text-teal-700">{entry.mode.replace("_", " ")}</p>
-                  <p className={`text-xs ${entry.completed ? "text-green-600" : "text-slate-500"}`}>
-                    {entry.completed ? "Completed" : "Planned"}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+                Start now →
+              </Link>
+              <Link
+                href="/study-plan"
+                className="rounded-lg border border-brand-teal px-5 py-2 text-sm font-semibold text-brand-teal"
+              >
+                View full plan
+              </Link>
+            </div>
+          </>
         )}
       </section>
 
