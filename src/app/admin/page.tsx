@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
 const PRICE = 5000
@@ -106,6 +107,26 @@ function AdminPanel() {
       </div>
 
       {msg && <div style={s.msg}>{msg}</div>}
+
+      <Link
+        href="/admin/import-pdf?key=mgp2025"
+        style={{
+          display: 'block',
+          background: '#e8f8f4',
+          border: '1.5px solid #189080',
+          borderRadius: 12,
+          padding: '16px',
+          marginBottom: 16,
+          textDecoration: 'none',
+        }}
+      >
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#189080', margin: '0 0 4px' }}>
+          📄 Import Past Papers (PDF)
+        </p>
+        <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
+          Upload PDFs from PapaCambridge — Claude extracts questions automatically
+        </p>
+      </Link>
 
       <div style={s.tabs}>
         <button style={tab==='add' ? s.tabActive : s.tabInactive} onClick={() => setTab('add')}>Add Question</button>
