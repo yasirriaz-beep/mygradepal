@@ -1,21 +1,111 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import BottomNav from "@/components/BottomNav";
-import Logo from "@/components/Logo";
 import { supabase } from "@/lib/supabase";
 import { getTrialInfo } from "@/lib/trialStatus";
+import Logo from "@/components/Logo";
+import BottomNav from "@/components/BottomNav";
 
-const SUBJECTS = [
-  { name: "Chemistry", code: "0620", color: "#189080" },
-  { name: "Physics", code: "0625", color: "#137265" },
-  { name: "Mathematics", code: "0580", color: "#f5731e" },
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const TEAL   = "#189080";
+const ORANGE = "#f5731e";
+
+const IGCSE_SUBJECTS = [
+  { name: "Chemistry",        code: "0620", color: TEAL,    emoji: "⚗️"  },
+  { name: "Physics",          code: "0625", color: "#137265", emoji: "⚡"  },
+  { name: "Mathematics",      code: "0580", color: ORANGE,  emoji: "📐"  },
+  { name: "Biology",          code: "0610", color: "#16a34a", emoji: "🧬"  },
+  { name: "English",          code: "0510", color: "#2563eb", emoji: "📝"  },
+  { name: "Pakistan Studies", code: "0448", color: "#7c3aed", emoji: "🗺️"  },
 ];
 
-const TABS = ["Today", "My Plan", "Subjects", "Progress"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { id: "today",    label: "Today",    emoji: "📅" },
+  { id: "plan",     label: "My Plan",  emoji: "📋" },
+  { id: "learn",    label: "Learn",    emoji: "📖" },
+  { id: "practice", label: "Practice", emoji: "✏️" },
+  { id: "predict",  label: "Predict",  emoji: "🔮" },
+  { id: "progress", label: "Progress", emoji: "📊" },
+] as const;
+
+type TabId = typeof TABS[number]["id"];
+
+const ACTIVITY_STYLE: Record<string, { text: string; bg: string; border: string }> = {
+  learn:    { text: TEAL,     bg: "#e8f8f4", border: "#a7f3d0" },
+  practice: { text: ORANGE,   bg: "#fff7ed", border: "#fed7aa" },
+  revision: { text: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  mock:     { text: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+};
+
+const TOPIC_FREQUENCY: Record<string, Array<{ topic: string; pct: number }>> = {
+  Chemistry:   [
+    { topic: "Stoichiometry",          pct: 94 },
+    { topic: "Electrochemistry",       pct: 88 },
+    { topic: "Organic Chemistry",      pct: 76 },
+    { topic: "Acids, Bases and Salts", pct: 71 },
+    { topic: "Atomic Structure",       pct: 68 },
+    { topic: "Rates of Reaction",      pct: 61 },
+    { topic: "Energy Changes",         pct: 58 },
+  ],
+  Physics:     [
+    { topic: "Forces and Motion", pct: 92 },
+    { topic: "Electricity",       pct: 87 },
+    { topic: "Waves",             pct: 74 },
+    { topic: "Thermal Physics",   pct: 69 },
+    { topic: "Magnetism",         pct: 55 },
+  ],
+  Mathematics: [
+    { topic: "Algebra",       pct: 96 },
+    { topic: "Geometry",      pct: 89 },
+    { topic: "Statistics",    pct: 78 },
+    { topic: "Trigonometry",  pct: 72 },
+    { topic: "Number",        pct: 65 },
+  ],
+  Biology: [
+    { topic: "Cell Biology", pct: 91 },
+    { topic: "Genetics",     pct: 85 },
+    { topic: "Respiration",  pct: 73 },
+    { topic: "Ecology",      pct: 64 },
+  ],
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getDaysLeft(session: string, year: number) {
+  const month = session === "May/June" ? 4 : 9;
+  const exam  = new Date(year, month, 15);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((exam.getTime() - today.getTime()) / 86400000);
+}
+
+function getModeInfo(days: number) {
+  if (days <= 28) return { label: "Crash Mode",  emoji: "🚨", color: "#dc2626", bg: "#fef2f2" };
+  if (days <= 60) return { label: "Rapid Mode",  emoji: "⚡", color: "#d97706", bg: "#fffbeb" };
+  return               { label: "Full Course", emoji: "📚", color: TEAL,     bg: "#e8f8f4" };
+}
+
+function isToday(d: string) {
+  return d === new Date().toISOString().split("T")[0];
+}
+
+function fmtDate(d: string) {
+  const dt = new Date(d + "T00:00:00");
+  return {
+    day:  dt.toLocaleDateString("en-GB", { weekday: "short" }),
+    date: dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+  };
+}
+
+function freqEmoji(pct: number) {
+  if (pct >= 85) return "🔥";
+  if (pct >= 65) return "⚡";
+  return "✓";
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PlanSession {
   id: string;
@@ -30,95 +120,46 @@ interface PlanSession {
   week_number?: number;
 }
 
-function getDaysRemaining(session: string, year: number): number {
-  const month = session === "May/June" ? 4 : 9;
-  const exam = new Date(year, month, 15);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.ceil((exam.getTime() - today.getTime()) / 86400000);
+interface TopicScore {
+  subject: string;
+  topic: string;
+  mastery: number;
 }
 
-function getMode(days: number): { label: string; color: string; bg: string; emoji: string } {
-  if (days <= 28) return { label: "Crash Mode", color: "#dc2626", bg: "#fef2f2", emoji: "🚨" };
-  if (days <= 60) return { label: "Rapid Mode", color: "#d97706", bg: "#fffbeb", emoji: "⚡" };
-  return { label: "Full Course", color: "#189080", bg: "#e8f8f4", emoji: "📚" };
-}
-
-function isToday(d: string) {
-  return d === new Date().toISOString().split("T")[0];
-}
-
-function fmtDate(d: string) {
-  const dt = new Date(d + "T00:00:00");
-  return {
-    day: dt.toLocaleDateString("en-GB", { weekday: "short" }),
-    date: dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
-  };
-}
-
-const ACTIVITY_STYLE: Record<string, { text: string; bg: string; border: string }> = {
-  learn: { text: "#189080", bg: "#e8f8f4", border: "#a7f3d0" },
-  practice: { text: "#f5731e", bg: "#fff7ed", border: "#fed7aa" },
-  revision: { text: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  mock: { text: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-  past_paper: { text: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-};
-
-function normalizeSessions(rows: unknown[] | null): PlanSession[] {
-  if (!rows?.length) return [];
-  return rows.map((raw, idx) => {
-    const r = raw as Record<string, unknown>;
-    const id = r.id != null ? String(r.id) : `${String(r.scheduled_date)}-${String(r.topic)}-${idx}`;
-    const mode = String(r.mode ?? "learn");
-    return {
-      id,
-      scheduled_date: String(r.scheduled_date ?? ""),
-      topic: String(r.topic ?? ""),
-      subtopic: String(r.subtopic ?? ""),
-      mode,
-      activity_type: r.activity_type != null ? String(r.activity_type) : undefined,
-      duration_minutes: Number(r.duration_minutes ?? 45),
-      priority: r.priority != null ? String(r.priority) : undefined,
-      completed: Boolean(r.completed),
-      week_number: r.week_number != null ? Number(r.week_number) : undefined,
-    };
-  });
-}
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [checking, setChecking] = useState(true);
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [studentName, setStudentName] = useState("Student");
-  const [examSession, setExamSession] = useState("May/June");
-  const [examYear, setExamYear] = useState<number>(new Date().getFullYear() + 1);
-  const [targetGrade, setTargetGrade] = useState("");
-  const [subject, setSubject] = useState("Chemistry");
-  const [showMenu, setShowMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("Today");
-  const [trial, setTrial] = useState(() => getTrialInfo());
+  // Auth + profile
+  const [checking,     setChecking]     = useState(true);
+  const [studentId,    setStudentId]    = useState<string | null>(null);
+  const [studentName,  setStudentName]  = useState("Student");
+  const [examSession,  setExamSession]  = useState("May/June");
+  const [examYear,     setExamYear]     = useState(new Date().getFullYear() + 1);
+  const [targetGrade,  setTargetGrade]  = useState("");
+  const [subject,      setSubject]      = useState("Chemistry");
+  const [showMenu,     setShowMenu]     = useState(false);
+  const [trial,        setTrial]        = useState(() => getTrialInfo());
+  const [activeTab,    setActiveTab]    = useState<TabId>("today");
 
-  const [sessions, setSessions] = useState<PlanSession[]>([]);
+  // Data
+  const [sessions,      setSessions]      = useState<PlanSession[]>([]);
+  const [topicScores,   setTopicScores]   = useState<TopicScore[]>([]);
   const [subjectMastery, setSubjectMastery] = useState<Record<string, number>>({});
-  const [topicScores, setTopicScores] = useState<Array<{ subject: string; topic: string; mastery: number }>>([]);
 
+  // ── Auth ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       const user = data.session?.user;
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      if (!user) { router.push("/login"); return; }
 
       const meta = user.user_metadata ?? {};
       const name =
-        meta.child_name && meta.child_name !== "###"
-          ? meta.child_name
-          : meta.name && meta.name !== "###"
-            ? meta.name
-            : user.email?.split("@")[0] ?? "Student";
+        (meta.child_name && meta.child_name !== "###") ? meta.child_name :
+        (meta.name       && meta.name       !== "###") ? meta.name :
+        user.email?.split("@")[0] ?? "Student";
 
       setStudentName(String(name));
       setStudentId(user.id);
@@ -128,45 +169,33 @@ export default function DashboardPage() {
     void init();
   }, [router]);
 
+  // ── Redirect if not onboarded ───────────────────────────────────────────────
   useEffect(() => {
     if (!studentId) return;
-    supabase
-      .from("students")
-      .select("onboarding_complete")
-      .eq("id", studentId)
-      .single()
+    supabase.from("students")
+      .select("onboarding_complete, target_grade, exam_session, exam_year, onboarding_subject")
+      .eq("id", studentId).single()
       .then(({ data }) => {
-        if (!data?.onboarding_complete) router.push("/subjects");
+        if (!data?.onboarding_complete) { router.push("/onboarding"); return; }
+        if (data.target_grade)      setTargetGrade(String(data.target_grade));
+        if (data.exam_session)      setExamSession(String(data.exam_session));
+        if (data.exam_year)         setExamYear(Number(data.exam_year));
+        if (data.onboarding_subject) setSubject(String(data.onboarding_subject));
       });
   }, [studentId, router]);
 
+  // ── Load mastery ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!studentId) return;
-    supabase
-      .from("students")
-      .select("name, target_grade, exam_session, exam_year, onboarding_subject")
-      .eq("id", studentId)
-      .single()
-      .then(({ data }) => {
-        if (data?.target_grade) setTargetGrade(String(data.target_grade));
-        if (data?.exam_session) setExamSession(String(data.exam_session));
-        if (data?.exam_year) setExamYear(Number(data.exam_year));
-        if (data?.onboarding_subject) setSubject(String(data.onboarding_subject));
-      });
-  }, [studentId]);
-
-  useEffect(() => {
-    if (!studentId) return;
-    supabase
-      .from("topic_scores")
+    supabase.from("topic_scores")
       .select("subject, topic, mastery")
       .eq("student_id", studentId)
       .then(({ data }) => {
         if (!data) return;
-        const rows = data as Array<{ subject: string; topic: string; mastery: number }>;
+        const rows = data as TopicScore[];
         setTopicScores(rows);
         const grouped: Record<string, number[]> = {};
-        rows.forEach((r) => {
+        rows.forEach(r => {
           if (!grouped[r.subject]) grouped[r.subject] = [];
           grouped[r.subject].push(Math.min(100, Math.max(0, r.mastery)));
         });
@@ -178,25 +207,29 @@ export default function DashboardPage() {
       });
   }, [studentId]);
 
+  // ── Load study plan ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!studentId) return;
-    supabase
-      .from("study_plan")
-      .select("id, scheduled_date, topic, subtopic, mode, priority, completed, week_number, day_number")
+    supabase.from("study_plan")
+      .select("id, scheduled_date, topic, subtopic, mode, activity_type, duration_minutes, priority, completed, week_number")
       .eq("student_id", studentId)
       .order("scheduled_date", { ascending: true })
-      .order("day_number", { ascending: true })
-      .then(({ data }) => {
-        if (data) setSessions(normalizeSessions(data as unknown[]));
-      });
+      .order("day_number",     { ascending: true })
+      .then(({ data }) => { if (data) setSessions(data as PlanSession[]); });
   }, [studentId]);
 
-  const daysLeft = getDaysRemaining(examSession, examYear);
-  const modeInfo = getMode(daysLeft);
-  const todaySession = sessions.find((s) => isToday(s.scheduled_date) && !s.completed);
-  const nextSession = sessions.find((s) => !s.completed);
-  const completedCount = sessions.filter((s) => s.completed).length;
-  const avatarLetter = studentName.trim().charAt(0).toUpperCase() || "S";
+  // ── Derived ─────────────────────────────────────────────────────────────────
+  const daysLeft       = getDaysLeft(examSession, examYear);
+  const modeInfo       = getModeInfo(daysLeft);
+  const todaySession   = sessions.find(s => isToday(s.scheduled_date) && !s.completed);
+  const nextSession    = sessions.find(s => !s.completed);
+  const completedCount = sessions.filter(s => s.completed).length;
+  const avatarLetter   = studentName.trim().charAt(0).toUpperCase() || "S";
+  const freqTopics     = TOPIC_FREQUENCY[subject] ?? [];
+  const weakTopics     = [...topicScores]
+    .filter(t => t.subject === subject)
+    .sort((a, b) => a.mastery - b.mastery)
+    .slice(0, 5);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -204,175 +237,116 @@ export default function DashboardPage() {
     router.refresh();
   };
 
-  const sidebarNav = useMemo(
-    () =>
-      TABS.map((tab) => (
-        <button
-          key={tab}
-          type="button"
-          onClick={() => setActiveTab(tab)}
-          className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
-            activeTab === tab ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          {tab}
-        </button>
-      )),
-    [activeTab],
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (checking) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0faf8" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 40, height: 40, border: "3px solid #e5e7eb", borderTop: `3px solid ${TEAL}`, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 12px" }} />
+        <p style={{ color: "#6b7280", fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>Loading...</p>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   );
 
-  if (checking) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f9fafb",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid #e5e7eb",
-              borderTop: "3px solid #189080",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 16px",
-            }}
-          />
-          <p style={{ color: "#6b7280", fontSize: 14 }}>Loading your dashboard...</p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
-
+  // ════════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-[#f0faf8] lg:flex">
-      {/* ── Desktop sidebar ── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-teal-100 bg-white shadow-sm lg:flex">
-        <div className="border-b border-slate-100 p-4">
-          <Logo className="text-xl" />
-        </div>
-        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-brand-teal">
-            {avatarLetter}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-xs text-slate-500">Student</p>
-            <p className="truncate font-semibold text-slate-900">{studentName}</p>
-          </div>
-        </div>
-        <nav className="flex flex-1 flex-col gap-1 px-2 py-4">{sidebarNav}</nav>
-        <div className="space-y-1 border-t border-slate-100 p-3">
-          <Link
-            href="/account"
-            className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Account
-          </Link>
-          <button
-            type="button"
-            onClick={() => void handleSignOut()}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
+    <div style={{ minHeight: "100vh", background: "#f0faf8", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <main
-        className="w-full pb-20 lg:ml-[240px] lg:min-h-screen lg:pb-6"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-      >
-        {/* ── Top hero bar ── */}
-        <div className="lg:px-4 lg:pt-4">
-          <div
-            className="lg:mx-auto lg:max-w-[720px] lg:overflow-hidden lg:rounded-2xl lg:shadow-md"
-            style={{ background: "#189080", padding: "20px 20px 28px", position: "relative" }}
-          >
-            <div className="mb-4 flex items-center justify-between lg:hidden">
+      {/* ── DESKTOP LAYOUT WRAPPER ── */}
+      <div className="lg:flex lg:min-h-screen">
+
+        {/* ════════════════════════════════
+            LEFT SIDEBAR (desktop only)
+        ════════════════════════════════ */}
+        <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 lg:bg-white lg:border-r lg:border-slate-200 lg:z-40">
+          {/* Logo */}
+          <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #f1f5f9" }}>
+            <Logo className="text-2xl" />
+          </div>
+
+          {/* Student info */}
+          <div style={{ padding: "14px 20px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#e8f8f4", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: TEAL, flexShrink: 0 }}>
+              {avatarLetter}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{studentName}</p>
+              <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{subject} · Grade {targetGrade}</p>
+            </div>
+          </div>
+
+          {/* Exam countdown */}
+          <div style={{ margin: "12px 16px", background: modeInfo.bg, borderRadius: 10, padding: "10px 12px", border: `1px solid ${modeInfo.color}20` }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: modeInfo.color, margin: "0 0 2px" }}>{modeInfo.emoji} {modeInfo.label}</p>
+            <p style={{ fontSize: 22, fontWeight: 700, color: modeInfo.color, margin: 0 }}>{daysLeft} <span style={{ fontSize: 12, fontWeight: 400 }}>days to exam</span></p>
+          </div>
+
+          {/* Nav links */}
+          <nav style={{ flex: 1, padding: "8px 12px" }}>
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "11px 12px",
+                  borderRadius: 10,
+                  background: activeTab === tab.id ? "#e8f8f4" : "transparent",
+                  color: activeTab === tab.id ? TEAL : "#6b7280",
+                  fontWeight: activeTab === tab.id ? 700 : 500,
+                  fontSize: 14,
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: 2,
+                  textAlign: "left",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{tab.emoji}</span>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Bottom links */}
+          <div style={{ padding: "12px 16px", borderTop: "1px solid #f1f5f9" }}>
+            <Link href="/account" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, fontSize: 13, color: "#6b7280", textDecoration: "none", marginBottom: 2 }}>
+              ⚙️ Account
+            </Link>
+            <button onClick={() => void handleSignOut()} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, fontSize: 13, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>
+              🚪 Logout
+            </button>
+          </div>
+        </aside>
+
+        {/* ════════════════════════════════
+            MAIN CONTENT AREA
+        ════════════════════════════════ */}
+        <main className="lg:ml-60 lg:flex-1" style={{ paddingBottom: 80 }}>
+
+          {/* ── MOBILE HEADER ── */}
+          <div className="lg:hidden" style={{ background: TEAL, padding: "16px 16px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <Logo className="text-2xl" />
               <div style={{ position: "relative" }}>
                 <button
-                  type="button"
-                  onClick={() => setShowMenu((p) => !p)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: "rgba(255,255,255,0.15)",
-                    border: "none",
-                    borderRadius: 12,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                    color: "white",
-                  }}
+                  onClick={() => setShowMenu(p => !p)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 10, padding: "6px 10px", cursor: "pointer", color: "white" }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{studentName}</span>
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.3)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: 14,
-                    }}
-                  >
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.28)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
                     {avatarLetter}
                   </div>
                 </button>
                 {showMenu && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      top: 44,
-                      background: "white",
-                      borderRadius: 12,
-                      border: "1px solid #e5e7eb",
-                      padding: 6,
-                      zIndex: 50,
-                      minWidth: 140,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    <Link
-                      href="/account"
-                      style={{
-                        display: "block",
-                        padding: "8px 12px",
-                        fontSize: 13,
-                        color: "#374151",
-                        textDecoration: "none",
-                        borderRadius: 8,
-                      }}
-                    >
-                      ⚙️ Account
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void handleSignOut()}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "8px 12px",
-                        fontSize: 13,
-                        color: "#dc2626",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        borderRadius: 8,
-                      }}
-                    >
+                  <div style={{ position: "absolute", right: 0, top: 44, background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 6, zIndex: 50, minWidth: 140, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                    <Link href="/account" style={{ display: "block", padding: "8px 12px", fontSize: 13, color: "#374151", textDecoration: "none" }}>⚙️ Account</Link>
+                    <button onClick={() => void handleSignOut()} style={{ width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 13, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>
                       Logout
                     </button>
                   </div>
@@ -380,704 +354,563 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <h1
-              style={{
-                fontFamily: "'Sora', sans-serif",
-                fontSize: 22,
-                fontWeight: 700,
-                color: "white",
-                margin: "0 0 4px",
-              }}
-              className="lg:text-lg"
-            >
-              {(() => {
-                const h = new Date().getHours();
-                return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-              })()}
-              , {studentName}! 👋
-            </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: "0 0 16px" }} className="lg:text-xs">
-              {subject} · {targetGrade ? `Targeting Grade ${targetGrade}` : ""} · {examSession} {examYear}
+            {/* Mobile greeting + stats */}
+            <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700, color: "white", margin: "0 0 4px" }}>
+              {(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}, {studentName}! 👋
             </p>
-
-            <div
-              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}
-              className="lg:max-w-xl lg:mx-auto"
-            >
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: "0 0 14px" }}>
+              {subject} · {targetGrade ? `Grade ${targetGrade} target` : ""} · {examSession} {examYear}
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
               {[
-                { label: "Days Left", value: String(daysLeft) },
-                { label: "Sessions", value: `${completedCount}/${sessions.length}` },
+                { label: "Days Left",  value: String(daysLeft) },
+                { label: "Sessions",   value: `${completedCount}/${sessions.length}` },
                 { label: modeInfo.label, value: modeInfo.emoji },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  style={{
-                    background: "rgba(255,255,255,0.18)",
-                    borderRadius: 12,
-                    padding: "10px 8px",
-                    textAlign: "center",
-                  }}
-                  className="lg:py-2 lg:px-2"
-                >
-                  <p style={{ fontSize: 18, fontWeight: 700, color: "white", margin: 0 }} className="lg:text-base">
-                    {stat.value}
-                  </p>
-                  <p
-                    style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", margin: "2px 0 0" }}
-                    className="lg:text-[10px]"
-                  >
-                    {stat.label}
-                  </p>
+              ].map(s => (
+                <div key={s.label} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 10, padding: "9px 6px", textAlign: "center" }}>
+                  <p style={{ fontSize: 17, fontWeight: 700, color: "white", margin: 0 }}>{s.value}</p>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", margin: "2px 0 0" }}>{s.label}</p>
                 </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {trial.status === "Free Trial" && (
-          <div
-            className="lg:mx-auto lg:max-w-[720px] lg:px-4"
-            style={{
-              background: "#fff7ed",
-              borderBottom: "1px solid #fed7aa",
-              padding: "10px 20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <p style={{ fontSize: 13, color: "#92400e", margin: 0 }}>
-              🎁 Free trial · <strong>{trial.daysRemaining} days left</strong>
-            </p>
-            <Link href="/pricing" style={{ fontSize: 12, fontWeight: 700, color: "#f5731e", textDecoration: "none" }}>
-              Upgrade →
-            </Link>
-          </div>
-        )}
-
-        <div
-          className="sticky top-0 z-40 border-b border-slate-200 bg-white lg:hidden"
-          style={{ display: "flex", paddingLeft: 16, paddingRight: 16 }}
-        >
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1,
-                padding: "13px 4px",
-                fontSize: 13,
-                fontWeight: activeTab === tab ? 700 : 500,
-                color: activeTab === tab ? "#189080" : "#9ca3af",
-                background: "none",
-                border: "none",
-                borderBottom: activeTab === tab ? "2.5px solid #189080" : "2.5px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-full px-4 pb-4 pt-4 lg:mx-auto lg:max-w-[720px]">
-          {activeTab === "Today" && (
+          {/* ── DESKTOP GREETING BAR ── */}
+          <div className="hidden lg:block" style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "18px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              {todaySession || nextSession ? (
-                (() => {
-                  const s = todaySession ?? nextSession!;
-                  const actKey = (s.activity_type ?? s.mode).replace(/-/g, "_");
-                  const actStyle = ACTIVITY_STYLE[actKey] ?? ACTIVITY_STYLE.learn;
-                  const isUpcoming = !todaySession && !!nextSession;
-                  return (
-                    <div
-                      style={{
-                        background: "white",
-                        border: `2px solid #189080`,
-                        borderRadius: 16,
-                        padding: "18px 16px",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <p
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "#189080",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            margin: 0,
-                          }}
-                        >
-                          {isUpcoming
-                            ? `📅 Next Session · ${fmtDate(s.scheduled_date).day} ${fmtDate(s.scheduled_date).date}`
-                            : "📅 Today\u2019s Session"}
+              <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>
+                {(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}, {studentName}! 👋
+              </h1>
+              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                {subject} · {targetGrade ? `Targeting Grade ${targetGrade}` : ""} · {examSession} {examYear}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ background: modeInfo.bg, borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+                <p style={{ fontSize: 20, fontWeight: 700, color: modeInfo.color, margin: 0 }}>{daysLeft}</p>
+                <p style={{ fontSize: 10, color: modeInfo.color, margin: 0 }}>days left</p>
+              </div>
+              <div style={{ background: "#f8fafc", borderRadius: 10, padding: "8px 14px", textAlign: "center" }}>
+                <p style={{ fontSize: 20, fontWeight: 700, color: "#374151", margin: 0 }}>{completedCount}/{sessions.length}</p>
+                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>sessions done</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── TRIAL BANNER ── */}
+          {trial.status === "Free Trial" && (
+            <div style={{ background: "#fff7ed", borderBottom: "1px solid #fed7aa", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p style={{ fontSize: 13, color: "#92400e", margin: 0 }}>🎁 Free trial · <strong>{trial.daysRemaining} days left</strong></p>
+              <Link href="/pricing" style={{ fontSize: 12, fontWeight: 700, color: ORANGE, textDecoration: "none" }}>Upgrade →</Link>
+            </div>
+          )}
+
+          {/* ── MOBILE TAB BAR ── */}
+          <div className="lg:hidden" style={{ background: "white", borderBottom: "1px solid #e5e7eb", display: "flex", overflowX: "auto", position: "sticky", top: 0, zIndex: 40 }}>
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  flex: "0 0 auto",
+                  padding: "14px 16px",
+                  fontSize: 14,
+                  fontWeight: activeTab === tab.id ? 700 : 500,
+                  color: activeTab === tab.id ? TEAL : "#9ca3af",
+                  background: "none",
+                  border: "none",
+                  borderBottom: `3px solid ${activeTab === tab.id ? TEAL : "transparent"}`,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 16 }}>{tab.emoji}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── TAB CONTENT ── */}
+          <div className="lg:max-w-3xl lg:mx-auto" style={{ padding: "20px 16px 0" }}>
+
+            {/* ══════════════════════════
+                TODAY TAB
+            ══════════════════════════ */}
+            {activeTab === "today" && (() => {
+              const s = todaySession ?? nextSession;
+              return (
+                <div>
+                  {s ? (
+                    <div style={{ background: "white", border: `2px solid ${TEAL}`, borderRadius: 18, padding: "20px 18px", marginBottom: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: TEAL, textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+                          {todaySession ? "📅 Today's Session" : `📅 Next · ${fmtDate(s.scheduled_date).day} ${fmtDate(s.scheduled_date).date}`}
                         </p>
-                        <span
-                          style={{
-                            background: modeInfo.bg,
-                            color: modeInfo.color,
-                            borderRadius: 20,
-                            padding: "3px 10px",
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
+                        <span style={{ background: modeInfo.bg, color: modeInfo.color, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
                           {modeInfo.emoji} {modeInfo.label}
                         </span>
                       </div>
 
-                      <p
-                        style={{
-                          fontFamily: "'Sora', sans-serif",
-                          fontSize: 20,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          margin: "0 0 4px",
-                        }}
-                      >
+                      <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>
                         {s.topic}
                       </p>
-                      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 14px" }}>{s.subtopic}</p>
+                      <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 14px" }}>{s.subtopic}</p>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                        <span
-                          style={{
-                            background: actStyle.bg,
-                            color: actStyle.text,
-                            border: `1px solid ${actStyle.border}`,
-                            borderRadius: 20,
-                            padding: "4px 10px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            textTransform: "capitalize",
-                          }}
-                        >
-                          {(s.activity_type ?? s.mode).replace("_", " ")}
-                        </span>
-                        <span style={{ fontSize: 12, color: "#6b7280" }}>⏱ {s.duration_minutes} min</span>
-                        {s.priority === "must_cover" && (
-                          <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>🎯 Must Cover</span>
-                        )}
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                        {(() => {
+                          const as = ACTIVITY_STYLE[s.activity_type ?? s.mode] ?? ACTIVITY_STYLE.learn;
+                          return (
+                            <span style={{ background: as.bg, color: as.text, border: `1px solid ${as.border}`, borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>
+                              {(s.activity_type ?? s.mode).replace("_", " ")}
+                            </span>
+                          );
+                        })()}
+                        <span style={{ fontSize: 13, color: "#6b7280" }}>⏱ {s.duration_minutes} min</span>
+                        {s.priority === "must_cover" && <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>🎯 Must Cover</span>}
                       </div>
 
-                      <div
-                        style={{
-                          background: "#f8fafc",
-                          borderRadius: 10,
-                          padding: "10px 12px",
-                          marginBottom: 16,
-                          border: "1px solid #e5e7eb",
-                        }}
-                      >
-                        <p
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "#374151",
-                            margin: "0 0 8px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                          }}
-                        >
-                          How it works
+                      {/* How it works — shown always to reinforce the flow */}
+                      <div style={{ background: "#f8fafc", borderRadius: 12, padding: "12px 14px", marginBottom: 18, border: "1px solid #e5e7eb" }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          How a session works
                         </p>
                         {[
-                          { n: "1", text: "Your personal tutor explains the topic" },
-                          { n: "2", text: "You answer practice questions" },
-                          { n: "3", text: "Get expert marking + feedback" },
-                        ].map((step) => (
-                          <div key={step.n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                            <div
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: "50%",
-                                background: "#189080",
-                                color: "white",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                              }}
-                            >
+                          { n: "1", label: "Learn",    desc: "Your personal tutor explains the topic with examples",   href: `/tutor?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(s.topic)}`,    color: TEAL    },
+                          { n: "2", label: "Practice", desc: "Answer past paper questions on this topic",              href: `/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(s.topic)}`, color: ORANGE  },
+                          { n: "3", label: "Review",   desc: "Get expert marking and see where you went wrong",        href: `/progress`,                                                                              color: "#7c3aed" },
+                        ].map(step => (
+                          <Link key={step.n} href={step.href} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, textDecoration: "none" }}>
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: step.color, color: "white", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                               {step.n}
                             </div>
-                            <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{step.text}</p>
-                          </div>
+                            <div>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: "#374151", margin: 0 }}>{step.label}</p>
+                              <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{step.desc}</p>
+                            </div>
+                          </Link>
                         ))}
                       </div>
 
                       <Link
                         href={`/tutor?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(s.topic)}`}
-                        style={{
-                          display: "block",
-                          background: "#189080",
-                          color: "white",
-                          borderRadius: 12,
-                          padding: "14px",
-                          textAlign: "center",
-                          fontFamily: "'Sora', sans-serif",
-                          fontSize: 15,
-                          fontWeight: 700,
-                          textDecoration: "none",
-                        }}
+                        style={{ display: "block", background: TEAL, color: "white", borderRadius: 12, padding: "15px", textAlign: "center", fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, textDecoration: "none" }}
                       >
                         Start Session →
                       </Link>
                     </div>
-                  );
-                })()
-              ) : (
-                <div
-                  style={{
-                    background: "white",
-                    borderRadius: 16,
-                    padding: 24,
-                    textAlign: "center",
-                    marginBottom: 16,
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <p style={{ fontSize: 32, margin: "0 0 8px" }}>🎉</p>
-                  <p
-                    style={{
-                      fontFamily: "'Sora', sans-serif",
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: "#0f172a",
-                      margin: "0 0 4px",
-                    }}
-                  >
-                    All caught up!
-                  </p>
-                  <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                    No sessions scheduled today. Check your full plan.
-                  </p>
-                </div>
-              )}
+                  ) : (
+                    <div style={{ background: "white", borderRadius: 18, padding: 28, textAlign: "center", marginBottom: 16, border: "1px solid #e5e7eb" }}>
+                      <p style={{ fontSize: 36, margin: "0 0 10px" }}>🎉</p>
+                      <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 6px" }}>All caught up!</p>
+                      <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 16px" }}>No sessions scheduled. Check your full plan or explore freely.</p>
+                      <Link href="/study-plan" style={{ display: "inline-block", background: TEAL, color: "white", borderRadius: 10, padding: "11px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                        View full plan →
+                      </Link>
+                    </div>
+                  )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-                {[
-                  { emoji: "📋", label: "Full Plan", href: "/study-plan" },
-                  { emoji: "📊", label: "My Progress", href: "/progress" },
-                  { emoji: "🔮", label: "SmartPredict", href: "/predict" },
-                  { emoji: "💬", label: "Ask Tutor", href: "/tutor" },
-                ].map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    style={{
-                      background: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                      padding: "14px",
-                      textDecoration: "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
-                    <span style={{ fontSize: 20 }}>{item.emoji}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{item.label}</span>
+                  {/* Quick access grid */}
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>Quick Access</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+                    {[
+                      { emoji: "📋", label: "Full Plan",    sub: "Day-by-day schedule",   href: "/study-plan"  },
+                      { emoji: "🔮", label: "SmartPredict", sub: "Hot topics for exam",    href: "/predict"     },
+                      { emoji: "💬", label: "Ask Tutor",    sub: "Get help on any topic",  href: "/tutor"       },
+                      { emoji: "📊", label: "Progress",     sub: "See your mastery scores", href: "/progress"   },
+                    ].map(item => (
+                      <Link key={item.label} href={item.href} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 12px", textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 22, flexShrink: 0 }}>{item.emoji}</span>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0 }}>{item.label}</p>
+                          <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{item.sub}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ══════════════════════════
+                MY PLAN TAB
+            ══════════════════════════ */}
+            {activeTab === "plan" && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div>
+                    <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>{subject} Plan</h2>
+                    <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>{completedCount} of {sessions.length} sessions complete</p>
+                  </div>
+                  <Link href="/study-plan" style={{ background: TEAL, color: "white", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                    ✏️ Edit plan
                   </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "My Plan" && (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <h2
-                  style={{
-                    fontFamily: "'Sora', sans-serif",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    margin: 0,
-                  }}
-                >
-                  {subject} Plan
-                </h2>
-                <Link href="/study-plan" style={{ fontSize: 12, fontWeight: 600, color: "#189080", textDecoration: "none" }}>
-                  Edit plan →
-                </Link>
-              </div>
-
-              {sessions.length === 0 ? (
-                <div
-                  style={{
-                    background: "white",
-                    borderRadius: 12,
-                    padding: 24,
-                    textAlign: "center",
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>No plan generated yet.</p>
                 </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {sessions.map((s, idx) => {
-                    const df = fmtDate(s.scheduled_date);
-                    const today = isToday(s.scheduled_date);
-                    const actKey = (s.activity_type ?? s.mode).replace(/-/g, "_");
-                    const actStyle = ACTIVITY_STYLE[actKey] ?? ACTIVITY_STYLE.learn;
+
+                {/* Progress bar */}
+                <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", marginBottom: 14, border: "1px solid #e5e7eb" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", margin: 0 }}>Overall Progress</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: TEAL, margin: 0 }}>{sessions.length ? Math.round((completedCount / sessions.length) * 100) : 0}%</p>
+                  </div>
+                  <div style={{ height: 8, background: "#f3f4f6", borderRadius: 8 }}>
+                    <div style={{ height: 8, borderRadius: 8, background: TEAL, width: sessions.length ? `${(completedCount / sessions.length) * 100}%` : "0%", transition: "width 0.6s" }} />
+                  </div>
+                </div>
+
+                {sessions.length === 0 ? (
+                  <div style={{ background: "white", borderRadius: 14, padding: 24, textAlign: "center", border: "1px solid #e5e7eb" }}>
+                    <p style={{ fontSize: 32, margin: "0 0 8px" }}>📋</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>No plan yet</p>
+                    <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 16px" }}>Complete onboarding to generate your personalised study plan.</p>
+                    <Link href="/onboarding" style={{ display: "inline-block", background: TEAL, color: "white", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                      Build my plan →
+                    </Link>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {sessions.map((s, idx) => {
+                      const df = fmtDate(s.scheduled_date);
+                      const today = isToday(s.scheduled_date);
+                      const as = ACTIVITY_STYLE[s.activity_type ?? s.mode] ?? ACTIVITY_STYLE.learn;
+                      return (
+                        <div key={s.id} style={{ background: today ? "#f0fdf9" : s.completed ? "#fafafa" : "white", border: `1.5px solid ${today ? TEAL : "#e5e7eb"}`, borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, opacity: s.completed ? 0.6 : 1 }}>
+                          <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: today ? TEAL : "#9ca3af", margin: 0, textTransform: "uppercase" }}>{df.day}</p>
+                            <p style={{ fontSize: 14, fontWeight: 700, color: today ? TEAL : "#374151", margin: 0 }}>{df.date.split(" ")[0]}</p>
+                            <p style={{ fontSize: 10, color: "#9ca3af", margin: 0 }}>{df.date.split(" ")[1]}</p>
+                          </div>
+                          <div style={{ width: 1, height: 40, background: today ? "#a7f3d0" : "#e5e7eb", flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {idx + 1}. {s.topic}
+                            </p>
+                            <p style={{ fontSize: 11, color: "#6b7280", margin: "1px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.subtopic}</p>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                            <span style={{ background: as.bg, color: as.text, border: `1px solid ${as.border}`, borderRadius: 20, padding: "2px 8px", fontSize: 10, fontWeight: 600, textTransform: "capitalize" }}>
+                              {(s.activity_type ?? s.mode).replace("_", " ")}
+                            </span>
+                            <span style={{ fontSize: 10, color: s.completed ? "#16a34a" : "#9ca3af", fontWeight: 600 }}>
+                              {s.completed ? "✓ Done" : `${s.duration_minutes}m`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════════════════════════
+                LEARN TAB
+            ══════════════════════════ */}
+            {activeTab === "learn" && (
+              <div>
+                <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>Learn</h2>
+                <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 18px" }}>
+                  Structured notes, formulas, examples and past paper questions — all Cambridge-aligned.
+                </p>
+
+                {/* Subject selector */}
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
+                  {IGCSE_SUBJECTS.map(sub => (
+                    <button
+                      key={sub.code}
+                      onClick={() => setSubject(sub.name)}
+                      style={{
+                        flexShrink: 0,
+                        padding: "8px 16px",
+                        borderRadius: 20,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        border: `1.5px solid ${subject === sub.name ? sub.color : "#e5e7eb"}`,
+                        background: subject === sub.name ? sub.color + "18" : "white",
+                        color: subject === sub.name ? sub.color : "#6b7280",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {sub.emoji} {sub.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Topic cards */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {(TOPIC_FREQUENCY[subject] ?? []).map((t) => {
+                    const mastery = topicScores.find(ts => ts.subject === subject && ts.topic === t.topic)?.mastery ?? 0;
+                    const masteryColor = mastery >= 70 ? "#16a34a" : mastery >= 40 ? "#d97706" : "#dc2626";
                     return (
-                      <div
-                        key={s.id}
-                        style={{
-                          background: today ? "#f0fdf9" : s.completed ? "#f8fafc" : "white",
-                          border: `1.5px solid ${today ? "#189080" : "#e5e7eb"}`,
-                          borderRadius: 12,
-                          padding: "12px 14px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          opacity: s.completed ? 0.65 : 1,
-                        }}
-                      >
-                        <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
-                          <p
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: today ? "#189080" : "#9ca3af",
-                              margin: 0,
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {df.day}
-                          </p>
-                          <p
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: today ? "#189080" : "#374151",
-                              margin: 0,
-                            }}
-                          >
-                            {df.date.split(" ")[0]}
-                          </p>
-                          <p style={{ fontSize: 10, color: "#9ca3af", margin: 0 }}>{df.date.split(" ")[1]}</p>
+                      <div key={t.topic} style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                        <div style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 16 }}>{freqEmoji(t.pct)}</span>
+                              <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>{t.topic}</p>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: masteryColor, background: masteryColor + "15", borderRadius: 20, padding: "3px 8px" }}>
+                              {mastery > 0 ? `${Math.round(mastery)}%` : "Not started"}
+                            </span>
+                          </div>
+                          <div style={{ height: 4, background: "#f3f4f6", borderRadius: 4, marginBottom: 12 }}>
+                            <div style={{ height: 4, borderRadius: 4, background: masteryColor, width: `${mastery}%`, transition: "width 0.5s" }} />
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                            <Link href={`/tutor?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(t.topic)}`} style={{ background: "#e8f8f4", color: TEAL, borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                              💬 Tutor
+                            </Link>
+                            <Link href={`/learn/${encodeURIComponent(subject.toLowerCase())}?topic=${encodeURIComponent(t.topic)}`} style={{ background: "#f8fafc", color: "#374151", borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                              📖 Notes
+                            </Link>
+                            <Link href={`/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(t.topic)}`} style={{ background: "#fff7ed", color: ORANGE, borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                              ✏️ Practice
+                            </Link>
+                          </div>
                         </div>
-                        <div style={{ width: 1, height: 40, background: today ? "#a7f3d0" : "#e5e7eb", flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: "#0f172a",
-                              margin: 0,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {idx + 1}. {s.topic}
-                          </p>
-                          <p
-                            style={{
-                              fontSize: 11,
-                              color: "#6b7280",
-                              margin: "1px 0 0",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {s.subtopic}
-                          </p>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "flex-end",
-                            gap: 4,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <span
-                            style={{
-                              background: actStyle.bg,
-                              color: actStyle.text,
-                              border: `1px solid ${actStyle.border}`,
-                              borderRadius: 20,
-                              padding: "2px 8px",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {(s.activity_type ?? s.mode).replace("_", " ")}
-                          </span>
-                          <span style={{ fontSize: 10, color: s.completed ? "#16a34a" : "#9ca3af", fontWeight: 600 }}>
-                            {s.completed ? "✓ Done" : `${s.duration_minutes}m`}
+                        <div style={{ background: "#f8fafc", padding: "8px 16px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Appeared in {t.pct}% of past papers</p>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: t.pct >= 85 ? "#dc2626" : t.pct >= 65 ? "#d97706" : TEAL }}>
+                            {t.pct >= 85 ? "🔥 Certain" : t.pct >= 65 ? "⚡ Likely" : "✓ Possible"}
                           </span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === "Subjects" && (
-            <div>
-              <h2
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#0f172a",
-                  margin: "0 0 14px",
-                }}
-              >
-                Your Subjects
-              </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {SUBJECTS.map((sub) => {
-                  const mastery = subjectMastery[sub.name] ?? 0;
-                  return (
-                    <div
-                      key={sub.code}
-                      style={{
-                        background: "white",
-                        borderRadius: 16,
-                        padding: "16px",
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 10,
-                        }}
-                      >
-                        <div>
-                          <p
-                            style={{
-                              fontFamily: "'Sora', sans-serif",
-                              fontSize: 16,
-                              fontWeight: 700,
-                              color: "#0f172a",
-                              margin: 0,
-                            }}
-                          >
-                            {sub.name}
-                          </p>
-                          <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>IGCSE {sub.code}</p>
-                        </div>
-                        <div
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: "50%",
-                            background: sub.color + "18",
-                            border: `2px solid ${sub.color}`,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: sub.color,
-                          }}
-                        >
-                          {mastery}%
-                        </div>
+                {/* Cambridge syllabus link */}
+                <div style={{ background: "white", borderRadius: 14, padding: "14px 16px", marginTop: 14, border: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>🎓</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>Full Cambridge Syllabus</p>
+                    <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>View the complete {subject} syllabus checklist</p>
+                  </div>
+                  <Link href={`/learn/${encodeURIComponent(subject.toLowerCase())}`} style={{ background: TEAL, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
+                    View →
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════
+                PRACTICE TAB
+            ══════════════════════════ */}
+            {activeTab === "practice" && (
+              <div>
+                <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>Practice</h2>
+                <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 18px" }}>
+                  Past paper questions filtered by topic. Get expert marking on every answer.
+                </p>
+
+                {/* Subject filter */}
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
+                  {IGCSE_SUBJECTS.slice(0, 4).map(sub => (
+                    <button key={sub.code} onClick={() => setSubject(sub.name)} style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: `1.5px solid ${subject === sub.name ? sub.color : "#e5e7eb"}`, background: subject === sub.name ? sub.color + "18" : "white", color: subject === sub.name ? sub.color : "#6b7280", cursor: "pointer" }}>
+                      {sub.emoji} {sub.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Practice options */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                  {[
+                    { label: "By Topic",           sub: "Choose a specific topic to drill",             href: `/practice?subject=${encodeURIComponent(subject)}`,              emoji: "🎯" },
+                    { label: "By Year",             sub: "Practice full past papers by year",            href: `/practice?subject=${encodeURIComponent(subject)}&filter=year`,   emoji: "📅" },
+                    { label: "Weak Areas",          sub: "Questions on your lowest mastery topics",      href: `/practice?subject=${encodeURIComponent(subject)}&filter=weak`,   emoji: "💪" },
+                    { label: "Random Mix",          sub: "Mixed questions across all topics",            href: `/practice?subject=${encodeURIComponent(subject)}&filter=random`, emoji: "🎲" },
+                  ].map(opt => (
+                    <Link key={opt.label} href={opt.href} style={{ background: "white", borderRadius: 14, padding: "14px 16px", border: "1px solid #e5e7eb", textDecoration: "none", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 24, flexShrink: 0 }}>{opt.emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>{opt.label}</p>
+                        <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>{opt.sub}</p>
                       </div>
-                      <div style={{ height: 6, background: "#f3f4f6", borderRadius: 6, marginBottom: 12 }}>
-                        <div
-                          style={{
-                            height: 6,
-                            borderRadius: 6,
-                            background: sub.color,
-                            width: `${mastery}%`,
-                            transition: "width 0.6s ease",
-                          }}
-                        />
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        <Link
-                          href={`/learn/${encodeURIComponent(sub.name.toLowerCase())}`}
-                          style={{
-                            background: "#f8fafc",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 8,
-                            padding: "9px",
-                            textAlign: "center",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "#374151",
-                            textDecoration: "none",
-                          }}
-                        >
-                          📖 Learn
+                      <span style={{ fontSize: 18, color: "#9ca3af" }}>→</span>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Weak topics to practice */}
+                {weakTopics.length > 0 && (
+                  <div style={{ background: "#fff7ed", borderRadius: 14, padding: "14px 16px", border: "1px solid #fed7aa" }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#92400e", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      💪 Needs Work
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {weakTopics.map(t => (
+                        <Link key={t.topic} href={`/practice?subject=${encodeURIComponent(t.subject)}&topic=${encodeURIComponent(t.topic)}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", textDecoration: "none" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#374151", margin: 0 }}>{t.topic}</p>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", background: "#fef2f2", borderRadius: 20, padding: "2px 8px" }}>{Math.round(t.mastery)}%</span>
                         </Link>
-                        <Link
-                          href={`/practice?subject=${encodeURIComponent(sub.name)}`}
-                          style={{
-                            background: sub.color,
-                            borderRadius: 8,
-                            padding: "9px",
-                            textAlign: "center",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "white",
-                            textDecoration: "none",
-                          }}
-                        >
-                          ✏️ Practice
-                        </Link>
-                      </div>
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === "Progress" && (
-            <div>
-              <h2
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#0f172a",
-                  margin: "0 0 14px",
-                }}
-              >
-                Your Progress
-              </h2>
+            {/* ══════════════════════════
+                PREDICT TAB
+            ══════════════════════════ */}
+            {activeTab === "predict" && (
+              <div>
+                <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>SmartPredict</h2>
+                <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 6px" }}>
+                  Based on 15 years of Cambridge {subject} past papers.
+                </p>
+                <div style={{ background: "#e8f8f4", borderRadius: 10, padding: "8px 12px", marginBottom: 18, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>🎓</span>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: TEAL, margin: 0 }}>Cambridge O Level / IGCSE syllabus aligned</p>
+                </div>
 
-              <div
-                style={{
-                  background: "white",
-                  borderRadius: 16,
-                  padding: 16,
-                  marginBottom: 12,
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#374151", margin: 0 }}>Study Plan</p>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#189080", margin: 0 }}>
-                    {completedCount}/{sessions.length} sessions
-                  </p>
-                </div>
-                <div style={{ height: 8, background: "#f3f4f6", borderRadius: 8 }}>
-                  <div
-                    style={{
-                      height: 8,
-                      borderRadius: 8,
-                      background: "#189080",
-                      width: sessions.length ? `${(completedCount / sessions.length) * 100}%` : "0%",
-                      transition: "width 0.6s ease",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {topicScores.length === 0 ? (
-                <div
-                  style={{
-                    background: "white",
-                    borderRadius: 12,
-                    padding: 24,
-                    textAlign: "center",
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-                    No mastery data yet. Complete some practice sessions to see your progress.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {topicScores.slice(0, 10).map((t, i) => (
-                    <div
-                      key={`${t.subject}-${t.topic}-${i}`}
-                      style={{
-                        background: "white",
-                        borderRadius: 12,
-                        padding: "12px 14px",
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: 6,
-                        }}
-                      >
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{t.topic}</p>
-                          <p style={{ fontSize: 11, color: "#9ca3af", margin: "1px 0 0" }}>{t.subject}</p>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: t.mastery >= 70 ? "#16a34a" : t.mastery >= 40 ? "#d97706" : "#dc2626",
-                          }}
-                        >
-                          {Math.round(t.mastery)}%
-                        </span>
-                      </div>
-                      <div style={{ height: 4, background: "#f3f4f6", borderRadius: 4 }}>
-                        <div
-                          style={{
-                            height: 4,
-                            borderRadius: 4,
-                            background: t.mastery >= 70 ? "#16a34a" : t.mastery >= 40 ? "#d97706" : "#dc2626",
-                            width: `${t.mastery}%`,
-                          }}
-                        />
+                {/* Frequency legend */}
+                <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+                  {[
+                    { emoji: "🔥", label: "Certain",  desc: "85%+ papers",  color: "#dc2626" },
+                    { emoji: "⚡", label: "Likely",   desc: "65–85%",       color: "#d97706" },
+                    { emoji: "✓",  label: "Possible", desc: "Below 65%",    color: TEAL      },
+                  ].map(l => (
+                    <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 16 }}>{l.emoji}</span>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: l.color, margin: 0 }}>{l.label}</p>
+                        <p style={{ fontSize: 10, color: "#9ca3af", margin: 0 }}>{l.desc}</p>
                       </div>
                     </div>
                   ))}
-                  <Link
-                    href="/progress"
-                    style={{
-                      display: "block",
-                      textAlign: "center",
-                      padding: "12px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#189080",
-                      textDecoration: "none",
-                    }}
-                  >
-                    View full progress report →
+                </div>
+
+                {/* Subject selector */}
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
+                  {IGCSE_SUBJECTS.slice(0, 4).map(sub => (
+                    <button key={sub.code} onClick={() => setSubject(sub.name)} style={{ flexShrink: 0, padding: "8px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, border: `1.5px solid ${subject === sub.name ? sub.color : "#e5e7eb"}`, background: subject === sub.name ? sub.color + "18" : "white", color: subject === sub.name ? sub.color : "#6b7280", cursor: "pointer" }}>
+                      {sub.emoji} {sub.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Topic frequency bars */}
+                <div style={{ background: "white", borderRadius: 16, padding: "16px", marginBottom: 14, border: "1px solid #e5e7eb" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 14px" }}>
+                    Topic Frequency — {subject}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {freqTopics.map(t => (
+                      <div key={t.topic}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 14 }}>{freqEmoji(t.pct)}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{t.topic}</span>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: t.pct >= 85 ? "#dc2626" : t.pct >= 65 ? "#d97706" : TEAL }}>
+                            {t.pct}%
+                          </span>
+                        </div>
+                        <div style={{ height: 7, background: "#f3f4f6", borderRadius: 6 }}>
+                          <div style={{ height: 7, borderRadius: 6, width: `${t.pct}%`, background: t.pct >= 85 ? "#dc2626" : t.pct >= 65 ? "#d97706" : TEAL, transition: "width 0.8s ease" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Generate guess paper CTA */}
+                <div style={{ background: `linear-gradient(135deg, ${TEAL}, #137265)`, borderRadius: 16, padding: "20px 18px", color: "white", marginBottom: 14 }}>
+                  <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700, margin: "0 0 6px" }}>📝 Generate Guess Paper</p>
+                  <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: "0 0 16px", lineHeight: 1.5 }}>
+                    AI-powered paper based on highest-probability topics. Cambridge format, full mark scheme.
+                  </p>
+                  <Link href={`/predict?subject=${encodeURIComponent(subject)}`} style={{ display: "inline-block", background: "white", color: TEAL, borderRadius: 10, padding: "11px 20px", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                    Generate now →
                   </Link>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
 
+                <Link href="/predict" style={{ display: "flex", background: "white", borderRadius: 14, padding: "14px 16px", border: "1px solid #e5e7eb", textDecoration: "none", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>🔮</span>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>Full SmartPredict Page</p>
+                    <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>Detailed analysis + mock paper generator</p>
+                  </div>
+                  <span style={{ fontSize: 18, color: "#9ca3af", marginLeft: "auto" }}>→</span>
+                </Link>
+              </div>
+            )}
+
+            {/* ══════════════════════════
+                PROGRESS TAB
+            ══════════════════════════ */}
+            {activeTab === "progress" && (
+              <div>
+                <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 18px" }}>Your Progress</h2>
+
+                {/* Summary cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+                  {[
+                    { label: "Sessions Done", value: String(completedCount),                                          color: TEAL   },
+                    { label: "Plan Progress", value: sessions.length ? `${Math.round((completedCount/sessions.length)*100)}%` : "0%", color: ORANGE },
+                    { label: "Days to Exam",  value: String(daysLeft),                                                color: modeInfo.color },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: "white", borderRadius: 14, padding: "14px 10px", textAlign: "center", border: "1px solid #e5e7eb" }}>
+                      <p style={{ fontSize: 22, fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
+                      <p style={{ fontSize: 10, color: "#9ca3af", margin: "4px 0 0", lineHeight: 1.3 }}>{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mastery by topic */}
+                {topicScores.length === 0 ? (
+                  <div style={{ background: "white", borderRadius: 14, padding: 24, textAlign: "center", border: "1px solid #e5e7eb" }}>
+                    <p style={{ fontSize: 32, margin: "0 0 10px" }}>📊</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>No data yet</p>
+                    <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 16px" }}>Complete practice sessions to build your mastery scores.</p>
+                    <Link href={`/practice?subject=${encodeURIComponent(subject)}`} style={{ display: "inline-block", background: TEAL, color: "white", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                      Start practising →
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>Mastery by Topic</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                      {topicScores.slice(0, 8).map((t, i) => {
+                        const color = t.mastery >= 70 ? "#16a34a" : t.mastery >= 40 ? "#d97706" : "#dc2626";
+                        return (
+                          <div key={i} style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #e5e7eb" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                              <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{t.topic}</p>
+                                <p style={{ fontSize: 11, color: "#9ca3af", margin: "1px 0 0" }}>{t.subject}</p>
+                              </div>
+                              <span style={{ fontSize: 14, fontWeight: 700, color, background: color + "15", borderRadius: 20, padding: "3px 10px" }}>
+                                {Math.round(t.mastery)}%
+                              </span>
+                            </div>
+                            <div style={{ height: 5, background: "#f3f4f6", borderRadius: 4 }}>
+                              <div style={{ height: 5, borderRadius: 4, background: color, width: `${t.mastery}%`, transition: "width 0.5s" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <Link href="/progress" style={{ display: "block", textAlign: "center", padding: "13px", fontSize: 13, fontWeight: 600, color: TEAL, background: "white", borderRadius: 12, border: `1.5px solid ${TEAL}`, textDecoration: "none" }}>
+                      View full progress report →
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+
+          </div>
+        </main>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div className="lg:hidden">
         <BottomNav />
-      </main>
+      </div>
+
     </div>
   );
 }
