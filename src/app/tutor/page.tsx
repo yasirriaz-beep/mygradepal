@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
+import FinishSession from "@/components/FinishSession";
 import LearnContent from "@/components/LearnContent";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
@@ -1071,6 +1072,10 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
       </button>
 
       <BottomNav />
+
+      <Suspense fallback={null}>
+        <FinishSession />
+      </Suspense>
     </main>
   );
 }

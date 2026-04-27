@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
+import FinishSession from "@/components/FinishSession";
 import { supabase } from "@/lib/supabase";
 import { startSession, updateSession } from "@/lib/studySessionClient";
 import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
@@ -248,6 +249,10 @@ function PracticePageContent() {
       </section>
 
       <BottomNav />
+
+      <Suspense fallback={null}>
+        <FinishSession />
+      </Suspense>
     </main>
   );
 }
