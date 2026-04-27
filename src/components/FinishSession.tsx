@@ -2,15 +2,12 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 
 const TEAL   = "#189080";
 const ORANGE = "#f5731e";
 
-interface NextSession {
-  topic: string;
-  subtopic: string;
-  scheduled_date: string;
-}
+type NextSession = NextPlanSession;
 
 export default function FinishSession() {
   const router      = useRouter();
@@ -57,43 +54,17 @@ export default function FinishSession() {
   const handleComplete = async () => {
     if (!studentId || completing) return;
     setCompleting(true);
-
-    const today = new Date().toISOString().split("T")[0];
-
-    // Mark today's study_plan session as complete
-    await supabase
-      .from("study_plan")
-      .update({ completed: true })
-      .eq("student_id", studentId)
-      .eq("scheduled_date", today)
-      .eq("topic", topic);
-
-    // Insert study_sessions record
-    await supabase.from("study_sessions").insert({
-      student_id:         studentId,
-      date:               today,
-      started_at:         new Date(Date.now() - 45 * 60000).toISOString(),
-      ended_at:           new Date().toISOString(),
-      duration_minutes:   45,
-      questions_attempted: questionsCount,
-      topics_covered:     [topic],
-      session_complete:   true,
-    });
-
-    // Fetch next incomplete session
-    const { data: nextData } = await supabase
-      .from("study_plan")
-      .select("topic, subtopic, scheduled_date")
-      .eq("student_id", studentId)
-      .eq("completed", false)
-      .gt("scheduled_date", today)
-      .order("scheduled_date", { ascending: true })
-      .limit(1)
-      .single();
-
-    if (nextData) setNextSession(nextData as NextSession);
-    setCompleting(false);
-    setCompleted(true);
+    try {
+      const { nextSession: next } = await completeStudySession({
+        studentId,
+        topic,
+        questionsAttempted: questionsCount,
+      });
+      if (next) setNextSession(next);
+    } finally {
+      setCompleting(false);
+      setCompleted(true);
+    }
   };
 
   function fmtDate(d: string) {

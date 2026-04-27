@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
-import FinishSession from "@/components/FinishSession";
 import LearnContent from "@/components/LearnContent";
+import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
 import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
@@ -71,6 +71,10 @@ function TutorPageContent() {
   const [testScore, setTestScore] = useState({ correct: 0, total: 0 });
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [trialMessageLimitReached, setTrialMessageLimitReached] = useState(false);
+  const [lessonCompleteOverlay, setLessonCompleteOverlay] = useState(false);
+  const [lessonCompleting, setLessonCompleting] = useState(false);
+  const [finishNextSession, setFinishNextSession] = useState<NextPlanSession | null>(null);
+  const [finishQuestionsCount, setFinishQuestionsCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatAudioRef = useRef<HTMLAudioElement | null>(null);
   const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
@@ -254,6 +258,17 @@ function TutorPageContent() {
   }, [studentId, messages.length]);
 
   useEffect(() => {
+    if (!studentId || studentId === "demo-student" || !topic) return;
+    const today = new Date().toISOString().split("T")[0];
+    void supabase
+      .from("attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId)
+      .gte("attempted_at", today + "T00:00:00")
+      .then(({ count }) => setFinishQuestionsCount(count ?? 0));
+  }, [studentId, topic]);
+
+  useEffect(() => {
     if (!subject || !topic) return;
     setIsLoadingContent(true);
     fetch(`/api/topic-content?subject=${encodeURIComponent(subject)}&subtopic=${encodeURIComponent(topic)}`)
@@ -327,13 +342,36 @@ function TutorPageContent() {
 
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
-  const runLessonAction = async (action: LessonStep) => {
-    if (action === "past-paper") {
-      router.push(`/practice?topic=${encodeURIComponent(topic)}&subject=${encodeURIComponent(subject)}`);
-      return;
-    }
+  const activeStepIndex = lessonSteps.findIndex((s) => s.key === currentStep);
 
-    setCurrentStep(action);
+  const goToNextStep = () => {
+    const i = lessonSteps.findIndex((s) => s.key === currentStep);
+    if (i >= 0 && i < lessonSteps.length - 1) {
+      setCurrentStep(lessonSteps[i + 1].key);
+    }
+  };
+
+  const fmtLessonCompleteDate = (d: string) =>
+    new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+  const handleFinishLessonSession = async () => {
+    if (!studentId || studentId === "demo-student" || lessonCompleting) return;
+    setLessonCompleting(true);
+    try {
+      const { nextSession } = await completeStudySession({
+        studentId,
+        topic,
+        questionsAttempted: finishQuestionsCount,
+      });
+      setFinishNextSession(nextSession);
+      setLessonCompleteOverlay(true);
+    } finally {
+      setLessonCompleting(false);
+    }
   };
 
   useEffect(() => {
@@ -484,49 +522,55 @@ No markdown, no extra text, just raw JSON.`,
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-3 pb-24 pt-4 sm:px-5">
-      <header className="rounded-2xl bg-white p-4 shadow-card">
+      <header className="relative rounded-2xl bg-white p-4 pr-36 shadow-card sm:pr-44">
+        <Link
+          href={`/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`}
+          className="absolute right-3 top-3 max-w-[11rem] text-right text-[11px] leading-snug text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 sm:right-4 sm:top-4 sm:max-w-none sm:text-xs"
+        >
+          Already know this? Skip to practice →
+        </Link>
         <p className="text-xs text-slate-500">{subject}</p>
-        <h1 className="heading-font text-2xl font-bold text-slate-900">{topic}</h1>
+        <h1 className="heading-font pr-2 text-2xl font-bold text-slate-900">{topic}</h1>
         <div className="mt-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Lesson progress</p>
-          <div className="grid grid-cols-5 gap-1 text-[10px] sm:text-xs">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-[10px] sm:text-xs">
             {lessonSteps.map((step, index) => {
-              const activeIndex = lessonSteps.findIndex((item) => item.key === currentStep);
               const isActive = step.key === currentStep;
-              const isDone = index < activeIndex;
+              const isDone = index < activeStepIndex;
               return (
-                <div
-                  key={step.key}
-                  className={`rounded-md px-2 py-1 text-center font-semibold ${
-                    isActive
-                      ? "bg-brand-teal text-white"
-                      : isDone
-                        ? "bg-teal-100 text-brand-teal"
-                        : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {step.label}
-                </div>
+                <span key={step.key} className="inline-flex items-center gap-1">
+                  {index > 0 && (
+                    <span className="px-0.5 text-slate-300" aria-hidden>
+                      →
+                    </span>
+                  )}
+                  {isDone ? (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">
+                      <span className="text-emerald-600">✓</span>
+                      {step.label}
+                    </span>
+                  ) : isActive ? (
+                    <span className="rounded-md border-2 border-brand-teal bg-brand-teal px-2.5 py-1 font-semibold text-white shadow-sm">
+                      {step.label}
+                    </span>
+                  ) : (
+                    <span
+                      className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-semibold text-slate-400 select-none"
+                      aria-disabled
+                    >
+                      · {step.label}
+                    </span>
+                  )}
+                </span>
               );
             })}
           </div>
         </div>
       </header>
 
-      <section className="relative z-20 mt-3 rounded-2xl bg-white p-3 shadow-card">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <button onClick={() => void runLessonAction("explain")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">📖 Explain this topic</button>
-          <button onClick={() => void runLessonAction("formulas")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">📝 Key formulas</button>
-          <button onClick={() => void runLessonAction("example")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">🔍 Worked example</button>
-          <button onClick={() => void runLessonAction("test")} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">❓ Test me</button>
-          <button onClick={() => void runLessonAction("past-paper")} className="rounded-lg bg-brand-teal px-3 py-2 text-xs font-semibold text-white">📄 Past paper question</button>
-        </div>
-      </section>
-
       <section className="relative z-0 mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
         {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
-        {currentStep !== "past-paper" && (
-          <div className="rounded-2xl bg-teal-50 p-4">
+        <div className="rounded-2xl bg-teal-50 p-4">
             {currentStep === "explain" && staticContent?.audio_url_en && (
               <>
                 <div
@@ -885,8 +929,59 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
                 )}
               </div>
             )}
-          </div>
-        )}
+            {currentStep === "past-paper" && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "28px 16px",
+                  background: "white",
+                  borderRadius: 12,
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#189080", marginBottom: 8 }}>
+                  📄 Past paper style questions
+                </p>
+                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 18, lineHeight: 1.6 }}>
+                  Try real exam-style questions for <strong>{topic}</strong>. You can keep using the tutor chat below anytime.
+                </p>
+                <Link
+                  href={`/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`}
+                  style={{
+                    display: "inline-block",
+                    background: "#189080",
+                    color: "white",
+                    borderRadius: 10,
+                    padding: "11px 22px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  Open practice for this topic →
+                </Link>
+              </div>
+            )}
+
+            {currentStep === "past-paper" ? (
+              <button
+                type="button"
+                onClick={() => void handleFinishLessonSession()}
+                disabled={lessonCompleting}
+                className="mt-6 w-full rounded-xl border-2 border-emerald-700 bg-emerald-600 py-3.5 text-base font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:text-slate-500"
+              >
+                {lessonCompleting ? "Saving..." : "✓ Finish Session"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={goToNextStep}
+                className="mt-6 w-full rounded-xl bg-brand-teal py-3.5 text-base font-bold text-white shadow-md transition hover:opacity-95"
+              >
+                Next Step →
+              </button>
+            )}
+        </div>
         <div
           style={{
             background: "#EEF6FF",
@@ -1064,18 +1159,157 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
         </div>
       </section>
 
-      <button
-        onClick={() => router.push(`/learn/${encodeURIComponent(subject)}`)}
-        className="mt-3 w-full rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
-      >
-        Back to topics
-      </button>
-
       <BottomNav />
 
-      <Suspense fallback={null}>
-        <FinishSession />
-      </Suspense>
+      {lessonCompleteOverlay && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#f0faf8",
+            zIndex: 100,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "'DM Sans', sans-serif",
+            padding: 24,
+          }}
+        >
+          <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                background: "#e8f8f4",
+                border: "3px solid #189080",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 36,
+                margin: "0 auto 20px",
+              }}
+            >
+              ✓
+            </div>
+            <h1
+              style={{
+                fontFamily: "'Sora', sans-serif",
+                fontSize: 24,
+                fontWeight: 700,
+                color: "#0f172a",
+                margin: "0 0 8px",
+              }}
+            >
+              Session Complete! 🎉
+            </h1>
+            <p style={{ fontSize: 15, color: "#6b7280", margin: "0 0 24px" }}>
+              Great work on <strong>{topic}</strong>
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+              {[
+                { label: "Topic Covered", value: subject, color: "#189080" },
+                {
+                  label: "Questions Done",
+                  value: String(finishQuestionsCount || "—"),
+                  color: "#f5731e",
+                },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  style={{
+                    background: "white",
+                    borderRadius: 14,
+                    padding: "14px 10px",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <p style={{ fontSize: 18, fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
+                  <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {finishNextSession && (
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  marginBottom: 20,
+                  border: "1.5px solid #189080",
+                  textAlign: "left",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#189080",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    margin: "0 0 6px",
+                  }}
+                >
+                  Next Session
+                </p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>
+                  {finishNextSession.topic}
+                </p>
+                <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px" }}>
+                  {finishNextSession.subtopic}
+                </p>
+                <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>
+                  📅 {fmtLessonCompleteDate(finishNextSession.scheduled_date)}
+                </p>
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                style={{
+                  width: "100%",
+                  padding: "14px",
+                  borderRadius: 12,
+                  background: "#189080",
+                  color: "white",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "'Sora', sans-serif",
+                }}
+              >
+                Back to Dashboard →
+              </button>
+              {finishNextSession && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/tutor?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(finishNextSession.topic)}`,
+                    )
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "13px",
+                    borderRadius: 12,
+                    background: "white",
+                    color: "#189080",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    border: "1.5px solid #189080",
+                    cursor: "pointer",
+                  }}
+                >
+                  Start next session now →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
