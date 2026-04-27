@@ -416,18 +416,26 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-600">Suggested: 20 min lesson + 5 practice questions</p>
           </>
         )}
-        <Link
-          href={
-            todayPlan
-              ? `/tutor?subject=${encodeURIComponent(todayPlan.subject)}&topic=${encodeURIComponent(todayPlan.topic)}`
-              : weakestTopic
-                ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
-                : "/tutor?subject=Chemistry&topic=Stoichiometry"
-          }
-          className="mt-3 inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
-        >
-          Start today&apos;s plan
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            href={
+              todayPlan
+                ? `/tutor?subject=${encodeURIComponent(todayPlan.subject)}&topic=${encodeURIComponent(todayPlan.topic)}`
+                : weakestTopic
+                  ? `/tutor?subject=${encodeURIComponent(weakestTopic.subject)}&topic=${encodeURIComponent(weakestTopic.topic)}`
+                  : "/tutor?subject=Chemistry&topic=Stoichiometry"
+            }
+            className="inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
+          >
+            Start today&apos;s plan
+          </Link>
+          <Link
+            href="/study-plan"
+            className="mt-3 ml-2 inline-block rounded-lg border border-brand-teal px-4 py-2 text-sm font-semibold text-brand-teal"
+          >
+            View full plan →
+          </Link>
+        </div>
       </section>
 
       <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
