@@ -19,14 +19,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [studentName, setStudentName] = useState("Student");
-  const [userEmail, setUserEmail] = useState("");
-  const [childName, setChildName] = useState("");
-  const [childGrade, setChildGrade] = useState("");
   const [targetGrade, setTargetGrade] = useState("");
   const [examSession, setExamSession] = useState("");
   const [examYear, setExamYear] = useState<number | null>(null);
-  const [saveMessage, setSaveMessage] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [trial, setTrial] = useState(() => getTrialInfo());
@@ -61,9 +56,6 @@ export default function DashboardPage() {
             : sessionUser.email?.split("@")[0] ?? "Student";
 
       setStudentName(String(displayName));
-      setUserEmail(sessionUser.email ?? "");
-      setChildName(String(metadata.child_name ?? displayName));
-      setChildGrade(String(metadata.grade ?? metadata.child_grade ?? ""));
       setStudentId(sessionUser.id);
       setTrial(getTrialInfo());
       setIsCheckingSession(false);
@@ -193,29 +185,6 @@ export default function DashboardPage() {
     await supabase.auth.signOut();
     router.push("/");
     router.refresh();
-  };
-
-  const saveProfile = async () => {
-    setIsSavingProfile(true);
-    setSaveMessage("");
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        name: studentName,
-        child_name: childName,
-        grade: childGrade,
-        child_grade: childGrade,
-      },
-    });
-
-    if (error) {
-      setSaveMessage(error.message);
-      setIsSavingProfile(false);
-      return;
-    }
-
-    setSaveMessage("Profile saved successfully.");
-    setIsSavingProfile(false);
   };
 
   if (isCheckingSession) {
@@ -434,45 +403,6 @@ export default function DashboardPage() {
             </div>
           </>
         )}
-      </section>
-
-      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
-        <h3 className="heading-font text-xl font-semibold text-slate-900">Student settings</h3>
-        <div className="mt-3 grid gap-2">
-          <input
-            value={studentName}
-            onChange={(event) => setStudentName(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Your name"
-          />
-          <input value={userEmail} disabled className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <input
-            value={childName}
-            onChange={(event) => setChildName(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Child name"
-          />
-          <select
-            value={childGrade}
-            onChange={(event) => setChildGrade(event.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">Select grade</option>
-            {["Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10"].map((grade) => (
-              <option key={grade} value={grade}>
-                {grade}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={() => void saveProfile()}
-          disabled={isSavingProfile}
-          className="mt-3 rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
-        >
-          {isSavingProfile ? "Saving..." : "Save profile"}
-        </button>
-        {saveMessage && <p className="mt-2 text-sm text-slate-700">{saveMessage}</p>}
       </section>
 
       <BottomNav />

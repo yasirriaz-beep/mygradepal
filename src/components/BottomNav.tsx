@@ -7,7 +7,7 @@ const navItems = [
   { href: "/practice", label: "Practice", icon: Waypoints },
   { href: "/predict", label: "Predict", icon: Sparkles },
   { href: "/progress", label: "Progress", icon: BarChart3 },
-  { href: "/", label: "Account", icon: UserRound }
+  { href: "/account", label: "Account", icon: UserRound }
 ];
 
 export default function BottomNav() {
