@@ -261,7 +261,16 @@ export default function LearnContent({ text, topic }: LearnContentProps) {
         </div>
       )}
 
-      {!s.definition && !s.keyPoints?.length && <p style={{ lineHeight: 1.8, color: "#374151" }}>{text}</p>}
+      {!s.definition &&
+        !s.keyPoints?.length &&
+        !s.formulas?.length &&
+        !s.example &&
+        !s.examTip &&
+        !s.quickCheck && (
+          <p style={{ lineHeight: 1.8, color: "#374151", whiteSpace: "pre-wrap" }}>
+            {text}
+          </p>
+        )}
     </div>
   );
 }

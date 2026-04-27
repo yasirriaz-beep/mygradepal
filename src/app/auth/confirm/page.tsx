@@ -19,7 +19,7 @@ export default function AuthConfirm() {
               .eq('id', session.user.id)
               .single()
 
-            router.push(student?.onboarding_complete ? '/dashboard' : '/onboarding')
+            router.push(student?.onboarding_complete ? '/dashboard' : '/subjects')
           }
         }
       )
@@ -32,7 +32,7 @@ export default function AuthConfirm() {
           .select('onboarding_complete')
           .eq('id', session.user.id)
           .single()
-        router.push(student?.onboarding_complete ? '/dashboard' : '/onboarding')
+        router.push(student?.onboarding_complete ? '/dashboard' : '/subjects')
       }
     }
 

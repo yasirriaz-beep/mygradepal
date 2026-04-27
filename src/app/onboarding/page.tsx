@@ -3,8 +3,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-const SUBJECTS = ["Chemistry", "Physics", "Mathematics", "Biology", "English"];
-
 const GRADE_OPTIONS = [
   {
     grade: "C",
@@ -92,14 +90,18 @@ export default function OnboardingPage() {
       if (session?.user) {
         const { data: student } = await supabase
           .from("students")
-          .select("onboarding_complete, name")
+          .select("onboarding_complete, name, onboarding_subject")
           .eq("id", session.user.id)
-          .single();
+          .maybeSingle();
 
         if (student?.onboarding_complete) {
           router.push("/dashboard");
           return;
         }
+
+        const skip =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("skip") === "true";
 
         const name =
           session.user.user_metadata?.child_name ??
@@ -107,6 +109,21 @@ export default function OnboardingPage() {
           student?.name ??
           "Student";
         setStudentName(name);
+
+        const subjectFromDb =
+          student?.onboarding_subject != null && String(student.onboarding_subject).trim() !== ""
+            ? String(student.onboarding_subject)
+            : "";
+
+        if (subjectFromDb) {
+          setForm((f) => ({ ...f, subject: subjectFromDb }));
+        } else if (skip) {
+          setForm((f) => ({ ...f, subject: "Chemistry" }));
+        } else {
+          router.push("/subjects");
+          return;
+        }
+
         setAuthReady(true);
         return;
       }
@@ -194,7 +211,7 @@ export default function OnboardingPage() {
     }
 
     setLoading(false);
-    setStep(5);
+    setStep(4);
   };
 
   const saveAndFinish = async () => {
@@ -235,33 +252,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    const planResponse = await fetch("/api/generate-plan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        studentId: user.id,
-        subject: form.subject,
-        examSession: form.examSession,
-        examYear: form.examYear,
-        targetGrade: form.targetGrade,
-        studyDaysPerWeek: form.studyDaysPerWeek,
-        studyMinutesPerDay: form.studyMinutesPerDay,
-      }),
-    });
-
-    let planResult: unknown;
-    try {
-      planResult = await planResponse.json();
-    } catch {
-      planResult = { parseError: "Response was not JSON", status: planResponse.status };
-    }
-    console.log("Plan generation result:", planResult);
-
-    if (!planResponse.ok) {
-      console.error("Plan generation failed:", planResult);
-    }
-
-    router.push("/dashboard");
+    router.push("/generating-plan");
   };
 
   const teal = "#189080";
@@ -302,7 +293,7 @@ export default function OnboardingPage() {
               background: teal,
               height: "100%",
               borderRadius: 20,
-              width: `${(step / 5) * 100}%`,
+              width: `${(step / 4) * 100}%`,
               transition: "width 0.3s ease",
             }}
           />
@@ -329,77 +320,6 @@ export default function OnboardingPage() {
                 }}
               >
                 Step 1 of 4
-              </p>
-              <h2
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "#1a1a1a",
-                  marginBottom: 8,
-                }}
-              >
-                Assalam o Alaikum, {studentName}! 👋
-              </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24, lineHeight: 1.6 }}>
-                Let's set up your personal study plan. Which subject do you want to start with?
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {SUBJECTS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setForm((f) => ({ ...f, subject: s }))}
-                    style={{
-                      padding: "12px 16px",
-                      borderRadius: 10,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: `1.5px solid ${form.subject === s ? teal : "#e5e7eb"}`,
-                      background: form.subject === s ? "#E8F8F4" : "white",
-                      color: form.subject === s ? teal : "#374151",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={next}
-                disabled={!form.subject}
-                style={{
-                  marginTop: 24,
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 10,
-                  background: form.subject ? teal : "#d1d5db",
-                  color: "white",
-                  border: "none",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: form.subject ? "pointer" : "default",
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div>
-              <p
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: teal,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: 8,
-                }}
-              >
-                Step 2 of 4
               </p>
               <h2
                 style={{
@@ -462,7 +382,8 @@ export default function OnboardingPage() {
 
               <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
                 <button
-                  onClick={back}
+                  type="button"
+                  onClick={() => router.push("/subjects")}
                   style={{
                     flex: 1,
                     padding: "13px",
@@ -477,6 +398,7 @@ export default function OnboardingPage() {
                   ← Back
                 </button>
                 <button
+                  type="button"
                   onClick={next}
                   style={{
                     flex: 2,
@@ -496,7 +418,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <div>
               <p
                 style={{
@@ -508,7 +430,7 @@ export default function OnboardingPage() {
                   marginBottom: 8,
                 }}
               >
-                Step 3 of 4
+                Step 2 of 4
               </p>
               <h2
                 style={{
@@ -588,7 +510,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <div>
               <p
                 style={{
@@ -600,7 +522,7 @@ export default function OnboardingPage() {
                   marginBottom: 8,
                 }}
               >
-                Step 4 of 4
+                Step 3 of 4
               </p>
               <h2
                 style={{
@@ -699,8 +621,21 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: teal,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 8,
+                  textAlign: "center",
+                }}
+              >
+                Step 4 of 4
+              </p>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>🎓</div>
                 <h2
@@ -796,7 +731,7 @@ export default function OnboardingPage() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               style={{

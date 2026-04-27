@@ -53,7 +53,7 @@ export default function LoginPage() {
       .single();
 
     if (studentError || !student?.onboarding_complete) {
-      router.push("/onboarding");
+      router.push("/subjects");
     } else {
       router.push("/dashboard");
     }
