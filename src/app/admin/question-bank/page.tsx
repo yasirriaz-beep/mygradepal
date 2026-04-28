@@ -72,12 +72,13 @@ export default function QuestionBankPage() {
     const load = async () => {
       setLoading(true);
       setQuestions([]);
+      console.log("Selected topic:", JSON.stringify(selectedTopic));
 
       const { data, error } = await supabase
         .from("questions")
         .select("id, topic, subtopic, difficulty, paper_type, question_text, mark_scheme, source, common_mistake, exam_tip, syllabus_ref, correct_answer, has_diagram, diagram_url")
         .eq("subject", subject)
-        .eq("topic", selectedTopic)
+        .eq("topic", selectedTopic.trim())
         .order("created_at", { ascending: true })
         .limit(200);
 
