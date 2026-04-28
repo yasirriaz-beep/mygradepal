@@ -52,18 +52,15 @@ export default function QuestionBankPage() {
   // Load counts for all topics
   useEffect(() => {
     const load = async () => {
-      const allTopics = SYLLABUS.map(s => s.topic);
-      const countPromises = allTopics.map(async (topic) => {
-        const { count } = await supabase
-          .from("questions")
-          .select("*", { count: "exact", head: true })
-          .eq("subject", subject)
-          .eq("topic", topic);
-        return { topic, count: count ?? 0 };
-      });
-      const results = await Promise.all(countPromises);
+      const { data } = await supabase
+        .from("questions")
+        .select("topic")
+        .eq("subject", subject);
+
       const c: Record<string, number> = {};
-      results.forEach(r => { c[r.topic] = r.count; });
+      (data ?? []).forEach((r: { topic: string }) => {
+        if (r.topic) c[r.topic] = (c[r.topic] ?? 0) + 1;
+      });
       setCounts(c);
     };
     void load();
@@ -80,9 +77,9 @@ export default function QuestionBankPage() {
         .from("questions")
         .select("id, topic, subtopic, difficulty, paper_type, question_text, mark_scheme, source, common_mistake, exam_tip, syllabus_ref, correct_answer, has_diagram, diagram_url")
         .eq("subject", subject)
-        .eq("topic", selectedTopic)
+        .ilike("topic", selectedTopic)
         .order("created_at", { ascending: true })
-        .limit(500);
+        .limit(200);
 
       if (error) console.error("Query error:", error.message);
       setQuestions((data ?? []) as Question[]);
