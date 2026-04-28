@@ -140,6 +140,16 @@ function AdminPanel() {
         </p>
       </Link>
 
+      <Link href="/admin/question-bank?key=mgp2025"
+        style={{ display: "block", background: "#f5f3ff", border: "1.5px solid #7c3aed", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: "#7c3aed", margin: "0 0 4px" }}>
+          📚 Question Bank
+        </p>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+          View, search and manage all questions organised by Cambridge syllabus order
+        </p>
+      </Link>
+
       <div style={s.tabs}>
         <button style={tab==='add' ? s.tabActive : s.tabInactive} onClick={() => setTab('add')}>Add Question</button>
         <button style={tab==='bulk' ? s.tabActive : s.tabInactive} onClick={() => setTab('bulk')}>Bulk Import</button>

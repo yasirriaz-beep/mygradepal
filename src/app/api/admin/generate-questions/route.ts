@@ -106,6 +106,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Fetch existing questions for this topic to prevent duplicates
+    const { data: existing } = await supabase
+      .from("questions")
+      .select("question_text, subtopic")
+      .eq("subject", subject)
+      .eq("topic", topic)
+      .limit(50);
+
+    const existingSummary = existing && existing.length > 0
+      ? `\n\nEXISTING QUESTIONS TO AVOID REPEATING (do not regenerate these concepts):\n${
+          existing.map((q: { question_text: string }, i: number) =>
+            `${i + 1}. ${q.question_text.slice(0, 120)}`
+          ).join("\n")
+        }`
+      : "";
+
     const isMCQ = paperType === "MCQ";
     const isTheory = paperType === "Theory";
     const isPractical = paperType === "Practical";
@@ -154,7 +170,7 @@ Topic: ${topic}
 Subtopic: ${subtopic || "General"}
 
 Focus specifically on: ${subtopic || topic}
-Make questions varied — do not repeat the same concept twice.`;
+Make questions varied — do not repeat the same concept twice.${existingSummary}`;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
