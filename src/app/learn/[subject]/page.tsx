@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
+import { CHEMISTRY_VIDEOS } from "@/lib/chemistry-videos";
 import { supabase } from "@/lib/supabase";
 
 type ChapterTopic = {
@@ -198,6 +199,7 @@ export default function LearnSubjectPage() {
   const [studiedTopics, setStudiedTopics] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeVideoByTopic, setActiveVideoByTopic] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadMastery = async () => {
@@ -279,6 +281,9 @@ export default function LearnSubjectPage() {
               {sectionChapters.map((chapter) => {
                 const chapterKey = `chapter-${chapter.chapter}`;
                 const isOpen = expanded[chapterKey] ?? chapter.chapter <= 2;
+                const topicVideos = CHEMISTRY_VIDEOS.find((t) => t.topic === chapter.title)?.videos ?? [];
+                const activeVideo = activeVideoByTopic[chapterKey] ?? 0;
+                const video = topicVideos[activeVideo] ?? topicVideos[0];
                 return (
                   <article key={chapterKey} className="mb-3 rounded-2xl bg-white p-4 shadow-card">
                     <button
@@ -328,6 +333,53 @@ export default function LearnSubjectPage() {
                             </Link>
                           );
                         })}
+                        {video && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb", marginBottom: 12 }}>
+                              <iframe
+                                src={`https://www.youtube.com/embed/${video.youtube_id}`}
+                                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                                allowFullScreen
+                                title={video.title}
+                              />
+                            </div>
+
+                            <div style={{ background: "#e8f8f4", borderRadius: 10, padding: "12px 14px", marginBottom: 10, border: "1px solid #a7f3d0" }}>
+                              <p style={{ fontSize: 11, fontWeight: 700, color: "#189080", margin: "0 0 4px", textTransform: "uppercase" }}>
+                                What this video covers
+                              </p>
+                              <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>{video.summary}</p>
+                            </div>
+
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                              {video.timestamps.map((ts) => (
+                                <a
+                                  key={ts.time}
+                                  href={`https://www.youtube.com/watch?v=${video.youtube_id}&t=${ts.time}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ fontSize: 11, color: "#189080", background: "white", border: "1px solid #a7f3d0", borderRadius: 20, padding: "3px 10px", textDecoration: "none" }}
+                                >
+                                  {ts.time} {ts.label}
+                                </a>
+                              ))}
+                            </div>
+
+                            {topicVideos.length > 1 && (
+                              <div style={{ display: "flex", gap: 8 }}>
+                                {topicVideos.map((v, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => setActiveVideoByTopic((prev) => ({ ...prev, [chapterKey]: i }))}
+                                    style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: activeVideo === i ? "#189080" : "white", color: activeVideo === i ? "white" : "#189080", border: "1.5px solid #189080", cursor: "pointer" }}
+                                  >
+                                    Part {v.part}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </article>
