@@ -52,15 +52,18 @@ export default function QuestionBankPage() {
   // Load counts for all topics
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("questions")
-        .select("topic")
-        .eq("subject", subject)
-        .limit(2000);
-
+      const countPromises = SYLLABUS.map(async (s) => {
+        const { count } = await supabase
+          .from("questions")
+          .select("*", { count: "exact", head: true })
+          .eq("subject", subject)
+          .eq("topic", s.topic);
+        return { topic: s.topic, count: count ?? 0 };
+      });
+      const results = await Promise.all(countPromises);
       const c: Record<string, number> = {};
-      (data ?? []).forEach((r: { topic: string }) => {
-        if (r.topic) c[r.topic] = (c[r.topic] ?? 0) + 1;
+      results.forEach((r) => {
+        c[r.topic] = r.count;
       });
       setCounts(c);
     };
