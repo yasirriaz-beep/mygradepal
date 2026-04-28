@@ -20,10 +20,9 @@ type ChatMessage = {
   audioUrl?: string | null;
 };
 
-type LessonStep = "watch" | "explain" | "formulas" | "example" | "test" | "past-paper";
+type LessonStep = "explain" | "formulas" | "example" | "test" | "past-paper";
 
 const lessonSteps: Array<{ key: LessonStep; label: string }> = [
-  { key: "watch", label: "Watch" },
   { key: "explain", label: "Explain" },
   { key: "formulas", label: "Formulas" },
   { key: "example", label: "Example" },
@@ -78,7 +77,6 @@ function TutorPageContent() {
   const [lessonCompleting, setLessonCompleting] = useState(false);
   const [finishNextSession, setFinishNextSession] = useState<NextPlanSession | null>(null);
   const [finishQuestionsCount, setFinishQuestionsCount] = useState(0);
-  const [watchCompleted, setWatchCompleted] = useState(false);
   const [embedStart, setEmbedStart] = useState<number>(0);
   const [videoExpanded, setVideoExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -361,25 +359,8 @@ function TutorPageContent() {
   const goToNextStep = () => {
     const i = visibleLessonSteps.findIndex((s) => s.key === currentStep);
     if (i >= 0 && i < visibleLessonSteps.length - 1) {
-      const nextStep = visibleLessonSteps[i + 1].key;
-      if (nextStep === "watch") {
-        setCurrentStep("explain");
-        setVideoExpanded(true);
-        setWatchCompleted(true);
-        return;
-      }
-      setCurrentStep(nextStep);
+      setCurrentStep(visibleLessonSteps[i + 1].key);
     }
-  };
-
-  const handleStepSelect = (step: LessonStep) => {
-    if (step === "watch") {
-      setCurrentStep("explain");
-      setVideoExpanded(true);
-      setWatchCompleted(true);
-      return;
-    }
-    setCurrentStep(step);
   };
 
   useEffect(() => {
@@ -389,12 +370,6 @@ function TutorPageContent() {
   useEffect(() => {
     setEmbedStart(subtopicMatch?.seconds ?? 0);
   }, [subtopicMatch?.seconds, topic]);
-
-  useEffect(() => {
-    if (currentStep !== "explain" || !videoExpanded) return;
-    const timer = window.setTimeout(() => setWatchCompleted(true), 30000);
-    return () => window.clearTimeout(timer);
-  }, [currentStep, videoExpanded, topic]);
 
   const fmtLessonCompleteDate = (d: string) =>
     new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
@@ -581,7 +556,7 @@ No markdown, no extra text, just raw JSON.`,
           <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-[10px] sm:text-xs">
             {visibleLessonSteps.map((step, index) => {
               const isActive = step.key === currentStep;
-              const isDone = step.key === "watch" ? watchCompleted : index < activeStepIndex;
+              const isDone = index < activeStepIndex;
               return (
                 <span key={step.key} className="inline-flex items-center gap-1">
                   {index > 0 && (
@@ -592,7 +567,7 @@ No markdown, no extra text, just raw JSON.`,
                   {isDone ? (
                     <button
                       type="button"
-                      onClick={() => handleStepSelect(step.key)}
+                      onClick={() => setCurrentStep(step.key)}
                       className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-semibold text-emerald-700"
                     >
                       <span className="text-emerald-600">✓</span>
@@ -601,7 +576,7 @@ No markdown, no extra text, just raw JSON.`,
                   ) : isActive ? (
                     <button
                       type="button"
-                      onClick={() => handleStepSelect(step.key)}
+                      onClick={() => setCurrentStep(step.key)}
                       className="rounded-md border-2 border-brand-teal bg-brand-teal px-2.5 py-1 font-semibold text-white shadow-sm"
                     >
                       {step.label}
@@ -609,7 +584,7 @@ No markdown, no extra text, just raw JSON.`,
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleStepSelect(step.key)}
+                      onClick={() => setCurrentStep(step.key)}
                       className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-semibold text-slate-400"
                     >
                       · {step.label}
@@ -744,6 +719,15 @@ No markdown, no extra text, just raw JSON.`,
               </div>
             )}
 
+            {currentStep === "explain" && (
+              <LearnContent
+                topic={topic}
+                text={`DEFINITION: ${staticContent?.definition ?? ""}
+KEY POINTS:
+${(staticContent?.key_points ?? []).map((point) => `- ${point}`).join("\n")}
+EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
+              />
+            )}
             {currentStep === "explain" && hasVideo && currentVideo && (
               <div style={{ marginBottom: 20 }}>
                 <button
@@ -836,16 +820,6 @@ No markdown, no extra text, just raw JSON.`,
                   </div>
                 )}
               </div>
-            )}
-
-            {currentStep === "explain" && (
-              <LearnContent
-                topic={topic}
-                text={`DEFINITION: ${staticContent?.definition ?? ""}
-KEY POINTS:
-${(staticContent?.key_points ?? []).map((point) => `- ${point}`).join("\n")}
-EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
-              />
             )}
             {currentStep === "formulas" && (
               <>
