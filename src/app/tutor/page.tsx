@@ -347,16 +347,118 @@ function TutorPageContent() {
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
   const currentTopic = topic;
-  const findVideo = (topicParam: string) => {
-    return CHEMISTRY_VIDEOS.find(entry =>
-      topicParam.toLowerCase().includes(entry.topic.toLowerCase()) ||
-      entry.topic.toLowerCase().includes(topicParam.toLowerCase().split("—")[0].trim())
-    );
+  const findVideoForTopic = (subjectParam: string, topicParam: string) => {
+    if (subjectParam !== "Chemistry") return null;
+
+    const topicLower = topicParam.toLowerCase();
+
+    // First try: direct subtopic_timestamp match across ALL videos
+    for (const entry of CHEMISTRY_VIDEOS) {
+      for (const video of entry.videos) {
+        const match = (video as any).subtopic_timestamps?.find((st: any) =>
+          topicLower.includes(String(st.subtopic).toLowerCase()) ||
+          String(st.subtopic)
+            .toLowerCase()
+            .split(" ")
+            .every((word: string) => topicLower.includes(word) && word.length > 3)
+        );
+        if (match) return { entry, video, subtopicMatch: match };
+      }
+    }
+
+    // Second try: chapter-level keyword match
+    const chapterMap: Record<string, string> = {
+      "states of matter": "States of Matter",
+      "solid": "States of Matter",
+      "liquid": "States of Matter",
+      "gas": "States of Matter",
+      "melting": "States of Matter",
+      "boiling": "States of Matter",
+      "evaporat": "States of Matter",
+      "diffusion": "States of Matter",
+      "heating curve": "States of Matter",
+      "atom": "Atoms, Elements and Compounds",
+      "element": "Atoms, Elements and Compounds",
+      "compound": "Atoms, Elements and Compounds",
+      "bond": "Atoms, Elements and Compounds",
+      "ionic": "Atoms, Elements and Compounds",
+      "covalent": "Atoms, Elements and Compounds",
+      "metallic bond": "Atoms, Elements and Compounds",
+      "isotope": "Atoms, Elements and Compounds",
+      "electron config": "Atoms, Elements and Compounds",
+      "mole": "Stoichiometry",
+      "stoich": "Stoichiometry",
+      "empirical": "Stoichiometry",
+      "concentration": "Stoichiometry",
+      "electrolysis": "Electrochemistry",
+      "electroplat": "Electrochemistry",
+      "electrochem": "Electrochemistry",
+      "fuel cell": "Electrochemistry",
+      "exothermic": "Chemical Energetics",
+      "endothermic": "Chemical Energetics",
+      "energetic": "Chemical Energetics",
+      "bond energy": "Chemical Energetics",
+      "activation energy": "Chemical Energetics",
+      "rate of reaction": "Chemical Reactions",
+      "collision": "Chemical Reactions",
+      "equilibrium": "Chemical Reactions",
+      "reversible": "Chemical Reactions",
+      "catalyst": "Chemical Reactions",
+      "acid": "Acids, Bases and Salts",
+      "base": "Acids, Bases and Salts",
+      "salt": "Acids, Bases and Salts",
+      "neutrali": "Acids, Bases and Salts",
+      "titration": "Acids, Bases and Salts",
+      "ph": "Acids, Bases and Salts",
+      "periodic": "The Periodic Table",
+      "group 1": "The Periodic Table",
+      "group 7": "The Periodic Table",
+      "halogen": "The Periodic Table",
+      "alkali metal": "The Periodic Table",
+      "transition metal": "The Periodic Table",
+      "reactivity series": "Metals",
+      "blast furnace": "Metals",
+      "rusting": "Metals",
+      "alloy": "Metals",
+      "extraction of metal": "Metals",
+      "water treatment": "Chemistry of the Environment",
+      "hard water": "Chemistry of the Environment",
+      "air pollution": "Chemistry of the Environment",
+      "greenhouse": "Chemistry of the Environment",
+      "eutrophication": "Chemistry of the Environment",
+      "fertiliser": "Chemistry of the Environment",
+      "alkane": "Organic Chemistry",
+      "alkene": "Organic Chemistry",
+      "organic": "Organic Chemistry",
+      "alcohol": "Organic Chemistry",
+      "ester": "Organic Chemistry",
+      "polymer": "Organic Chemistry",
+      "fermentation": "Organic Chemistry",
+      "filtration": "Experimental Techniques and Analysis",
+      "distillation": "Experimental Techniques and Analysis",
+      "chromatography": "Experimental Techniques and Analysis",
+      "flame test": "Experimental Techniques and Analysis",
+      "ion test": "Experimental Techniques and Analysis",
+      "gas test": "Experimental Techniques and Analysis",
+      "rf value": "Experimental Techniques and Analysis",
+      "experimental": "Experimental Techniques and Analysis",
+    };
+
+    for (const [keyword, chapterName] of Object.entries(chapterMap)) {
+      if (topicLower.includes(keyword)) {
+        const entry = CHEMISTRY_VIDEOS.find((e) => e.topic === chapterName);
+        if (entry) return { entry, video: entry.videos[0], subtopicMatch: null };
+      }
+    }
+
+    return null;
   };
-  const topicData = subject === "Chemistry" ? findVideo(currentTopic) : null;
-  const topicVideos = topicData?.videos ?? [];
-  const hasVideo = topicVideos.length > 0;
-  const currentVideo = topicVideos[activeVideoIndex];
+
+  const result = findVideoForTopic(subject, currentTopic ?? "");
+  const topicEntry = result?.entry ?? null;
+  const currentVideo = topicEntry?.videos?.[activeVideoIndex] ?? result?.video ?? null;
+  const subtopicMatch = result?.subtopicMatch ?? null;
+  const hasVideo = !!currentVideo;
   const visibleLessonSteps = lessonSteps;
 
   const activeStepIndex = visibleLessonSteps.findIndex((s) => s.key === currentStep);
@@ -609,6 +711,47 @@ No markdown, no extra text, just raw JSON.`,
         <div className="rounded-2xl bg-teal-50 p-4">
             {currentStep === "watch" && hasVideo && currentVideo && (
               <div style={{ padding: "0 0 20px" }}>
+                {subtopicMatch && (
+                  <div style={{
+                    background: "#fff7ed",
+                    border: "1.5px solid #fed7aa",
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    marginBottom: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 10
+                  }}>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#f5731e", margin: "0 0 2px", textTransform: "uppercase" }}>
+                        📍 This subtopic in the video
+                      </p>
+                      <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
+                        <strong>{currentTopic?.split("—")[0].trim()}</strong> starts at <strong>{subtopicMatch.time}</strong>
+                      </p>
+                    </div>
+                    <a
+                      href={`https://www.youtube.com/watch?v=${currentVideo.youtube_id}&t=${subtopicMatch.seconds}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        background: "#f5731e",
+                        color: "white",
+                        borderRadius: 8,
+                        padding: "8px 16px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      ▶ Jump to {subtopicMatch.time}
+                    </a>
+                  </div>
+                )}
+
                 <div style={{
                   position: "relative",
                   paddingBottom: "56.25%",
@@ -667,9 +810,9 @@ No markdown, no extra text, just raw JSON.`,
                   ))}
                 </div>
 
-                {topicData && topicData.videos.length > 1 && (
+                {topicEntry && topicEntry.videos.length > 1 && (
                   <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                    {topicData.videos.map((v, i) => (
+                    {topicEntry.videos.map((v, i) => (
                       <button key={i} onClick={() => setActiveVideoIndex(i)}
                         style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                           background: activeVideoIndex === i ? "#189080" : "white",
