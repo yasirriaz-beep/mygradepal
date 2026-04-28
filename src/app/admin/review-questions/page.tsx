@@ -75,76 +75,41 @@ export default function ReviewQuestionsPage() {
   const approveOne = async (q: PendingQuestion) => {
     setSaving(q.id);
 
-    try {
-      const insertData: Record<string, unknown> = {
-        subject: q.subject ?? "Chemistry",
-        paper_code: q.subject === "Physics"
-          ? "0625"
-          : q.subject === "Mathematics"
-            ? "0580"
-            : q.subject === "Biology"
-              ? "0610"
-              : "0620",
-        year: new Date().getFullYear(),
-        session: "Generated",
-        paper_type: q.paper_type ?? "MCQ",
-        question_number: String(Math.floor(Math.random() * 90000) + 10000),
-        topic: q.topic ?? "",
-        subtopic: q.subtopic ?? "",
-        difficulty: String(q.difficulty ?? "medium").toLowerCase(),
-        marks: q.paper_type === "MCQ" ? 1 : 3,
-        question_text: q.question_text ?? "",
-        mark_scheme: q.mark_scheme ?? "",
-        grade_level: "IGCSE",
-        curriculum: "Cambridge",
-        frequency_score: 50,
-        prediction_tier: "possible",
-        source: "MGP_Generated",
-      };
+    const res = await fetch("/api/admin/approve-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
 
-      if (q.correct_answer) insertData.correct_answer = q.correct_answer;
-      if (q.feedback) insertData.feedback = q.feedback;
-      if (q.exam_tip) insertData.hint = q.exam_tip;
-      if (q.exam_tip) insertData.exam_tip = q.exam_tip;
-      if (q.options_json) insertData.options_json = q.options_json;
-      if (q.common_mistake) insertData.common_mistake = q.common_mistake;
-      if (q.syllabus_ref) insertData.syllabus_ref = q.syllabus_ref;
-      if (q.command_word) insertData.command_word = q.command_word;
+    const data = await res.json() as { success?: boolean; error?: string };
 
-      const { error: insertError } = await supabase
-        .from("questions")
-        .insert(insertData);
-
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        alert(`Error: ${insertError.message}`);
-        setSaving(null);
-        return;
-      }
-
-      await supabase
-        .from("pending_questions")
-        .update({ reviewed: true })
-        .eq("id", q.id);
-
-      setQuestions((prev) => prev.filter((x) => x.id !== q.id));
-      setTotalPending((prev) => Math.max(0, prev - 1));
-      setApprovedCount((prev) => prev + 1);
-    } catch (err) {
-      console.error("Approve error:", err);
-      alert("Unexpected error — check console");
+    if (!res.ok || data.error) {
+      alert(`Failed to approve: ${data.error ?? "Unknown error"}`);
+      setSaving(null);
+      return;
     }
 
+    setQuestions((prev) => prev.filter((x) => x.id !== q.id));
+    setTotalPending((prev) => Math.max(0, prev - 1));
+    setApprovedCount((prev) => prev + 1);
+    setSuccessMsg("✓ Question approved and live");
+    setTimeout(() => setSuccessMsg(""), 2000);
     setSaving(null);
   };
 
   const rejectOne = async (id: string) => {
-    await supabase
-      .from("pending_questions")
-      .update({ reviewed: true, review_notes: "rejected" })
-      .eq("id", id);
-    setQuestions((prev) => prev.filter((x) => x.id !== id));
-    setTotalPending((prev) => prev - 1);
+    if (!confirm("Reject this question?")) return;
+
+    const res = await fetch("/api/admin/approve-question", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+    if (res.ok) {
+      setQuestions((prev) => prev.filter((x) => x.id !== id));
+      setTotalPending((prev) => Math.max(0, prev - 1));
+    }
   };
 
   const approveSelected = async () => {
