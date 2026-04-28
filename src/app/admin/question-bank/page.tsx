@@ -77,7 +77,7 @@ export default function QuestionBankPage() {
         .from("questions")
         .select("id, topic, subtopic, difficulty, paper_type, question_text, mark_scheme, source, common_mistake, exam_tip, syllabus_ref, correct_answer, has_diagram, diagram_url")
         .eq("subject", subject)
-        .ilike("topic", selectedTopic)
+        .eq("topic", selectedTopic)
         .order("created_at", { ascending: true })
         .limit(200);
 
