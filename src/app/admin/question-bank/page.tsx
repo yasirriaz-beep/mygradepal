@@ -55,7 +55,8 @@ export default function QuestionBankPage() {
       const { data } = await supabase
         .from("questions")
         .select("topic")
-        .eq("subject", subject);
+        .eq("subject", subject)
+        .limit(2000);
 
       const c: Record<string, number> = {};
       (data ?? []).forEach((r: { topic: string }) => {
@@ -79,7 +80,7 @@ export default function QuestionBankPage() {
         .eq("subject", subject)
         .eq("topic", selectedTopic)
         .order("created_at", { ascending: true })
-        .limit(200);
+        .limit(500);
 
       if (error) console.error("Query error:", error.message);
       setQuestions((data ?? []) as Question[]);
