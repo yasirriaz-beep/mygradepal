@@ -46,59 +46,40 @@ Keep it under 100 words. Output only the description, nothing else.`,
     const descData = (await descResponse.json()) as { content: Array<{ text: string }> };
     const diagramDescription = descData.content[0]?.text ?? "";
 
-    // Step 2 - Generate image with Gemini
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Create a clean, simple scientific diagram for a Cambridge IGCSE Chemistry exam question.
-
-Diagram description: ${diagramDescription}
-
-Style requirements:
-- White background
-- Clean black lines
-- Simple and clear like a textbook diagram
-- Label all parts clearly
-- No decorative elements
-- Suitable for a student exam paper`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["IMAGE"],
-            responseMimeType: "image/png",
-          },
-        }),
+          instances: [{
+            prompt: `A clean, simple scientific diagram for a Cambridge IGCSE Chemistry exam question. White background, black lines, textbook style, clearly labelled. ${diagramDescription}`
+          }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "1:1",
+          }
+        })
       }
     );
 
-    const geminiData = (await geminiResponse.json()) as {
-      candidates: Array<{
-        content: {
-          parts: Array<{
-            inlineData?: { data: string; mimeType: string };
-          }>;
-        };
-      }>;
+    const geminiData = await geminiResponse.json() as {
+      predictions?: Array<{
+        bytesBase64Encoded?: string;
+        mimeType?: string;
+      }>
     };
 
-    const imageData = geminiData.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)
-      ?.inlineData;
+    const imageData = geminiData.predictions?.[0];
 
-    if (!imageData) {
+    if (!imageData?.bytesBase64Encoded) {
+      console.error("Gemini response:", JSON.stringify(geminiData).slice(0, 300));
       return NextResponse.json({ error: "Gemini did not return an image" }, { status: 500 });
     }
 
+    const imageBuffer = Buffer.from(imageData.bytesBase64Encoded, "base64");
+
     // Step 3 - Upload to Supabase Storage
-    const imageBuffer = Buffer.from(imageData.data, "base64");
     const fileName = `diagrams/${questionId}.png`;
 
     const { error: uploadError } = await supabase.storage

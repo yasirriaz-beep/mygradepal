@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 const TEAL = "#189080";
@@ -24,7 +24,7 @@ export default function GenerateDiagramsPage() {
   const [results, setResults] = useState<GenerateResult[]>([]);
   const [current, setCurrent] = useState("");
   const [progress, setProgress] = useState(0);
-  const [stopFlag, setStopFlag] = useState(false);
+  const stopFlagRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/admin/generate-diagrams")
@@ -38,14 +38,14 @@ export default function GenerateDiagramsPage() {
 
   const runGeneration = async () => {
     setRunning(true);
-    setStopFlag(false);
+    stopFlagRef.current = false;
     setResults([]);
     setProgress(0);
 
     const pending = questions.filter((q) => !q.diagram_url);
 
     for (let i = 0; i < pending.length; i++) {
-      if (stopFlag) break;
+      if (stopFlagRef.current) break;
 
       const q = pending[i];
       setCurrent(`${q.topic} — ${q.question_text.slice(0, 60)}...`);
@@ -206,7 +206,9 @@ export default function GenerateDiagramsPage() {
             </button>
           ) : (
             <button
-              onClick={() => setStopFlag(true)}
+              onClick={() => {
+                stopFlagRef.current = true;
+              }}
               style={{
                 flex: 1,
                 padding: "13px",
