@@ -340,9 +340,20 @@ export default function ReviewQuestionsPage() {
                           void approveOne(q);
                         }}
                         disabled={saving === q.id}
-                        style={{ padding: "4px 12px", borderRadius: 7, border: "none", background: saving === q.id ? "#e5e7eb" : "#189080", color: saving === q.id ? "#9ca3af" : "white", fontSize: 11, fontWeight: 700, cursor: saving === q.id ? "default" : "pointer" }}
+                        style={{
+                          padding: "6px 16px",
+                          borderRadius: 7,
+                          border: "none",
+                          background: saving === q.id ? "#e5e7eb" : "#189080",
+                          color: saving === q.id ? "#9ca3af" : "white",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: saving === q.id ? "default" : "pointer",
+                          whiteSpace: "nowrap",
+                          minWidth: 90
+                        }}
                       >
-                        {saving === q.id ? "..." : "✓ Approve"}
+                        {saving === q.id ? "Saving..." : "✓ Approve"}
                       </button>
                     </div>
                   </div>
