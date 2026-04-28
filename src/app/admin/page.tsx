@@ -1,7 +1,6 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 
 const PRICE = 5000
 const subjects = ['Chemistry','Physics','Mathematics','Biology','English','Pakistan Studies','Islamiyat','Science']
@@ -103,7 +102,15 @@ function AdminPanel() {
     <div style={s.page}>
       <div style={s.header}>
         <div style={s.logo}>MyGradePal Admin</div>
-        <div style={{fontSize:'13px',opacity:0.8}}>Content Management</div>
+        <button
+          onClick={async () => {
+            await fetch("/api/admin/auth", { method: "DELETE" });
+            window.location.href = "/admin/login";
+          }}
+          style={{ padding: "7px 14px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          Logout
+        </button>
       </div>
 
       {msg && <div style={s.msg}>{msg}</div>}
@@ -157,6 +164,16 @@ function AdminPanel() {
         </p>
         <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
           Automatically generate all missing questions to hit topic targets
+        </p>
+      </Link>
+
+      <Link href="/admin/review-questions?key=mgp2025"
+        style={{ display: "block", background: "#f0fdf4", border: "1.5px solid #16a34a", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: "#16a34a", margin: "0 0 4px" }}>
+          ✅ Review Pending Questions
+        </p>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+          Review AI-generated questions and approve them to go live
         </p>
       </Link>
 
@@ -367,24 +384,6 @@ function AdminPanel() {
   )
 }
 
-function AdminCheck() {
-  const searchParams = useSearchParams()
-  const key = searchParams.get('key')
-  if (key !== 'mgp2025') {
-    return (
-      <div style={{padding:'40px',textAlign:'center',fontFamily:'system-ui'}}>
-        <h1 style={{color:'#991b1b'}}>Access Denied</h1>
-        <p style={{color:'#666',marginTop:'8px'}}>Invalid or missing access key</p>
-      </div>
-    )
-  }
-  return <AdminPanel />
-}
-
 export default function AdminPage() {
-  return (
-    <Suspense fallback={<div style={{padding:'40px',textAlign:'center'}}>Loading...</div>}>
-      <AdminCheck />
-    </Suspense>
-  )
+  return <AdminPanel />
 }
