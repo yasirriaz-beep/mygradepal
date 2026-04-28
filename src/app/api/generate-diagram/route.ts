@@ -38,13 +38,15 @@ export async function POST(req: NextRequest) {
 
     // Step 2 — Generate image with Gemini
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{
-            parts: [{ text: `Create a simple scientific diagram for Cambridge IGCSE Chemistry. ${diagramDescription}. White background, clear labels, textbook style.` }]
+            parts: [{
+              text: `Create a clean simple scientific diagram for a Cambridge IGCSE Chemistry exam. White background, black lines, textbook style, all parts clearly labelled. ${diagramDescription}`
+            }]
           }],
           generationConfig: {
             responseModalities: ["TEXT", "IMAGE"],
@@ -54,7 +56,8 @@ export async function POST(req: NextRequest) {
     );
 
     const geminiText = await geminiResponse.text();
-    console.log("Gemini status:", geminiResponse.status, "response:", geminiText.slice(0, 300));
+    console.log("Gemini status:", geminiResponse.status);
+    console.log("Gemini response preview:", geminiText.slice(0, 400));
 
     let b64 = "";
     try {
@@ -62,21 +65,25 @@ export async function POST(req: NextRequest) {
         candidates?: Array<{
           content?: {
             parts?: Array<{
-              inlineData?: { data: string; mimeType: string }
-              text?: string
+              inlineData?: { data: string; mimeType: string };
+              text?: string;
             }>
           }
         }>
       };
       const parts = geminiData.candidates?.[0]?.content?.parts ?? [];
-      const imagePart = parts.find(p => p.inlineData?.mimeType?.startsWith("image"));
+      const imagePart = parts.find(p => p.inlineData);
       b64 = imagePart?.inlineData?.data ?? "";
     } catch {
-      return NextResponse.json({ error: "Parse error: " + geminiText.slice(0, 100) }, { status: 500 });
+      return NextResponse.json({ 
+        error: "Parse error: " + geminiText.slice(0, 200) 
+      }, { status: 500 });
     }
 
     if (!b64) {
-      return NextResponse.json({ error: "No image returned. Status: " + geminiResponse.status }, { status: 500 });
+      return NextResponse.json({ 
+        error: "No image returned. Status: " + geminiResponse.status + " Response: " + geminiText.slice(0, 200)
+      }, { status: 500 });
     }
 
     // Step 3 — Upload to Supabase Storage
