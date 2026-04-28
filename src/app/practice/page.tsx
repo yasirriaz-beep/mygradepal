@@ -34,6 +34,167 @@ const CHEMISTRY_TOPICS = [
   "Experimental Techniques & Analysis",
 ];
 
+const getChapterFromTopic = (topicParam: string): string => {
+  const t = topicParam.toLowerCase();
+
+  if (
+    t.includes("state") ||
+    t.includes("solid") ||
+    t.includes("liquid") ||
+    t.includes("gas") ||
+    t.includes("melting") ||
+    t.includes("boiling") ||
+    t.includes("evapor") ||
+    t.includes("diffusion") ||
+    t.includes("heating curve") ||
+    t.includes("cooling curve") ||
+    (t.includes("pressure") && t.includes("volume"))
+  )
+    return "States of Matter";
+
+  if (
+    t.includes("atom") ||
+    t.includes("element") ||
+    t.includes("compound") ||
+    t.includes("bond") ||
+    t.includes("ionic") ||
+    t.includes("covalent") ||
+    t.includes("metallic") ||
+    t.includes("isotope") ||
+    t.includes("electron config") ||
+    t.includes("proton") ||
+    t.includes("neutron") ||
+    t.includes("diamond") ||
+    t.includes("graphite") ||
+    t.includes("mixture")
+  )
+    return "Atoms, Elements and Compounds";
+
+  if (
+    t.includes("mole") ||
+    t.includes("stoich") ||
+    t.includes("empirical") ||
+    t.includes("molecular formula") ||
+    t.includes("concentration") ||
+    t.includes("reacting mass") ||
+    t.includes("balancing") ||
+    t.includes("avogadro") ||
+    t.includes("gas volume") ||
+    t.includes("yield")
+  )
+    return "Stoichiometry";
+
+  if (
+    t.includes("electrolysis") ||
+    t.includes("electroplat") ||
+    t.includes("fuel cell") ||
+    t.includes("anode") ||
+    t.includes("cathode") ||
+    t.includes("brine") ||
+    t.includes("electrochem")
+  )
+    return "Electrochemistry";
+
+  if (
+    t.includes("exothermic") ||
+    t.includes("endothermic") ||
+    t.includes("bond energy") ||
+    t.includes("activation energy") ||
+    t.includes("energy profile") ||
+    t.includes("energetic")
+  )
+    return "Chemical Energetics";
+
+  if (
+    t.includes("rate of reaction") ||
+    t.includes("collision") ||
+    t.includes("equilibrium") ||
+    t.includes("reversible") ||
+    t.includes("catalyst") ||
+    t.includes("rate graph")
+  )
+    return "Chemical Reactions";
+
+  if (
+    t.includes("acid") ||
+    t.includes("alkali") ||
+    t.includes("neutrali") ||
+    t.includes("titration") ||
+    t.includes("salt") ||
+    t.includes("ph scale") ||
+    t.includes("indicator") ||
+    t.includes("oxide")
+  )
+    return "Acids, Bases and Salts";
+
+  if (
+    t.includes("group 1") ||
+    t.includes("group 7") ||
+    t.includes("halogen") ||
+    t.includes("alkali metal") ||
+    t.includes("transition metal") ||
+    t.includes("period 3") ||
+    t.includes("periodic table")
+  )
+    return "The Periodic Table";
+
+  if (
+    t.includes("reactivity series") ||
+    t.includes("blast furnace") ||
+    t.includes("rusting") ||
+    t.includes("alloy") ||
+    t.includes("extraction of metal") ||
+    t.includes("aluminium extraction") ||
+    t.includes("sacrificial") ||
+    t.includes("galvani")
+  )
+    return "Metals";
+
+  if (
+    t.includes("water treatment") ||
+    t.includes("hard water") ||
+    t.includes("air pollution") ||
+    t.includes("greenhouse") ||
+    t.includes("eutrophication") ||
+    t.includes("fertiliser") ||
+    t.includes("acid rain") ||
+    t.includes("environment")
+  )
+    return "Chemistry of the Environment";
+
+  if (
+    t.includes("alkane") ||
+    t.includes("alkene") ||
+    t.includes("alcohol") ||
+    t.includes("ester") ||
+    t.includes("polymer") ||
+    t.includes("fermentation") ||
+    t.includes("carboxylic") ||
+    t.includes("amino acid") ||
+    t.includes("organic") ||
+    t.includes("crude oil") ||
+    t.includes("cracking") ||
+    t.includes("nylon")
+  )
+    return "Organic Chemistry";
+
+  if (
+    t.includes("filtration") ||
+    t.includes("distillation") ||
+    t.includes("chromatography") ||
+    t.includes("flame test") ||
+    t.includes("rf value") ||
+    t.includes("experimental") ||
+    t.includes("qualitative") ||
+    t.includes("gas test") ||
+    t.includes("ion test")
+  )
+    return "Experimental Techniques & Analysis";
+
+  // fallback: return original param (handles direct chapter-level clicks)
+  return topicParam;
+};
+
 const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
   easy: { bg: "#f0fdf4", text: "#16a34a" },
   medium: { bg: "#fff7ed", text: "#d97706" },
@@ -58,13 +219,15 @@ type QuestionRow = {
 function PracticePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const rawTopic = searchParams.get("topic") ?? "";
+  const chapterTopic = getChapterFromTopic(rawTopic);
 
   const [studentId, setStudentId] = useState("demo-student");
   const [studentName, setStudentName] = useState("Student");
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const [activeSubject, setActiveSubject] = useState(searchParams.get("subject") ?? "Chemistry");
-  const [activeTopic, setActiveTopic] = useState<string | null>(searchParams.get("topic"));
+  const [activeTopic, setActiveTopic] = useState<string | null>(chapterTopic || null);
   const [activeType, setActiveType] = useState("All");
   const [activeDiff, setActiveDiff] = useState("All");
 
@@ -72,7 +235,6 @@ function PracticePageContent() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
 
   const [isTrialBlocked, setIsTrialBlocked] = useState(false);
   const [trialUsed, setTrialUsed] = useState(0);
@@ -104,21 +266,6 @@ function PracticePageContent() {
     }, 60000);
     return () => clearInterval(timer);
   }, [sessionId, studentId]);
-
-  // -- Topic counts -------------------------------------------------------
-  useEffect(() => {
-    supabase
-      .from("questions")
-      .select("topic")
-      .eq("subject", activeSubject)
-      .then(({ data }) => {
-        const counts: Record<string, number> = {};
-        (data ?? []).forEach((r: { topic: string }) => {
-          if (r.topic) counts[r.topic] = (counts[r.topic] ?? 0) + 1;
-        });
-        setTopicCounts(counts);
-      });
-  }, [activeSubject]);
 
   // -- Load questions -----------------------------------------------------
   useEffect(() => {
@@ -283,75 +430,49 @@ function PracticePageContent() {
       <div style={{ padding: "16px 16px 0" }}>
         {/* Topic selector */}
         <div style={{ marginBottom: 14 }}>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#6b7280",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              margin: "0 0 8px",
-            }}
-          >
-            Topic
-          </p>
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-            <button
-              onClick={() => setActiveTopic(null)}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{
+              fontSize: 11, fontWeight: 700, color: "#6b7280",
+              textTransform: "uppercase", letterSpacing: 1,
+              display: "block", marginBottom: 6
+            }}>
+              Topic
+            </label>
+            <select
+              value={activeTopic ?? "All Topics"}
+              onChange={(e) => setActiveTopic(e.target.value === "All Topics" ? null : e.target.value)}
               style={{
-                flexShrink: 0,
-                padding: "7px 14px",
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 600,
-                border: `1.5px solid ${!activeTopic ? subjectColor : "#e5e7eb"}`,
-                background: !activeTopic ? subjectColor + "18" : "white",
-                color: !activeTopic ? subjectColor : "#6b7280",
+                width: "100%",
+                maxWidth: 400,
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1.5px solid #e5e7eb",
+                fontSize: 14,
+                color: "#111827",
+                background: "white",
                 cursor: "pointer",
+                fontFamily: "inherit",
+                appearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 12px center",
+                paddingRight: 36,
               }}
             >
-              All Topics
-            </button>
-            {CHEMISTRY_TOPICS.map((topic) => {
-              const count = topicCounts[topic] ?? 0;
-              const isActive = activeTopic === topic;
-              return (
-                <button
-                  key={topic}
-                  onClick={() => setActiveTopic(topic)}
-                  style={{
-                    flexShrink: 0,
-                    padding: "7px 14px",
-                    borderRadius: 20,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    border: `1.5px solid ${isActive ? subjectColor : "#e5e7eb"}`,
-                    background: isActive ? subjectColor + "18" : "white",
-                    color: isActive ? subjectColor : "#6b7280",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  {topic}
-                  {count > 0 && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        background: isActive ? subjectColor : "#f3f4f6",
-                        color: isActive ? "white" : "#9ca3af",
-                        borderRadius: 20,
-                        padding: "1px 6px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+              <option value="All Topics">All Topics</option>
+              <option value="States of Matter">States of Matter</option>
+              <option value="Atoms, Elements and Compounds">Atoms, Elements and Compounds</option>
+              <option value="Stoichiometry">Stoichiometry</option>
+              <option value="Electrochemistry">Electrochemistry</option>
+              <option value="Chemical Energetics">Chemical Energetics</option>
+              <option value="Chemical Reactions">Chemical Reactions</option>
+              <option value="Acids, Bases and Salts">Acids, Bases and Salts</option>
+              <option value="The Periodic Table">The Periodic Table</option>
+              <option value="Metals">Metals</option>
+              <option value="Chemistry of the Environment">Chemistry of the Environment</option>
+              <option value="Organic Chemistry">Organic Chemistry</option>
+              <option value="Experimental Techniques & Analysis">Experimental Techniques & Analysis</option>
+            </select>
           </div>
         </div>
 
