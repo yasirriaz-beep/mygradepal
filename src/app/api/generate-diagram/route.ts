@@ -38,18 +38,18 @@ export async function POST(req: NextRequest) {
 
     // Step 2 — Generate image with Gemini
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Create a clean simple scientific diagram for a Cambridge IGCSE Chemistry exam. White background, black lines, textbook style, all parts clearly labelled. ${diagramDescription}`
+              text: `Create a clean simple scientific diagram for Cambridge IGCSE Chemistry. White background, black lines, textbook style, all parts clearly labelled. ${diagramDescription}`
             }]
           }],
           generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
+            responseModalities: ["TEXT", "IMAGE"]
           }
         })
       }
