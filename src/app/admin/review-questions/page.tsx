@@ -41,17 +41,16 @@ export default function ReviewQuestionsPage() {
 
   const loadQuestions = async () => {
     setLoading(true);
-    let query = supabase
+
+    const { data, error } = await supabase
       .from("pending_questions")
       .select("*")
+      .neq("review_notes", "rejected")
       .or("reviewed.eq.false,reviewed.is.null")
       .order("created_at", { ascending: true })
       .limit(50);
 
-    if (filter !== "All") query = query.eq("paper_type", filter);
-    if (topicFilter !== "All") query = query.eq("topic", topicFilter);
-
-    const { data } = await query;
+    console.log("Query result:", data?.length, "Error:", error?.message);
     setQuestions((data ?? []) as PendingQuestion[]);
 
     // Get counts
