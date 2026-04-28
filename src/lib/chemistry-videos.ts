@@ -7,7 +7,7 @@ export const CHEMISTRY_VIDEOS = [
         youtube_id: "Wia1om7kwP4",
         title: "States of Matter — Complete Revision",
         channel: "IGCSE Study Buddy",
-        summary: "Covers kinetic particle theory, properties of solids/liquids/gases, changes of state, heating curves, gas laws, and diffusion. Specifically mapped to Cambridge 0620 syllabus.",
+        summary: "Covers kinetic particle theory, properties of solids/liquids/gases, changes of state, heating curves, gas laws, and diffusion. Mapped to Cambridge 0620 syllabus.",
         timestamps: [
           { time: "0:00", label: "Introduction" },
           { time: "1:44", label: "Properties and particle arrangement" },
@@ -25,7 +25,7 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "mGAkJ0b6dGw",
-        title: "Atoms, Elements & Compounds Part 1",
+        title: "Atoms, Elements & Compounds Part 1 — Atomic Structure",
         channel: "IGCSE Study Buddy",
         summary: "Covers atomic structure, protons/neutrons/electrons, atomic number, mass number, electron configuration, and isotopes.",
         timestamps: [
@@ -55,14 +55,15 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "ibexOm9U2k0",
-        title: "Stoichiometry Part 1 — The Mole",
+        title: "Stoichiometry — The Mole and Calculations",
         channel: "IGCSE Study Buddy",
-        summary: "Covers relative molecular mass, the mole concept, Avogadro's number, and basic mole calculations. Most important topic — appears in 94% of Cambridge papers.",
+        summary: "Covers relative molecular mass, the mole, Avogadro's number, mole calculations, empirical formula, and gas volumes. Appears in 94% of Cambridge papers.",
         timestamps: [
           { time: "0:00", label: "Relative molecular mass" },
-          { time: "3:00", label: "The mole" },
+          { time: "3:00", label: "The mole concept" },
           { time: "6:00", label: "Moles = mass ÷ Mr" },
           { time: "9:00", label: "Worked examples" },
+          { time: "12:00", label: "Empirical formula" },
         ]
       }
     ]
@@ -73,9 +74,9 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "vvbP9xd9CE4",
-        title: "Electrochemistry Part 1",
+        title: "Electrochemistry — Electrolysis and Electroplating",
         channel: "IGCSE Study Buddy",
-        summary: "Covers electrolysis basics, anode and cathode, electrolysis of water and brine, electrode equations, and electroplating.",
+        summary: "Covers electrolysis basics, anode and cathode, electrolysis of water and brine, electrode equations, electroplating, and fuel cells.",
         timestamps: [
           { time: "0:00", label: "Electrolysis setup" },
           { time: "2:00", label: "Anode and cathode" },
@@ -92,7 +93,7 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "jYKCWKh98ro",
-        title: "Chemical Energetics — Complete Revision",
+        title: "Chemical Energetics — Energy Changes in Reactions",
         channel: "IGCSE Study Buddy",
         summary: "Covers exothermic and endothermic reactions, energy profile diagrams, activation energy, bond energies, and energy calculations.",
         timestamps: [
@@ -111,15 +112,15 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "BTT_ee3xf0g",
-        title: "Chemical Reactions Part 1 — Rate of Reaction",
+        title: "Chemical Reactions — Rate of Reaction and Equilibrium",
         channel: "IGCSE Study Buddy",
-        summary: "Covers rate of reaction, collision theory, factors affecting rate (concentration, temperature, surface area, catalysts), and rate graphs.",
+        summary: "Covers rate of reaction, collision theory, factors affecting rate, rate graphs, reversible reactions, and equilibrium.",
         timestamps: [
           { time: "0:00", label: "Rate of reaction" },
           { time: "2:00", label: "Collision theory" },
           { time: "4:00", label: "Concentration and temperature" },
           { time: "6:00", label: "Surface area and catalysts" },
-          { time: "8:00", label: "Rate graphs" },
+          { time: "8:00", label: "Reversible reactions and equilibrium" },
         ]
       }
     ]
@@ -130,9 +131,9 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "8QoBtDeREW0",
-        title: "Acids, Bases and Salts Part 1",
+        title: "Acids, Bases and Salts — Complete Revision",
         channel: "IGCSE Study Buddy",
-        summary: "Covers pH scale, indicators, neutralisation, salt preparation methods, and titration procedure.",
+        summary: "Covers pH scale, indicators, neutralisation, salt preparation methods, strong vs weak acids, and titration calculations.",
         timestamps: [
           { time: "0:00", label: "pH scale" },
           { time: "2:00", label: "Indicators" },
@@ -149,9 +150,9 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "OOlqOZvHSbM",
-        title: "The Periodic Table — Complete Revision",
+        title: "The Periodic Table — Groups and Trends",
         channel: "IGCSE Study Buddy",
-        summary: "Covers Group 1 alkali metals, Group 7 halogens, Period 3 trends, and transition metals with their properties.",
+        summary: "Covers Group 1 alkali metals, Group 7 halogens, displacement reactions, Period 3 trends, and transition metals.",
         timestamps: [
           { time: "0:00", label: "Periodic table overview" },
           { time: "2:00", label: "Group 1 properties" },
@@ -168,9 +169,9 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "pgODbLHVVW8",
-        title: "Metals Part 1 — Reactivity Series",
+        title: "Metals — Reactivity, Extraction and Alloys",
         channel: "IGCSE Study Buddy",
-        summary: "Covers reactivity series, displacement reactions, extraction of metals including blast furnace and electrolysis, rusting, rust prevention, and alloys.",
+        summary: "Covers reactivity series, displacement reactions, extraction of metals, rusting and rust prevention, and alloys.",
         timestamps: [
           { time: "0:00", label: "Reactivity series" },
           { time: "2:00", label: "Displacement reactions" },
@@ -206,16 +207,15 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "qfzWf-kI1EM",
-        title: "Organic Chemistry Part 1",
+        title: "Organic Chemistry — Complete Revision",
         channel: "IGCSE Study Buddy",
         summary: "Covers alkanes, alkenes, bromine water test, addition reactions, alcohols, carboxylic acids, esters, and addition polymerisation.",
         timestamps: [
           { time: "0:00", label: "Alkanes" },
           { time: "2:00", label: "Alkenes and bromine water test" },
           { time: "4:00", label: "Alcohols" },
-          { time: "6:00", label: "Carboxylic acids" },
-          { time: "8:00", label: "Esters" },
-          { time: "10:00", label: "Polymers" },
+          { time: "6:00", label: "Carboxylic acids and esters" },
+          { time: "8:00", label: "Polymers" },
         ]
       }
     ]
@@ -226,7 +226,7 @@ export const CHEMISTRY_VIDEOS = [
       {
         part: 1,
         youtube_id: "8gp9f9qC8UU",
-        title: "Experimental Techniques Part 1",
+        title: "Experimental Techniques — Paper 6 Complete Revision",
         channel: "IGCSE Study Buddy",
         summary: "Covers filtration, evaporation, distillation, chromatography, Rf values, flame tests, ion tests, and gas tests — everything tested in Paper 6.",
         timestamps: [

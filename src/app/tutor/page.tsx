@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
 import LearnContent from "@/components/LearnContent";
+import { CHEMISTRY_VIDEOS } from "@/lib/chemistry-videos";
 import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
@@ -19,9 +20,10 @@ type ChatMessage = {
   audioUrl?: string | null;
 };
 
-type LessonStep = "explain" | "formulas" | "example" | "test" | "past-paper";
+type LessonStep = "watch" | "explain" | "formulas" | "example" | "test" | "past-paper";
 
 const lessonSteps: Array<{ key: LessonStep; label: string }> = [
+  { key: "watch", label: "Watch" },
   { key: "explain", label: "Explain" },
   { key: "formulas", label: "Formulas" },
   { key: "example", label: "Example" },
@@ -68,6 +70,7 @@ function TutorPageContent() {
   } | null>(null);
   const [isMarking, setIsMarking] = useState(false);
   const [showUrdu, setShowUrdu] = useState(false);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [testScore, setTestScore] = useState({ correct: 0, total: 0 });
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [trialMessageLimitReached, setTrialMessageLimitReached] = useState(false);
@@ -342,14 +345,35 @@ function TutorPageContent() {
 
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
-  const activeStepIndex = lessonSteps.findIndex((s) => s.key === currentStep);
+  const currentTopic = topic;
+  const topicVideos = subject === "Chemistry"
+    ? (CHEMISTRY_VIDEOS.find(t =>
+        currentTopic?.toLowerCase().includes(t.topic.toLowerCase().split(" ")[0].toLowerCase())
+      )?.videos ?? [])
+    : [];
+  const hasVideo = topicVideos.length > 0;
+  const visibleLessonSteps = hasVideo
+    ? lessonSteps
+    : lessonSteps.filter((s) => s.key !== "watch");
+
+  const activeStepIndex = visibleLessonSteps.findIndex((s) => s.key === currentStep);
 
   const goToNextStep = () => {
-    const i = lessonSteps.findIndex((s) => s.key === currentStep);
-    if (i >= 0 && i < lessonSteps.length - 1) {
-      setCurrentStep(lessonSteps[i + 1].key);
+    const i = visibleLessonSteps.findIndex((s) => s.key === currentStep);
+    if (i >= 0 && i < visibleLessonSteps.length - 1) {
+      setCurrentStep(visibleLessonSteps[i + 1].key);
     }
   };
+
+  useEffect(() => {
+    if (!hasVideo && currentStep === "watch") {
+      setCurrentStep("explain");
+    }
+  }, [hasVideo, currentStep]);
+
+  useEffect(() => {
+    setActiveVideoIndex(0);
+  }, [topic]);
 
   const fmtLessonCompleteDate = (d: string) =>
     new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
@@ -534,7 +558,7 @@ No markdown, no extra text, just raw JSON.`,
         <div className="mt-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Lesson progress</p>
           <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-[10px] sm:text-xs">
-            {lessonSteps.map((step, index) => {
+            {visibleLessonSteps.map((step, index) => {
               const isActive = step.key === currentStep;
               const isDone = index < activeStepIndex;
               return (
@@ -571,6 +595,94 @@ No markdown, no extra text, just raw JSON.`,
       <section className="relative z-0 mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
         {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
         <div className="rounded-2xl bg-teal-50 p-4">
+            {currentStep === "watch" && hasVideo && (
+              <div style={{ padding: "0 0 20px" }}>
+                {topicVideos.length > 1 && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    {topicVideos.map((v, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveVideoIndex(i)}
+                        style={{
+                          padding: "6px 16px",
+                          borderRadius: 20,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          background: activeVideoIndex === i ? "#189080" : "white",
+                          color: activeVideoIndex === i ? "white" : "#189080",
+                          border: "1.5px solid #189080",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Part {v.part}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{
+                  position: "relative",
+                  paddingBottom: "56.25%",
+                  height: 0,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: "1px solid #e5e7eb",
+                  marginBottom: 16
+                }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${topicVideos[activeVideoIndex]?.youtube_id}`}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                    allowFullScreen
+                    title={topicVideos[activeVideoIndex]?.title}
+                  />
+                </div>
+
+                <div style={{
+                  background: "#e8f8f4",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  marginBottom: 14,
+                  border: "1px solid #a7f3d0"
+                }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#189080", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    📹 What this video covers
+                  </p>
+                  <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
+                    {topicVideos[activeVideoIndex]?.summary}
+                  </p>
+                </div>
+
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Jump to section
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {topicVideos[activeVideoIndex]?.timestamps.map((ts) => (
+                    <a
+                      key={ts.time}
+                      href={`https://www.youtube.com/watch?v=${topicVideos[activeVideoIndex].youtube_id}&t=${ts.time}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: "#189080",
+                        background: "white",
+                        border: "1px solid #a7f3d0",
+                        borderRadius: 20,
+                        padding: "4px 12px",
+                        textDecoration: "none",
+                        fontWeight: 500
+                      }}
+                    >
+                      ▶ {ts.time} — {ts.label}
+                    </a>
+                  ))}
+                </div>
+
+                <p style={{ fontSize: 11, color: "#9ca3af", margin: "16px 0 0" }}>
+                  Video by IGCSE Study Buddy · Content mapped to Cambridge 0620 syllabus
+                </p>
+              </div>
+            )}
             {currentStep === "explain" && staticContent?.audio_url_en && (
               <>
                 <div
