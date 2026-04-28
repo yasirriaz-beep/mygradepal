@@ -34,6 +34,8 @@ interface Question {
   exam_tip:      string;
   syllabus_ref:  string;
   correct_answer: string;
+  has_diagram?:  boolean;
+  diagram_url?:  string | null;
 }
 
 export default function QuestionBankPage() {
@@ -73,7 +75,7 @@ export default function QuestionBankPage() {
 
       const { data, error } = await supabase
         .from("questions")
-        .select("id, topic, subtopic, difficulty, paper_type, question_text, mark_scheme, source, common_mistake, exam_tip, syllabus_ref, correct_answer")
+        .select("id, topic, subtopic, difficulty, paper_type, question_text, mark_scheme, source, common_mistake, exam_tip, syllabus_ref, correct_answer, has_diagram, diagram_url")
         .eq("subject", subject)
         .eq("topic", selectedTopic)
         .order("created_at", { ascending: true })
@@ -261,6 +263,28 @@ export default function QuestionBankPage() {
                               <p style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", margin: "0 0 2px" }}>📋 Mark Scheme</p>
                               <p style={{ fontSize: 12, color: "#374151", margin: 0, whiteSpace: "pre-line" }}>{q.mark_scheme}</p>
                             </div>
+                          )}
+                          {q.has_diagram && !q.diagram_url && (
+                            <button
+                              onClick={async () => {
+                                const res = await fetch("/api/generate-diagram", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ questionId: q.id, questionText: q.question_text }),
+                                });
+                                const data = await res.json();
+                                if (data.diagramUrl) {
+                                  alert("Diagram generated successfully!");
+                                  // Refresh the question
+                                  window.location.reload();
+                                } else {
+                                  alert("Failed: " + data.error);
+                                }
+                              }}
+                              style={{ padding: "8px 16px", borderRadius: 8, background: "#4285f4", color: "white", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8 }}
+                            >
+                              🎨 Generate Diagram with AI
+                            </button>
                           )}
                           {(q.common_mistake || q.exam_tip) && (
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>

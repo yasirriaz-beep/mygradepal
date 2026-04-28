@@ -52,6 +52,7 @@ type QuestionRow = {
   paper_type: string;
   question_text: string;
   source: string;
+  diagram_url?: string | null;
 };
 
 function PracticePageContent() {
@@ -136,7 +137,7 @@ function PracticePageContent() {
       let query = supabase
         .from("questions")
         .select(
-          "id, subject, topic, subtopic, difficulty, marks, year, session, paper_type, question_text, source"
+          "id, subject, topic, subtopic, difficulty, marks, year, session, paper_type, question_text, source, diagram_url"
         )
         .eq("subject", activeSubject)
         .order("topic", { ascending: true })
@@ -506,6 +507,22 @@ function PracticePageContent() {
                   </p>
 
                   {/* Question preview */}
+                  {q.diagram_url && (
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <img
+                        src={q.diagram_url}
+                        alt="Question diagram"
+                        style={{ width: "100%", display: "block" }}
+                      />
+                    </div>
+                  )}
                   <p
                     style={{
                       fontSize: 13,
