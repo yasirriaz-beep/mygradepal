@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
-import { CHEMISTRY_VIDEOS, getEmbedUrl } from "@/lib/chemistry-videos";
+import { CHEMISTRY_VIDEOS, findVideoForTopic, getEmbedUrl } from "@/lib/chemistry-videos";
 import { supabase } from "@/lib/supabase";
 
 type ChapterTopic = {
@@ -192,6 +192,32 @@ const CHEMISTRY_TOPICS: ChapterTopic[] = [
   },
 ];
 
+const getSubtopicTime = (subject: string, subtopicName: string): string => {
+  const result = findVideoForTopic(subject, subtopicName);
+
+  let videoMins = 0;
+  if (result?.subtopicMatch) {
+    const st = result.subtopicMatch;
+    const end = st.end_seconds === 9999
+      ? st.seconds + 300 // assume 5 min if no end defined
+      : st.end_seconds;
+    videoMins = Math.round((end - st.seconds) / 60);
+  } else if (result?.video) {
+    videoMins = 5; // fallback if chapter match but no subtopic
+  }
+
+  // Fixed time for other tabs
+  const explainMins = 4;
+  const testMins = 7;
+  const otherMins = 4; // formulas + example + past paper
+
+  const total = videoMins + explainMins + testMins + otherMins;
+
+  // Round to nearest 5 for cleaner display
+  const rounded = Math.ceil(total / 5) * 5;
+  return `~${rounded} min`;
+};
+
 export default function LearnSubjectPage() {
   const params = useParams<{ subject: string }>();
   const subject = decodeURIComponent(params.subject);
@@ -330,6 +356,18 @@ export default function LearnSubjectPage() {
                                 style={{ background: studied ? "#189080" : "#d1d5db" }}
                               />
                               <span>{subtopic}</span>
+                              <span style={{
+                                fontSize: 10,
+                                color: "#9ca3af",
+                                background: "#f3f4f6",
+                                borderRadius: 10,
+                                padding: "1px 7px",
+                                marginLeft: 8,
+                                fontWeight: 500,
+                                whiteSpace: "nowrap"
+                              }}>
+                                {getSubtopicTime("Chemistry", subtopic)}
+                              </span>
                             </Link>
                           );
                         })}
