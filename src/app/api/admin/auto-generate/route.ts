@@ -91,8 +91,9 @@ export async function POST(req: NextRequest) {
       topic: string;
       paperType: "MCQ" | "Theory" | "Practical";
       batchSize: number;
-      autoApprove: boolean;
+      autoApprove: boolean | string;
     };
+  console.log("autoApprove value received:", autoApprove, typeof autoApprove);
 
   const config = SYLLABUS[topic];
   if (!config) return NextResponse.json({ error: "Unknown topic" }, { status: 400 });
@@ -131,7 +132,8 @@ STRICT RULES:
 5. Use only Cambridge command words
 6. Return ONLY valid JSON array — no markdown, no preamble
 7. Vary difficulty: mix of Easy, Medium, Hard in each batch
-8. Cover different syllabus points — no two questions on identical concept
+8. TOPIC NAME: You MUST use the topic name EXACTLY as provided in the request — do not rename, abbreviate or rephrase it. The topic field in every question JSON must exactly match: "${topic}"
+9. Cover different syllabus points — no two questions on identical concept
 
 QUESTION TYPE: ${paperType === "MCQ" ? "Multiple Choice — 4 options A B C D" : paperType === "Theory" ? "Structured Theory — multi-part with sub-parts a b c" : "Practical Scenario — experiment-based"}
 
@@ -181,7 +183,8 @@ ${existingSummary}`;
 
     // If autoApprove — save directly to questions table
     // If not — save to pending_questions for review
-    const tableName = autoApprove ? "questions" : "pending_questions";
+    const shouldAutoApprove = autoApprove === true || autoApprove === "true";
+    const tableName = shouldAutoApprove ? "questions" : "pending_questions";
 
     const rows = questions.map((q, i) => ({
       subject,
@@ -190,7 +193,7 @@ ${existingSummary}`;
       session: "Generated",
       paper_type: String(q.paper_type ?? paperType),
       question_number: String(i + 1),
-      topic: String(q.topic ?? topic),
+      topic: topic, // Always use the request topic, not Claude's version
       subtopic: String(q.subtopic ?? focusSubtopic),
       difficulty: String(q.difficulty_level ?? "medium").toLowerCase(),
       marks: paperType === "MCQ" ? 1 : 3,
@@ -215,7 +218,10 @@ ${existingSummary}`;
       .insert(rows)
       .select("id");
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("Save error:", error.message, "table:", tableName);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       saved: saved?.length ?? 0,
