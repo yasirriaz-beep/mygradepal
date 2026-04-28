@@ -150,6 +150,16 @@ function AdminPanel() {
         </p>
       </Link>
 
+      <Link href="/admin/auto-fill?key=mgp2025"
+        style={{ display: "block", background: "#f0fdf4", border: "1.5px solid #16a34a", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: "#16a34a", margin: "0 0 4px" }}>
+          🤖 Auto-Fill Database
+        </p>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+          Automatically generate all missing questions to hit topic targets
+        </p>
+      </Link>
+
       <div style={s.tabs}>
         <button style={tab==='add' ? s.tabActive : s.tabInactive} onClick={() => setTab('add')}>Add Question</button>
         <button style={tab==='bulk' ? s.tabActive : s.tabInactive} onClick={() => setTab('bulk')}>Bulk Import</button>
