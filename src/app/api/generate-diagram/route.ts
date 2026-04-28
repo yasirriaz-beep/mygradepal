@@ -80,7 +80,7 @@ Keep it under 100 words. Output only the description, nothing else.`,
       return NextResponse.json({ error: "Gemini did not return an image" }, { status: 500 });
     }
 
-    const imageBuffer = Buffer.from(imageData.bytesBase64Encoded, "base64");
+    const imageBuffer = Buffer.from(imageData.bytesBase64Encoded!, "base64");
 
     // Step 3 - Upload to Supabase Storage
     const fileName = `diagrams/${questionId}.png`;
