@@ -71,8 +71,7 @@ export async function GET(req: NextRequest) {
   const { data } = await supabase
     .from("questions")
     .select("topic")
-    .eq("subject", subject)
-    .eq("source", "MGP_Generated");
+    .eq("subject", subject);
 
   const counts: Record<string, number> = {};
   (data ?? []).forEach((r: { topic: string }) => {

@@ -101,7 +101,6 @@ export default function QuestionBankPage() {
 
       if (paperType !== "All") query = query.eq("paper_type", paperType);
       if (difficulty !== "All") query = query.eq("difficulty", difficulty.toLowerCase());
-      if (source !== "All") query = query.eq("source", source);
 
       const { data } = await query.limit(200);
       setQuestions((data ?? []) as Question[]);
