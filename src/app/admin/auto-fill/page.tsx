@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 const TEAL = "#189080";
@@ -28,17 +28,18 @@ interface BatchResult {
 export default function AutoFillPage() {
   const [subject, setSubject] = useState("Chemistry");
   const [autoApprove, setAutoApprove] = useState(false);
-  const [batchSize, setBatchSize] = useState(10);
+  const [batchSize, setBatchSize] = useState(5);
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [totalGap, setTotalGap] = useState(0);
   const [totalCurrent, setTotalCurrent] = useState(0);
   const [totalTarget, setTotalTarget] = useState(0);
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
-  const [stopFlag, setStopFlag] = useState(false);
+  const stopFlagRef = useRef(false);
   const [log, setLog] = useState<BatchResult[]>([]);
   const [currentTask, setCurrentTask] = useState("");
   const [progress, setProgress] = useState(0);
+  const [totalSaved, setTotalSaved] = useState(0);
 
   const loadGaps = async () => {
     setLoading(true);
@@ -55,9 +56,10 @@ export default function AutoFillPage() {
 
   const runAutoFill = async () => {
     setRunning(true);
-    setStopFlag(false);
+    stopFlagRef.current = false;
     setLog([]);
     setProgress(0);
+    setTotalSaved(0);
 
     // Build task queue from gaps
     const tasks: Array<{ topic: string; paperType: "MCQ" | "Theory" | "Practical"; needed: number }> = [];
@@ -69,17 +71,17 @@ export default function AutoFillPage() {
       if (gap.practGap > 0) tasks.push({ topic: gap.topic, paperType: "Practical", needed: gap.practGap });
     }
 
-    let completed = 0;
-    const totalTasks = tasks.length;
+    const totalBatches = tasks.reduce((sum, t) => sum + Math.ceil(t.needed / batchSize), 0);
+    let batchesCompleted = 0;
 
     for (const task of tasks) {
-      if (stopFlag) break;
+      if (stopFlagRef.current) break;
 
       // How many batches needed for this task
       const batches = Math.ceil(task.needed / batchSize);
 
       for (let b = 0; b < batches; b++) {
-        if (stopFlag) break;
+        if (stopFlagRef.current) break;
 
         const thisSize = Math.min(batchSize, task.needed - b * batchSize);
         setCurrentTask(`${task.topic} — ${task.paperType} (batch ${b + 1}/${batches})`);
@@ -105,6 +107,7 @@ export default function AutoFillPage() {
             saved: data.saved ?? 0,
             error: data.error,
           }, ...prev]);
+          setTotalSaved((prev) => prev + (data.saved ?? 0));
         } catch (err) {
           setLog((prev) => [{
             topic: task.topic,
@@ -117,10 +120,9 @@ export default function AutoFillPage() {
 
         // Small delay between batches to avoid rate limiting
         await new Promise((r) => setTimeout(r, 1500));
+        batchesCompleted++;
+        setProgress(Math.round((batchesCompleted / totalBatches) * 100));
       }
-
-      completed++;
-      setProgress(Math.round((completed / totalTasks) * 100));
     }
 
     setCurrentTask("");
@@ -172,7 +174,6 @@ export default function AutoFillPage() {
               <select value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))} style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13 }}>
                 <option value={5}>5 questions</option>
                 <option value={10}>10 questions</option>
-                <option value={20}>20 questions</option>
               </select>
             </div>
             <div>
@@ -225,6 +226,9 @@ export default function AutoFillPage() {
                 <div style={{ height: 6, borderRadius: 6, background: TEAL, width: `${progress}%`, transition: "width 0.3s" }} />
               </div>
               <p style={{ fontSize: 12, color: "#374151", margin: 0 }}>Currently: {currentTask}</p>
+              <p style={{ fontSize: 12, color: "#16a34a", margin: "4px 0 0" }}>
+                ✓ {totalSaved} questions saved so far
+              </p>
             </div>
           )}
 
@@ -240,7 +244,9 @@ export default function AutoFillPage() {
               </button>
             ) : (
               <button
-                onClick={() => setStopFlag(true)}
+                onClick={() => {
+                  stopFlagRef.current = true;
+                }}
                 style={{ flex: 1, padding: "13px", borderRadius: 12, background: "#dc2626", color: "white", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "'Sora', sans-serif" }}
               >
                 ⏹ Stop Generation
