@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
 import LearnContent from "@/components/LearnContent";
-import { findVideoForTopic, getEmbedUrl } from "@/lib/chemistry-videos";
+import { findVideoForTopic } from "@/lib/chemistry-videos";
 import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
@@ -79,6 +79,7 @@ function TutorPageContent() {
   const [finishNextSession, setFinishNextSession] = useState<NextPlanSession | null>(null);
   const [finishQuestionsCount, setFinishQuestionsCount] = useState(0);
   const [watchCompleted, setWatchCompleted] = useState(false);
+  const [embedStart, setEmbedStart] = useState<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatAudioRef = useRef<HTMLAudioElement | null>(null);
   const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
@@ -375,6 +376,11 @@ function TutorPageContent() {
 
   useEffect(() => {
     if (currentStep !== "watch") return;
+    setEmbedStart(subtopicMatch?.seconds ?? 0);
+  }, [currentStep, topic, subtopicMatch?.seconds]);
+
+  useEffect(() => {
+    if (currentStep !== "watch") return;
     const timer = window.setTimeout(() => setWatchCompleted(true), 30000);
     return () => window.clearTimeout(timer);
   }, [currentStep, topic]);
@@ -610,47 +616,6 @@ No markdown, no extra text, just raw JSON.`,
         <div className="rounded-2xl bg-teal-50 p-4">
             {currentStep === "watch" && hasVideo && currentVideo && (
               <div style={{ padding: "0 0 20px" }}>
-                {subtopicMatch && (
-                  <div style={{
-                    background: "#fff7ed",
-                    border: "1.5px solid #fed7aa",
-                    borderRadius: 10,
-                    padding: "12px 14px",
-                    marginBottom: 14,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: 10
-                  }}>
-                    <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#f5731e", margin: "0 0 2px", textTransform: "uppercase" }}>
-                        📍 This subtopic in the video
-                      </p>
-                      <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
-                        <strong>{currentTopic?.split("—")[0].trim()}</strong> starts at <strong>{secondsToTime(subtopicMatch.seconds)}</strong>
-                      </p>
-                    </div>
-                    <a
-                      href={getEmbedUrl(currentVideo.youtube_id, subtopicMatch.seconds, subtopicMatch.end_seconds)}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        background: "#f5731e",
-                        color: "white",
-                        borderRadius: 8,
-                        padding: "8px 16px",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        whiteSpace: "nowrap"
-                      }}
-                    >
-                      ▶ Jump to {secondsToTime(subtopicMatch.seconds)}
-                    </a>
-                  </div>
-                )}
-
                 <div style={{
                   position: "relative",
                   paddingBottom: "56.25%",
@@ -661,11 +626,8 @@ No markdown, no extra text, just raw JSON.`,
                   marginBottom: 16
                 }}>
                   <iframe
-                    src={
-                      subtopicMatch
-                        ? getEmbedUrl(currentVideo.youtube_id, subtopicMatch.seconds, subtopicMatch.end_seconds)
-                        : getEmbedUrl(currentVideo.youtube_id, 0)
-                    }
+                    key={embedStart}
+                    src={`https://www.youtube.com/embed/${currentVideo.youtube_id}?start=${embedStart}&rel=0&modestbranding=1`}
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
                     allowFullScreen
                     title={currentVideo.title}
@@ -692,31 +654,29 @@ No markdown, no extra text, just raw JSON.`,
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {currentVideo.timestamps.map((ts) => (
-                    <a
+                    <button
                       key={ts.time}
-                      href={getEmbedUrl(currentVideo.youtube_id, ts.seconds)}
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={() => setEmbedStart(ts.seconds)}
                       style={{
-                        fontSize: 12,
+                        fontSize: 11,
                         color: "#189080",
                         background: "white",
                         border: "1px solid #a7f3d0",
                         borderRadius: 20,
-                        padding: "4px 12px",
-                        textDecoration: "none",
-                        fontWeight: 500
+                        padding: "3px 10px",
+                        cursor: "pointer",
+                        fontFamily: "inherit"
                       }}
                     >
-                      ▶ {ts.time} — {ts.label}
-                    </a>
+                      {ts.time} {ts.label}
+                    </button>
                   ))}
                 </div>
 
                 {topicEntry && topicEntry.videos.length > 1 && (
                   <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                     {topicEntry.videos.map((v, i) => (
-                      <button key={i} onClick={() => setActiveVideoIndex(i)}
+                      <button key={i} onClick={() => { setActiveVideoIndex(i); setEmbedStart(0); }}
                         style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                           background: activeVideoIndex === i ? "#189080" : "white",
                           color: activeVideoIndex === i ? "white" : "#189080",
