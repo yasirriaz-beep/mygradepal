@@ -476,48 +476,55 @@ function PracticePageContent() {
           </div>
         </div>
 
-        {/* Filter row */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {/* Paper type */}
-          <div style={{ display: "flex", gap: 6 }}>
-            {["All", "MCQ", "Theory", "Practical"].map((t) => (
+        <div style={{ marginBottom: 8 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
+            Type
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["All", "MCQ", "Theory", "Practical"].map((type) => (
               <button
-                key={t}
-                onClick={() => setActiveType(t)}
+                key={type}
+                onClick={() => setActiveType(type)}
                 style={{
-                  padding: "6px 12px",
+                  padding: "6px 16px",
                   borderRadius: 20,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
-                  border: `1.5px solid ${activeType === t ? subjectColor : "#e5e7eb"}`,
-                  background: activeType === t ? subjectColor + "18" : "white",
-                  color: activeType === t ? subjectColor : "#6b7280",
                   cursor: "pointer",
+                  fontFamily: "inherit",
+                  background: activeType === type ? "#189080" : "white",
+                  color: activeType === type ? "white" : "#189080",
+                  border: "1.5px solid #189080"
                 }}
               >
-                {t}
+                {type}
               </button>
             ))}
           </div>
+        </div>
 
-          {/* Difficulty */}
-          <div style={{ display: "flex", gap: 6 }}>
-            {["All", "Easy", "Medium", "Hard"].map((d) => (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
+            Difficulty
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["All", "Easy", "Medium", "Hard"].map((diff) => (
               <button
-                key={d}
-                onClick={() => setActiveDiff(d)}
+                key={diff}
+                onClick={() => setActiveDiff(diff)}
                 style={{
-                  padding: "6px 12px",
+                  padding: "6px 16px",
                   borderRadius: 20,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
-                  border: `1.5px solid ${activeDiff === d ? "#374151" : "#e5e7eb"}`,
-                  background: activeDiff === d ? "#374151" : "white",
-                  color: activeDiff === d ? "white" : "#6b7280",
                   cursor: "pointer",
+                  fontFamily: "inherit",
+                  background: activeDiff === diff ? "#189080" : "white",
+                  color: activeDiff === diff ? "white" : "#189080",
+                  border: "1.5px solid #189080"
                 }}
               >
-                {d}
+                {diff}
               </button>
             ))}
           </div>
