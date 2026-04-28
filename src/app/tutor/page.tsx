@@ -346,6 +346,12 @@ function TutorPageContent() {
 
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
+  const secondsToTime = (s: number): string => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
   const currentTopic = topic;
   const result = findVideoForTopic(subject, currentTopic ?? "");
   const topicEntry = result?.chapter ?? null;
@@ -622,7 +628,7 @@ No markdown, no extra text, just raw JSON.`,
                         📍 This subtopic in the video
                       </p>
                       <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
-                        <strong>{currentTopic?.split("—")[0].trim()}</strong> starts at <strong>{subtopicMatch.time}</strong>
+                        <strong>{currentTopic?.split("—")[0].trim()}</strong> starts at <strong>{secondsToTime(subtopicMatch.seconds)}</strong>
                       </p>
                     </div>
                     <a
@@ -640,7 +646,7 @@ No markdown, no extra text, just raw JSON.`,
                         whiteSpace: "nowrap"
                       }}
                     >
-                      ▶ Jump to {subtopicMatch.time}
+                      ▶ Jump to {secondsToTime(subtopicMatch.seconds)}
                     </a>
                   </div>
                 )}
