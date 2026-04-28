@@ -80,6 +80,7 @@ function TutorPageContent() {
   const [finishQuestionsCount, setFinishQuestionsCount] = useState(0);
   const [watchCompleted, setWatchCompleted] = useState(false);
   const [embedStart, setEmbedStart] = useState<number>(0);
+  const [videoExpanded, setVideoExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatAudioRef = useRef<HTMLAudioElement | null>(null);
   const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
@@ -347,12 +348,6 @@ function TutorPageContent() {
 
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
-  const secondsToTime = (s: number): string => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, "0")}`;
-  };
-
   const currentTopic = topic;
   const result = findVideoForTopic(subject, currentTopic ?? "");
   const topicEntry = result?.chapter ?? null;
@@ -366,8 +361,25 @@ function TutorPageContent() {
   const goToNextStep = () => {
     const i = visibleLessonSteps.findIndex((s) => s.key === currentStep);
     if (i >= 0 && i < visibleLessonSteps.length - 1) {
-      setCurrentStep(visibleLessonSteps[i + 1].key);
+      const nextStep = visibleLessonSteps[i + 1].key;
+      if (nextStep === "watch") {
+        setCurrentStep("explain");
+        setVideoExpanded(true);
+        setWatchCompleted(true);
+        return;
+      }
+      setCurrentStep(nextStep);
     }
+  };
+
+  const handleStepSelect = (step: LessonStep) => {
+    if (step === "watch") {
+      setCurrentStep("explain");
+      setVideoExpanded(true);
+      setWatchCompleted(true);
+      return;
+    }
+    setCurrentStep(step);
   };
 
   useEffect(() => {
@@ -375,15 +387,14 @@ function TutorPageContent() {
   }, [topic]);
 
   useEffect(() => {
-    if (currentStep !== "watch") return;
     setEmbedStart(subtopicMatch?.seconds ?? 0);
-  }, [currentStep, topic, subtopicMatch?.seconds]);
+  }, [subtopicMatch?.seconds, topic]);
 
   useEffect(() => {
-    if (currentStep !== "watch") return;
+    if (currentStep !== "explain" || !videoExpanded) return;
     const timer = window.setTimeout(() => setWatchCompleted(true), 30000);
     return () => window.clearTimeout(timer);
-  }, [currentStep, topic]);
+  }, [currentStep, videoExpanded, topic]);
 
   const fmtLessonCompleteDate = (d: string) =>
     new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
@@ -581,7 +592,7 @@ No markdown, no extra text, just raw JSON.`,
                   {isDone ? (
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(step.key)}
+                      onClick={() => handleStepSelect(step.key)}
                       className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-semibold text-emerald-700"
                     >
                       <span className="text-emerald-600">✓</span>
@@ -590,7 +601,7 @@ No markdown, no extra text, just raw JSON.`,
                   ) : isActive ? (
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(step.key)}
+                      onClick={() => handleStepSelect(step.key)}
                       className="rounded-md border-2 border-brand-teal bg-brand-teal px-2.5 py-1 font-semibold text-white shadow-sm"
                     >
                       {step.label}
@@ -598,7 +609,7 @@ No markdown, no extra text, just raw JSON.`,
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(step.key)}
+                      onClick={() => handleStepSelect(step.key)}
                       className="rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-semibold text-slate-400"
                     >
                       · {step.label}
@@ -614,90 +625,6 @@ No markdown, no extra text, just raw JSON.`,
       <section className="relative z-0 mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
         {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
         <div className="rounded-2xl bg-teal-50 p-4">
-            {currentStep === "watch" && hasVideo && currentVideo && (
-              <div style={{ padding: "0 0 20px" }}>
-                <div style={{
-                  position: "relative",
-                  paddingBottom: "56.25%",
-                  height: 0,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  border: "1px solid #e5e7eb",
-                  marginBottom: 16
-                }}>
-                  <iframe
-                    key={embedStart}
-                    src={`https://www.youtube.com/embed/${currentVideo.youtube_id}?start=${embedStart}&rel=0&modestbranding=1`}
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                    allowFullScreen
-                    title={currentVideo.title}
-                  />
-                </div>
-
-                <div style={{
-                  background: "#e8f8f4",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  marginBottom: 14,
-                  border: "1px solid #a7f3d0"
-                }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#189080", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    📹 What this video covers
-                  </p>
-                  <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6 }}>
-                    {currentVideo.summary}
-                  </p>
-                </div>
-
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Jump to section
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {currentVideo.timestamps.map((ts) => (
-                    <button
-                      key={ts.time}
-                      onClick={() => setEmbedStart(ts.seconds)}
-                      style={{
-                        fontSize: 11,
-                        color: "#189080",
-                        background: "white",
-                        border: "1px solid #a7f3d0",
-                        borderRadius: 20,
-                        padding: "3px 10px",
-                        cursor: "pointer",
-                        fontFamily: "inherit"
-                      }}
-                    >
-                      {ts.time} {ts.label}
-                    </button>
-                  ))}
-                </div>
-
-                {topicEntry && topicEntry.videos.length > 1 && (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                    {topicEntry.videos.map((v, i) => (
-                      <button key={i} onClick={() => { setActiveVideoIndex(i); setEmbedStart(0); }}
-                        style={{ padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-                          background: activeVideoIndex === i ? "#189080" : "white",
-                          color: activeVideoIndex === i ? "white" : "#189080",
-                          border: "1.5px solid #189080", cursor: "pointer" }}>
-                        Part {v.part}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <p style={{ fontSize: 11, color: "#9ca3af", margin: "16px 0 0" }}>
-                  Video by IGCSE Study Buddy · Content mapped to Cambridge 0620 syllabus
-                </p>
-              </div>
-            )}
-            {currentStep === "watch" && !hasVideo && (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "#9ca3af" }}>
-                <p style={{ fontSize: 15, fontWeight: 600 }}>Video coming soon</p>
-                <p style={{ fontSize: 13 }}>Use the Explain tab to study this topic for now.</p>
-              </div>
-            )}
             {currentStep === "explain" && staticContent?.audio_url_en && (
               <>
                 <div
@@ -812,6 +739,100 @@ No markdown, no extra text, just raw JSON.`,
                     direction: "rtl", textAlign: "right"
                   }}>
                     <p>{staticContent.urdu_summary}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === "explain" && hasVideo && currentVideo && (
+              <div style={{ marginBottom: 20 }}>
+                <button
+                  onClick={() => setVideoExpanded(!videoExpanded)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#f0fdf9",
+                    border: "1px solid #a7f3d0",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    width: "100%",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    marginBottom: videoExpanded ? 12 : 0,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>▶</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#189080", flex: 1, textAlign: "left" }}>
+                    Watch: {currentVideo.title}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#189080" }}>
+                    {videoExpanded ? "▲ hide" : "▼ show"}
+                  </span>
+                </button>
+
+                {videoExpanded && (
+                  <div>
+                    <div style={{
+                      position: "relative",
+                      paddingBottom: "56.25%",
+                      height: 0,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      border: "1px solid #e5e7eb",
+                      marginBottom: 10
+                    }}>
+                      <iframe
+                        key={embedStart}
+                        src={`https://www.youtube.com/embed/${currentVideo.youtube_id}?start=${embedStart}&rel=0&modestbranding=1`}
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                        allowFullScreen
+                        title={currentVideo.title}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                      {currentVideo.timestamps.map(ts => (
+                        <button
+                          key={ts.time}
+                          onClick={() => setEmbedStart(ts.seconds)}
+                          style={{
+                            fontSize: 11, color: "#189080", background: "white",
+                            border: "1px solid #a7f3d0", borderRadius: 20,
+                            padding: "3px 10px", cursor: "pointer", fontFamily: "inherit"
+                          }}
+                        >
+                          {ts.time} {ts.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {topicEntry && topicEntry.videos.length > 1 && (
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        {topicEntry.videos.map((v, i) => (
+                          <button
+                            key={i}
+                            onClick={() => { setActiveVideoIndex(i); setEmbedStart(0); }}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: 20,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: activeVideoIndex === i ? "#189080" : "white",
+                              color: activeVideoIndex === i ? "white" : "#189080",
+                              border: "1.5px solid #189080",
+                              cursor: "pointer"
+                            }}
+                          >
+                            Part {v.part}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>
+                      IGCSE Study Buddy · Cambridge 0620
+                    </p>
                   </div>
                 )}
               </div>
