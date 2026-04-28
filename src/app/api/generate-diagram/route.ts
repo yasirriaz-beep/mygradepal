@@ -74,14 +74,13 @@ Keep it under 100 words. Output only the description, nothing else.`,
     };
 
     const prediction = geminiData.predictions?.[0];
-    const b64 = prediction?.bytesBase64Encoded;
 
-    if (!b64) {
+    if (!prediction?.bytesBase64Encoded) {
       console.error("Gemini response:", JSON.stringify(geminiData).slice(0, 300));
       return NextResponse.json({ error: "Gemini did not return an image" }, { status: 500 });
     }
 
-    const imageBuffer = Buffer.from(b64, "base64");
+    const imageBuffer = Buffer.from(prediction.bytesBase64Encoded, "base64");
 
     // Step 3 - Upload to Supabase Storage
     const fileName = `diagrams/${questionId}.png`;
