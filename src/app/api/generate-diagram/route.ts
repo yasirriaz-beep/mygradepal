@@ -62,6 +62,9 @@ Keep it under 100 words. Output only the description, nothing else.`,
         })
       }
     );
+    const rawText = await geminiResponse.text();
+    console.log("Gemini raw response:", rawText.slice(0, 500));
+    return NextResponse.json({ error: "Debug: " + rawText.slice(0, 200) }, { status: 500 });
 
     const geminiData = await geminiResponse.json() as {
       predictions?: Array<{
