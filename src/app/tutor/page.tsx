@@ -346,12 +346,25 @@ function TutorPageContent() {
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
   const currentTopic = topic;
-  const topicVideos = subject === "Chemistry"
-    ? (CHEMISTRY_VIDEOS.find(t =>
-        currentTopic?.toLowerCase().includes(t.topic.toLowerCase().split(" ")[0].toLowerCase())
-      )?.videos ?? [])
-    : [];
+  const topicData = subject === "Chemistry"
+    ? CHEMISTRY_VIDEOS.find(t =>
+        CHEMISTRY_VIDEOS.some(cv => cv.topic === t.topic) &&
+        t.topic.toLowerCase().split(" ").some(word =>
+          currentTopic?.toLowerCase().includes(word) && word.length > 3
+        )
+      )
+    : null;
+
+  const topicVideos = topicData?.videos ?? [];
   const hasVideo = topicVideos.length > 0;
+  const currentVideo = topicVideos[activeVideoIndex];
+
+  const subtopicTimestamp = currentVideo?.subtopic_timestamps?.find(st =>
+    currentTopic?.toLowerCase().includes(st.subtopic.toLowerCase()) ||
+    st.subtopic.toLowerCase().includes(
+      (currentTopic ?? "").toLowerCase().split("—")[0].trim().toLowerCase()
+    )
+  );
   const visibleLessonSteps = hasVideo
     ? lessonSteps
     : lessonSteps.filter((s) => s.key !== "watch");
@@ -617,6 +630,47 @@ No markdown, no extra text, just raw JSON.`,
                         Part {v.part}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {subtopicTimestamp && (
+                  <div style={{
+                    background: "#fff7ed",
+                    border: "1.5px solid #fed7aa",
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    marginBottom: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 10
+                  }}>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#f5731e", margin: "0 0 2px", textTransform: "uppercase" }}>
+                        📍 This subtopic in the video
+                      </p>
+                      <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
+                        <strong>{currentTopic?.split("—")[0].trim()}</strong> starts at <strong>{subtopicTimestamp.time}</strong>
+                      </p>
+                    </div>
+                    <a
+                      href={`https://www.youtube.com/watch?v=${currentVideo.youtube_id}&t=${subtopicTimestamp.seconds}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        background: "#f5731e",
+                        color: "white",
+                        borderRadius: 8,
+                        padding: "8px 16px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      ▶ Jump to {subtopicTimestamp.time}
+                    </a>
                   </div>
                 )}
 
