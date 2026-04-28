@@ -44,7 +44,7 @@ export default function ReviewQuestionsPage() {
     let query = supabase
       .from("pending_questions")
       .select("*")
-      .eq("reviewed", false)
+      .or("reviewed.eq.false,reviewed.is.null")
       .order("created_at", { ascending: true })
       .limit(50);
 
@@ -58,7 +58,7 @@ export default function ReviewQuestionsPage() {
     const { count: pending } = await supabase
       .from("pending_questions")
       .select("id", { count: "exact" })
-      .eq("reviewed", false);
+      .or("reviewed.eq.false,reviewed.is.null");
 
     const { count: approved } = await supabase
       .from("questions")
