@@ -128,6 +128,18 @@ function AdminPanel() {
         </p>
       </Link>
 
+      <Link
+        href="/admin/generate-questions?key=mgp2025"
+        style={{ display: "block", background: "#fff7ed", border: "1.5px solid #f5731e", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}
+      >
+        <p style={{ fontSize: 15, fontWeight: 700, color: "#f5731e", margin: "0 0 4px" }}>
+          ⚡ Generate Questions (AI)
+        </p>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+          Generate Cambridge-style MCQ, Theory and Practical questions with Claude
+        </p>
+      </Link>
+
       <div style={s.tabs}>
         <button style={tab==='add' ? s.tabActive : s.tabInactive} onClick={() => setTab('add')}>Add Question</button>
         <button style={tab==='bulk' ? s.tabActive : s.tabInactive} onClick={() => setTab('bulk')}>Bulk Import</button>
