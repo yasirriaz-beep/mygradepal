@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
 import LearnContent from "@/components/LearnContent";
-import { CHEMISTRY_VIDEOS } from "@/lib/chemistry-videos";
+import { findVideoForTopic, getEmbedUrl } from "@/lib/chemistry-videos";
 import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
@@ -347,115 +347,8 @@ function TutorPageContent() {
   const promptPractice = useMemo(() => messages.length >= 5, [messages.length]);
 
   const currentTopic = topic;
-  const findVideoForTopic = (subjectParam: string, topicParam: string) => {
-    if (subjectParam !== "Chemistry") return null;
-
-    const topicLower = topicParam.toLowerCase();
-
-    // First try: direct subtopic_timestamp match across ALL videos
-    for (const entry of CHEMISTRY_VIDEOS) {
-      for (const video of entry.videos) {
-        const match = (video as any).subtopic_timestamps?.find((st: any) =>
-          topicLower.includes(String(st.subtopic).toLowerCase()) ||
-          String(st.subtopic)
-            .toLowerCase()
-            .split(" ")
-            .every((word: string) => topicLower.includes(word) && word.length > 3)
-        );
-        if (match) return { entry, video, subtopicMatch: match };
-      }
-    }
-
-    // Second try: chapter-level keyword match
-    const chapterMap: Record<string, string> = {
-      "states of matter": "States of Matter",
-      "solid": "States of Matter",
-      "liquid": "States of Matter",
-      "gas": "States of Matter",
-      "melting": "States of Matter",
-      "boiling": "States of Matter",
-      "evaporat": "States of Matter",
-      "diffusion": "States of Matter",
-      "heating curve": "States of Matter",
-      "atom": "Atoms, Elements and Compounds",
-      "element": "Atoms, Elements and Compounds",
-      "compound": "Atoms, Elements and Compounds",
-      "bond": "Atoms, Elements and Compounds",
-      "ionic": "Atoms, Elements and Compounds",
-      "covalent": "Atoms, Elements and Compounds",
-      "metallic bond": "Atoms, Elements and Compounds",
-      "isotope": "Atoms, Elements and Compounds",
-      "electron config": "Atoms, Elements and Compounds",
-      "mole": "Stoichiometry",
-      "stoich": "Stoichiometry",
-      "empirical": "Stoichiometry",
-      "concentration": "Stoichiometry",
-      "electrolysis": "Electrochemistry",
-      "electroplat": "Electrochemistry",
-      "electrochem": "Electrochemistry",
-      "fuel cell": "Electrochemistry",
-      "exothermic": "Chemical Energetics",
-      "endothermic": "Chemical Energetics",
-      "energetic": "Chemical Energetics",
-      "bond energy": "Chemical Energetics",
-      "activation energy": "Chemical Energetics",
-      "rate of reaction": "Chemical Reactions",
-      "collision": "Chemical Reactions",
-      "equilibrium": "Chemical Reactions",
-      "reversible": "Chemical Reactions",
-      "catalyst": "Chemical Reactions",
-      "acid": "Acids, Bases and Salts",
-      "base": "Acids, Bases and Salts",
-      "salt": "Acids, Bases and Salts",
-      "neutrali": "Acids, Bases and Salts",
-      "titration": "Acids, Bases and Salts",
-      "ph": "Acids, Bases and Salts",
-      "periodic": "The Periodic Table",
-      "group 1": "The Periodic Table",
-      "group 7": "The Periodic Table",
-      "halogen": "The Periodic Table",
-      "alkali metal": "The Periodic Table",
-      "transition metal": "The Periodic Table",
-      "reactivity series": "Metals",
-      "blast furnace": "Metals",
-      "rusting": "Metals",
-      "alloy": "Metals",
-      "extraction of metal": "Metals",
-      "water treatment": "Chemistry of the Environment",
-      "hard water": "Chemistry of the Environment",
-      "air pollution": "Chemistry of the Environment",
-      "greenhouse": "Chemistry of the Environment",
-      "eutrophication": "Chemistry of the Environment",
-      "fertiliser": "Chemistry of the Environment",
-      "alkane": "Organic Chemistry",
-      "alkene": "Organic Chemistry",
-      "organic": "Organic Chemistry",
-      "alcohol": "Organic Chemistry",
-      "ester": "Organic Chemistry",
-      "polymer": "Organic Chemistry",
-      "fermentation": "Organic Chemistry",
-      "filtration": "Experimental Techniques and Analysis",
-      "distillation": "Experimental Techniques and Analysis",
-      "chromatography": "Experimental Techniques and Analysis",
-      "flame test": "Experimental Techniques and Analysis",
-      "ion test": "Experimental Techniques and Analysis",
-      "gas test": "Experimental Techniques and Analysis",
-      "rf value": "Experimental Techniques and Analysis",
-      "experimental": "Experimental Techniques and Analysis",
-    };
-
-    for (const [keyword, chapterName] of Object.entries(chapterMap)) {
-      if (topicLower.includes(keyword)) {
-        const entry = CHEMISTRY_VIDEOS.find((e) => e.topic === chapterName);
-        if (entry) return { entry, video: entry.videos[0], subtopicMatch: null };
-      }
-    }
-
-    return null;
-  };
-
   const result = findVideoForTopic(subject, currentTopic ?? "");
-  const topicEntry = result?.entry ?? null;
+  const topicEntry = result?.chapter ?? null;
   const currentVideo = topicEntry?.videos?.[activeVideoIndex] ?? result?.video ?? null;
   const subtopicMatch = result?.subtopicMatch ?? null;
   const hasVideo = !!currentVideo;
@@ -733,7 +626,7 @@ No markdown, no extra text, just raw JSON.`,
                       </p>
                     </div>
                     <a
-                      href={`https://www.youtube.com/watch?v=${currentVideo.youtube_id}&t=${subtopicMatch.seconds}`}
+                      href={getEmbedUrl(currentVideo.youtube_id, subtopicMatch.seconds, subtopicMatch.end_seconds)}
                       target="_blank"
                       rel="noreferrer"
                       style={{
@@ -762,7 +655,11 @@ No markdown, no extra text, just raw JSON.`,
                   marginBottom: 16
                 }}>
                   <iframe
-                    src={`https://www.youtube.com/embed/${currentVideo.youtube_id}`}
+                    src={
+                      subtopicMatch
+                        ? getEmbedUrl(currentVideo.youtube_id, subtopicMatch.seconds, subtopicMatch.end_seconds)
+                        : getEmbedUrl(currentVideo.youtube_id, 0)
+                    }
                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
                     allowFullScreen
                     title={currentVideo.title}
@@ -791,7 +688,7 @@ No markdown, no extra text, just raw JSON.`,
                   {currentVideo.timestamps.map((ts) => (
                     <a
                       key={ts.time}
-                      href={`https://www.youtube.com/watch?v=${currentVideo.youtube_id}&t=${ts.time}`}
+                      href={getEmbedUrl(currentVideo.youtube_id, ts.seconds)}
                       target="_blank"
                       rel="noreferrer"
                       style={{

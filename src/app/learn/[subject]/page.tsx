@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import BottomNav from "@/components/BottomNav";
-import { CHEMISTRY_VIDEOS } from "@/lib/chemistry-videos";
+import { CHEMISTRY_VIDEOS, getEmbedUrl } from "@/lib/chemistry-videos";
 import { supabase } from "@/lib/supabase";
 
 type ChapterTopic = {
@@ -337,7 +337,7 @@ export default function LearnSubjectPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb", marginBottom: 12 }}>
                               <iframe
-                                src={`https://www.youtube.com/embed/${video.youtube_id}`}
+                                src={getEmbedUrl(video.youtube_id, 0)}
                                 style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
                                 allowFullScreen
                                 title={video.title}
@@ -355,7 +355,7 @@ export default function LearnSubjectPage() {
                               {video.timestamps.map((ts) => (
                                 <a
                                   key={ts.time}
-                                  href={`https://www.youtube.com/watch?v=${video.youtube_id}&t=${ts.time}`}
+                                  href={getEmbedUrl(video.youtube_id, ts.seconds)}
                                   target="_blank"
                                   rel="noreferrer"
                                   style={{ fontSize: 11, color: "#189080", background: "white", border: "1px solid #a7f3d0", borderRadius: 20, padding: "3px 10px", textDecoration: "none" }}
