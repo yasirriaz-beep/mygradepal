@@ -311,28 +311,36 @@ export default function ReviewQuestionsPage() {
                       {q.topic}
                     </span>
                     <p
-                      style={{ fontSize: 12, color: "#374151", margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
-                      onClick={() => setExpanded(isExpanded ? null : q.id)}
+                      style={{ fontSize: 12, color: "#374151", margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                     >
                       {q.question_text.slice(0, 90)}...
                     </p>
-                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                       <button
-                        onClick={() => setExpanded(isExpanded ? null : q.id)}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setExpanded(isExpanded ? null : q.id);
+                        }}
                         style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid #e5e7eb", background: "white", fontSize: 11, color: "#6b7280", cursor: "pointer" }}
                       >
                         {isExpanded ? "▲" : "▼"}
                       </button>
                       <button
-                        onClick={() => void rejectOne(q.id)}
+                        onClick={e => {
+                          e.stopPropagation();
+                          void rejectOne(q.id);
+                        }}
                         style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 11, color: "#dc2626", fontWeight: 600, cursor: "pointer" }}
                       >
                         ✕
                       </button>
                       <button
-                        onClick={() => void approveOne(q)}
+                        onClick={e => {
+                          e.stopPropagation();
+                          void approveOne(q);
+                        }}
                         disabled={saving === q.id}
-                        style={{ padding: "4px 12px", borderRadius: 7, border: "none", background: saving === q.id ? "#e5e7eb" : TEAL, color: saving === q.id ? "#9ca3af" : "white", fontSize: 11, fontWeight: 700, cursor: saving === q.id ? "default" : "pointer" }}
+                        style={{ padding: "4px 12px", borderRadius: 7, border: "none", background: saving === q.id ? "#e5e7eb" : "#189080", color: saving === q.id ? "#9ca3af" : "white", fontSize: 11, fontWeight: 700, cursor: saving === q.id ? "default" : "pointer" }}
                       >
                         {saving === q.id ? "..." : "✓ Approve"}
                       </button>
