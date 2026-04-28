@@ -8,12 +8,12 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { questionId, questionText } = (await req.json()) as {
+    const { questionId, questionText } = await req.json() as {
       questionId: string;
       questionText: string;
     };
 
-    // Step 1 - Ask Claude to extract diagram description
+    // Step 1 — Get diagram description from Claude
     const descResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -23,29 +23,20 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: `This Cambridge IGCSE Chemistry question references a diagram:
-
-"${questionText}"
-
-Write a precise description of exactly what the diagram should show so a scientific illustrator could draw it. Be specific about:
-- What type of diagram (particle arrangement, apparatus, graph, etc.)
-- Exact labels needed
-- What each part shows
-- Any specific values or measurements
-
-Keep it under 100 words. Output only the description, nothing else.`,
-          },
-        ],
-      }),
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: `This Cambridge IGCSE Chemistry question references a diagram: "${questionText}". Describe in 50 words exactly what the diagram shows so it can be drawn. Be specific about labels, shapes, and layout. Output only the description.`
+        }]
+      })
     });
 
-    const descData = (await descResponse.json()) as { content: Array<{ text: string }> };
-    const diagramDescription = descData.content[0]?.text ?? "";
+    const descData = await descResponse.json() as {
+      content: Array<{ type: string; text: string }>
+    };
+    const diagramDescription = descData.content?.[0]?.text ?? "scientific chemistry diagram";
 
+    // Step 2 — Generate image with Imagen
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -53,7 +44,7 @@ Keep it under 100 words. Output only the description, nothing else.`,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           instances: [{
-            prompt: `A clean, simple scientific diagram for a Cambridge IGCSE Chemistry exam question. White background, black lines, textbook style, clearly labelled. ${diagramDescription}`
+            prompt: `Clean simple scientific diagram for Cambridge IGCSE Chemistry. White background, black lines, textbook style, all parts clearly labelled. ${diagramDescription}`
           }],
           parameters: {
             sampleCount: 1,
@@ -62,57 +53,53 @@ Keep it under 100 words. Output only the description, nothing else.`,
         })
       }
     );
-    const rawText = await geminiResponse.text();
-    console.log("Gemini raw response:", rawText.slice(0, 500));
-    return NextResponse.json({ error: "Debug: " + rawText.slice(0, 200) }, { status: 500 });
 
-    const geminiData = await geminiResponse.json() as {
-      predictions?: Array<{
-        bytesBase64Encoded?: string;
-        mimeType?: string;
-      }>
-    };
+    const geminiText = await geminiResponse.text();
+    console.log("Gemini status:", geminiResponse.status, "response:", geminiText.slice(0, 300));
 
-    const prediction = geminiData.predictions?.[0];
-
-    if (!prediction?.bytesBase64Encoded) {
-      console.error("Gemini response:", JSON.stringify(geminiData).slice(0, 300));
-      return NextResponse.json({ error: "Gemini did not return an image" }, { status: 500 });
+    let b64 = "";
+    try {
+      const geminiData = JSON.parse(geminiText) as {
+        predictions?: Array<{ bytesBase64Encoded?: string }>
+      };
+      b64 = geminiData.predictions?.[0]?.bytesBase64Encoded ?? "";
+    } catch {
+      return NextResponse.json({ error: "Gemini parse error: " + geminiText.slice(0, 100) }, { status: 500 });
     }
 
-    const imageBuffer = Buffer.from(prediction.bytesBase64Encoded, "base64");
+    if (!b64) {
+      return NextResponse.json({ error: "Gemini returned no image. Status: " + geminiResponse.status }, { status: 500 });
+    }
 
-    // Step 3 - Upload to Supabase Storage
-    const fileName = `diagrams/${questionId}.png`;
+    // Step 3 — Upload to Supabase Storage
+    const imageBytes = Buffer.from(b64, "base64");
+    const fileName   = `diagrams/${questionId}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from("question-diagrams")
-      .upload(fileName, imageBuffer, {
+      .upload(fileName, imageBytes, {
         contentType: "image/png",
         upsert: true,
       });
 
     if (uploadError) {
-      return NextResponse.json({ error: uploadError.message }, { status: 500 });
+      return NextResponse.json({ error: "Upload failed: " + uploadError.message }, { status: 500 });
     }
 
-    // Step 4 - Get public URL
-    const { data: urlData } = supabase.storage.from("question-diagrams").getPublicUrl(fileName);
+    const { data: urlData } = supabase.storage
+      .from("question-diagrams")
+      .getPublicUrl(fileName);
 
-    const diagramUrl = urlData.publicUrl;
-
-    // Step 5 - Update question record
+    // Step 4 — Update question record
     await supabase
       .from("questions")
-      .update({
-        diagram_url: diagramUrl,
-        diagram_description: diagramDescription,
-      })
+      .update({ diagram_url: urlData.publicUrl })
       .eq("id", questionId);
 
-    return NextResponse.json({ success: true, diagramUrl, diagramDescription });
-  } catch (err) {
-    console.error("Diagram generation error:", err);
-    return NextResponse.json({ error: "Failed to generate diagram" }, { status: 500 });
+    return NextResponse.json({ success: true, diagramUrl: urlData.publicUrl });
+
+  } catch (error) {
+    console.error("Diagram generation error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
