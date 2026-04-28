@@ -157,6 +157,16 @@ function AdminPanel() {
         </p>
       </Link>
 
+      <Link href="/admin/generate-diagrams?key=mgp2025"
+        style={{ display: "block", background: "#f0f9ff", border: "1.5px solid #4285f4", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: "#4285f4", margin: "0 0 4px" }}>
+          🎨 Generate Diagrams
+        </p>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+          Auto-generate AI diagrams for 94 questions that reference visual content
+        </p>
+      </Link>
+
       <Link href="/admin/auto-fill?key=mgp2025"
         style={{ display: "block", background: "#f0fdf4", border: "1.5px solid #16a34a", borderRadius: 12, padding: "16px", marginBottom: 16, textDecoration: "none" }}>
         <p style={{ fontSize: 15, fontWeight: 700, color: "#16a34a", margin: "0 0 4px" }}>
