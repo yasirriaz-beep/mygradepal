@@ -75,44 +75,64 @@ export default function ReviewQuestionsPage() {
   const approveOne = async (q: PendingQuestion) => {
     setSaving(q.id);
 
-    // Move to questions table
-    const { error } = await supabase.from("questions").insert({
-      subject: q.subject,
-      paper_code: q.subject === "Chemistry" ? "0620" : q.subject === "Physics" ? "0625" : "0580",
-      year: new Date().getFullYear(),
-      session: "Generated",
-      paper_type: q.paper_type,
-      question_number: "1",
-      topic: q.topic,
-      subtopic: q.subtopic,
-      difficulty: q.difficulty,
-      marks: q.paper_type === "MCQ" ? 1 : 3,
-      question_text: q.question_text,
-      mark_scheme: q.mark_scheme,
-      feedback: q.feedback,
-      hint: q.exam_tip,
-      grade_level: "IGCSE",
-      curriculum: "Cambridge",
-      frequency_score: 50,
-      prediction_tier: "possible",
-      source: "MGP_Generated",
-      options_json: q.options_json,
-      common_mistake: q.common_mistake,
-      exam_tip: q.exam_tip,
-      syllabus_ref: q.syllabus_ref,
-      command_word: q.command_word,
-    });
+    try {
+      const insertData: Record<string, unknown> = {
+        subject: q.subject ?? "Chemistry",
+        paper_code: q.subject === "Physics"
+          ? "0625"
+          : q.subject === "Mathematics"
+            ? "0580"
+            : q.subject === "Biology"
+              ? "0610"
+              : "0620",
+        year: new Date().getFullYear(),
+        session: "Generated",
+        paper_type: q.paper_type ?? "MCQ",
+        question_number: String(Math.floor(Math.random() * 90000) + 10000),
+        topic: q.topic ?? "",
+        subtopic: q.subtopic ?? "",
+        difficulty: String(q.difficulty ?? "medium").toLowerCase(),
+        marks: q.paper_type === "MCQ" ? 1 : 3,
+        question_text: q.question_text ?? "",
+        mark_scheme: q.mark_scheme ?? "",
+        grade_level: "IGCSE",
+        curriculum: "Cambridge",
+        frequency_score: 50,
+        prediction_tier: "possible",
+        source: "MGP_Generated",
+      };
 
-    if (!error) {
-      // Mark as reviewed in pending
+      if (q.correct_answer) insertData.correct_answer = q.correct_answer;
+      if (q.feedback) insertData.feedback = q.feedback;
+      if (q.exam_tip) insertData.hint = q.exam_tip;
+      if (q.exam_tip) insertData.exam_tip = q.exam_tip;
+      if (q.options_json) insertData.options_json = q.options_json;
+      if (q.common_mistake) insertData.common_mistake = q.common_mistake;
+      if (q.syllabus_ref) insertData.syllabus_ref = q.syllabus_ref;
+      if (q.command_word) insertData.command_word = q.command_word;
+
+      const { error: insertError } = await supabase
+        .from("questions")
+        .insert(insertData);
+
+      if (insertError) {
+        console.error("Insert error:", insertError.message);
+        alert(`Error: ${insertError.message}`);
+        setSaving(null);
+        return;
+      }
+
       await supabase
         .from("pending_questions")
         .update({ reviewed: true })
         .eq("id", q.id);
 
       setQuestions((prev) => prev.filter((x) => x.id !== q.id));
-      setTotalPending((prev) => prev - 1);
+      setTotalPending((prev) => Math.max(0, prev - 1));
       setApprovedCount((prev) => prev + 1);
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Unexpected error — check console");
     }
 
     setSaving(null);
