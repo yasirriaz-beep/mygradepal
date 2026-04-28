@@ -326,18 +326,22 @@ export default function ReviewQuestionsPage() {
                         {isExpanded ? "▲" : "▼"}
                       </button>
                       <button
-                        onClick={e => {
+                        onClick={async e => {
                           e.stopPropagation();
-                          void rejectOne(q.id);
+                          console.log("Reject clicked for:", q.id);
+                          await rejectOne(q.id);
+                          console.log("rejectOne finished");
                         }}
                         style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 11, color: "#dc2626", fontWeight: 600, cursor: "pointer" }}
                       >
                         ✕
                       </button>
                       <button
-                        onClick={e => {
+                        onClick={async e => {
                           e.stopPropagation();
-                          void approveOne(q);
+                          console.log("Approve clicked for:", q.id, q.subject, q.topic);
+                          await approveOne(q);
+                          console.log("approveOne finished");
                         }}
                         disabled={saving === q.id}
                         style={{
