@@ -36,58 +36,57 @@ export async function POST(req: NextRequest) {
     };
     const diagramDescription = descData.content?.[0]?.text ?? "scientific chemistry diagram";
 
-    // Step 2 — Generate image with Gemini
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    // Step 2 — Generate image with DALL-E 3
+    const dalleResponse = await fetch(
+      "https://api.openai.com/v1/images/generations",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Create a clean simple scientific diagram for Cambridge IGCSE Chemistry. White background, black lines, textbook style, all parts clearly labelled. ${diagramDescription}`
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"]
-          }
+          model: "dall-e-3",
+          prompt: `A clean, simple scientific diagram for a Cambridge IGCSE Chemistry exam question. White background, black lines only, textbook style, all parts clearly labelled with text. No color. No shading. Simple line drawing. ${diagramDescription}`,
+          n: 1,
+          size: "1024x1024",
+          response_format: "b64_json",
         })
       }
     );
 
-    const geminiText = await geminiResponse.text();
-    console.log("Gemini status:", geminiResponse.status);
-    console.log("Gemini response preview:", geminiText.slice(0, 400));
+    const dalleText = await dalleResponse.text();
+    console.log("DALL-E status:", dalleResponse.status);
 
     let b64 = "";
     try {
-      const geminiData = JSON.parse(geminiText) as {
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{
-              inlineData?: { data: string; mimeType: string };
-              text?: string;
-            }>
-          }
-        }>
+      const dalleData = JSON.parse(dalleText) as {
+        data?: Array<{ b64_json?: string }>;
+        error?: { message: string };
       };
-      const parts = geminiData.candidates?.[0]?.content?.parts ?? [];
-      const imagePart = parts.find(p => p.inlineData);
-      b64 = imagePart?.inlineData?.data ?? "";
+
+      if (dalleData.error) {
+        return NextResponse.json({ 
+          error: "DALL-E error: " + dalleData.error.message 
+        }, { status: 500 });
+      }
+
+      b64 = dalleData.data?.[0]?.b64_json ?? "";
     } catch {
       return NextResponse.json({ 
-        error: "Parse error: " + geminiText.slice(0, 200) 
+        error: "Parse error: " + dalleText.slice(0, 200) 
       }, { status: 500 });
     }
 
     if (!b64) {
       return NextResponse.json({ 
-        error: "No image returned. Status: " + geminiResponse.status + " Response: " + geminiText.slice(0, 200)
+        error: "DALL-E returned no image" 
       }, { status: 500 });
     }
 
-    // Step 3 — Upload to Supabase Storage
     const imageBytes = Buffer.from(b64, "base64");
+
+    // Step 3 — Upload to Supabase Storage
     const fileName   = `diagrams/${questionId}.png`;
 
     const { error: uploadError } = await supabase.storage
