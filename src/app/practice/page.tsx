@@ -207,6 +207,12 @@ const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
   hard: { bg: "#FCEBEB", text: "#791F1F" },
 };
 
+const DIFFICULTY_ORDER: Record<string, number> = {
+  easy: 1,
+  medium: 2,
+  hard: 3,
+};
+
 type QuestionRow = {
   id: string;
   subject: string;
@@ -305,8 +311,20 @@ function PracticePageContent() {
       const { data, error } = await query;
       if (error) console.error(error.message);
 
-      const rows = (data ?? []) as QuestionRow[];
-      setQuestions(page === 0 ? rows : (prev) => [...prev, ...rows]);
+      const rows = [...((data ?? []) as QuestionRow[])];
+      rows.sort((a, b) => {
+        const aOrder = DIFFICULTY_ORDER[a.difficulty?.toLowerCase() ?? "medium"] ?? 2;
+        const bOrder = DIFFICULTY_ORDER[b.difficulty?.toLowerCase() ?? "medium"] ?? 2;
+        return aOrder - bOrder;
+      });
+      setQuestions((prev) => {
+        const merged = page === 0 ? rows : [...prev, ...rows];
+        return [...merged].sort((a, b) => {
+          const aOrder = DIFFICULTY_ORDER[a.difficulty?.toLowerCase() ?? "medium"] ?? 2;
+          const bOrder = DIFFICULTY_ORDER[b.difficulty?.toLowerCase() ?? "medium"] ?? 2;
+          return aOrder - bOrder;
+        });
+      });
       setHasMore(rows.length === PAGE_SIZE);
       setLoading(false);
     };
@@ -318,6 +336,11 @@ function PracticePageContent() {
   useEffect(() => {
     setPage(0);
   }, [activeSubject, activeTopic, activeType, activeDiff]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem("practice_question_ids", JSON.stringify(questions.map((q) => String(q.id))));
+  }, [questions]);
 
   const subjectColor = SUBJECTS.find((s) => s.name === activeSubject)?.color ?? TEAL;
 
@@ -586,6 +609,9 @@ function PracticePageContent() {
                 DIFFICULTY_COLORS[q.difficulty?.toLowerCase()] ?? DIFFICULTY_COLORS.medium;
               const typeStyle =
                 QUESTION_TYPE_COLORS[(q.paper_type ?? "MCQ").toLowerCase()] ?? QUESTION_TYPE_COLORS.mcq;
+              const returnTo = `/practice?subject=${encodeURIComponent(activeSubject)}${
+                activeTopic ? `&topic=${encodeURIComponent(activeTopic)}` : ""
+              }`;
               return (
                 <div
                   key={q.id}
@@ -677,7 +703,7 @@ function PracticePageContent() {
 
                   {/* Attempt button */}
                   <Link
-                    href={`/question?id=${encodeURIComponent(String(q.id))}`}
+                    href={`/question?id=${encodeURIComponent(String(q.id))}&index=${questions.findIndex((item) => item.id === q.id) + 1}&total=${questions.length}&returnTo=${encodeURIComponent(returnTo)}`}
                     style={{
                       display: "inline-block",
                       background: typeStyle.bg,

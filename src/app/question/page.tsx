@@ -18,6 +18,10 @@ type QuestionRow = {
   question_text: string | null;
   subject: string | null;
   topic: string | null;
+  subtopic: string | null;
+  difficulty: string | null;
+  marks: number | null;
+  paper_type: string | null;
 };
 
 type McqOption = {
@@ -26,6 +30,17 @@ type McqOption = {
 };
 
 const MCQ_PATTERN = /([A-D])\.\s*([\s\S]*?)(?=(?:\s+[A-D]\.\s)|$)/g;
+const TEAL = "#189080";
+const QUESTION_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  mcq: { bg: "#E1F5EE", text: "#0F6E56" },
+  theory: { bg: "#EEEDFE", text: "#3C3489" },
+  practical: { bg: "#FAECE7", text: "#712B13" },
+};
+const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
+  easy: { bg: "#EAF3DE", text: "#27500A" },
+  medium: { bg: "#FAEEDA", text: "#633806" },
+  hard: { bg: "#FCEBEB", text: "#791F1F" },
+};
 
 const parseQuestionForMcq = (questionText: string) => {
   const options: McqOption[] = [];
@@ -53,13 +68,35 @@ function QuestionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const questionId = searchParams.get("id");
+  const indexParam = Number(searchParams.get("index") ?? "1");
+  const totalParam = Number(searchParams.get("total") ?? "1");
+  const returnTo = searchParams.get("returnTo") ?? "/practice";
   const [answer, setAnswer] = useState("");
   const [isMarking, setIsMarking] = useState(false);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(true);
   const [question, setQuestion] = useState<QuestionRow | null>(null);
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [questionIds, setQuestionIds] = useState<string[]>([]);
   const studentId = "demo-student";
+
+  const safeTotal = Number.isFinite(totalParam) && totalParam > 0 ? totalParam : 1;
+  const currentIndex = Math.min(Math.max(Number.isFinite(indexParam) ? indexParam : 1, 1), safeTotal);
+  const progressPct = Math.max(0, Math.min(100, (currentIndex / safeTotal) * 100));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem("practice_question_ids");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setQuestionIds(parsed.map((id) => String(id)));
+      }
+    } catch {
+      setQuestionIds([]);
+    }
+  }, []);
 
   useEffect(() => {
     const loadQuestion = async () => {
@@ -90,6 +127,10 @@ function QuestionPageContent() {
           question_text: (data.question_text as string) ?? (data.question as string) ?? "",
           subject: (data.subject as string) ?? null,
           topic: (data.topic as string) ?? (data.topic_name as string) ?? null,
+          subtopic: (data.subtopic as string) ?? null,
+          difficulty: (data.difficulty as string) ?? null,
+          marks: (data.marks as number) ?? null,
+          paper_type: (data.paper_type as string) ?? null,
         });
       }
 
@@ -163,16 +204,103 @@ function QuestionPageContent() {
   const isMcq = mcqData.options.length > 0;
   const displayedQuestion = isMcq ? mcqData.stem : questionText;
 
-  const handleTryAnotherQuestion = () => {
-    router.push("/practice");
+  const handleBackToPractice = () => {
+    router.push(returnTo);
+  };
+
+  const navigateToIndex = (targetIndex: number) => {
+    if (targetIndex < 1) return;
+    if (targetIndex > safeTotal) {
+      handleBackToPractice();
+      return;
+    }
+    if (!questionIds.length) {
+      if (targetIndex === currentIndex) return;
+      if (targetIndex > safeTotal) {
+        handleBackToPractice();
+      }
+      return;
+    }
+    const targetId = questionIds[targetIndex - 1];
+    if (!targetId) {
+      handleBackToPractice();
+      return;
+    }
+    router.push(
+      `/question?id=${encodeURIComponent(targetId)}&index=${targetIndex}&total=${safeTotal}&returnTo=${encodeURIComponent(returnTo)}`,
+    );
   };
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-6 sm:px-6">
+      <div className="mb-3 rounded-2xl bg-white p-4 shadow-card">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleBackToPractice}
+            style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}
+            className="rounded-lg px-2 py-1 hover:bg-slate-100"
+          >
+            ← Back
+          </button>
+          <p className="text-sm font-semibold text-slate-700">
+            Question {currentIndex} of {safeTotal}
+          </p>
+          <span className="w-14" />
+        </div>
+        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100">
+          <div
+            className="h-1.5 rounded-full"
+            style={{ width: `${progressPct}%`, background: TEAL, transition: "width 0.2s ease" }}
+          />
+        </div>
+      </div>
+
       <div className="rounded-2xl bg-white p-5 shadow-card">
+        <div className="mb-2 flex items-center gap-2">
+          {(() => {
+            const typeKey = (question?.paper_type ?? (isMcq ? "MCQ" : "Theory")).toLowerCase();
+            const typeStyle = QUESTION_TYPE_COLORS[typeKey] ?? QUESTION_TYPE_COLORS.mcq;
+            const diffKey = (question?.difficulty ?? "medium").toLowerCase();
+            const diffStyle = DIFFICULTY_COLORS[diffKey] ?? DIFFICULTY_COLORS.medium;
+            return (
+              <>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: typeStyle.text,
+                    background: typeStyle.bg,
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {question?.paper_type ?? (isMcq ? "MCQ" : "Theory")}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: diffStyle.text,
+                    background: diffStyle.bg,
+                    borderRadius: 6,
+                    padding: "2px 8px",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {question?.difficulty ?? "medium"}
+                </span>
+                <span className="ml-auto text-xs text-slate-400">
+                  {(question?.marks ?? 1)} mark{(question?.marks ?? 1) !== 1 ? "s" : ""}
+                </span>
+              </>
+            );
+          })()}
+        </div>
         <p className="text-sm text-slate-500">
           {(question?.subject ?? "Subject")} &gt; {(question?.topic ?? "Topic")}
         </p>
+        <p className="mt-1 text-xs text-slate-400">{question?.subtopic ?? "Subtopic"}</p>
 
         <h1 className="heading-font mt-3 text-2xl font-bold text-slate-900">
           {displayedQuestion || "Loading question..."}
@@ -220,16 +348,18 @@ function QuestionPageContent() {
           </>
         )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={isMarking || isLoadingQuestion || !question}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isMarking && (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          )}
-          {isMarking ? "Marking..." : "Submit answer"}
-        </button>
+        {!result && (
+          <button
+            onClick={handleSubmit}
+            disabled={isMarking || isLoadingQuestion || !question}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isMarking && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            )}
+            {isMarking ? "Marking..." : "Submit answer"}
+          </button>
+        )}
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {isLoadingQuestion && <p className="mt-3 text-sm text-slate-600">Loading question...</p>}
@@ -256,12 +386,33 @@ function QuestionPageContent() {
             </div>
           </div>
 
-          <button
-            onClick={handleTryAnotherQuestion}
-            className="mt-5 w-full rounded-xl bg-brand-teal px-4 py-4 text-lg font-semibold text-white transition hover:opacity-90"
-          >
-            Try another question
-          </button>
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigateToIndex(currentIndex - 1)}
+              disabled={currentIndex <= 1}
+              className="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ← Previous
+            </button>
+            {currentIndex >= safeTotal ? (
+              <button
+                type="button"
+                onClick={handleBackToPractice}
+                className="w-full rounded-xl bg-brand-teal px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Finish session →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigateToIndex(currentIndex + 1)}
+                className="w-full rounded-xl bg-brand-teal px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Next question →
+              </button>
+            )}
+          </div>
         </section>
       )}
     </main>
