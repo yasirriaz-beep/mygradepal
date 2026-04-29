@@ -234,6 +234,9 @@ export async function PUT(req: NextRequest) {
       frequency_score: 50,
       prediction_tier: "possible",
       source: "MGP_Generated",
+      // IMPORTANT: always populate correct_answer field for MCQ questions.
+      // Extract the letter (A/B/C/D) before saving.
+      correct_answer: q.paper_type === "MCQ" ? String(q.correct_answer ?? "").trim().charAt(0).toUpperCase() : "",
       options_json: q.options ? JSON.stringify(q.options) : null,
       common_mistake: q.common_mistake,
       exam_tip: q.exam_tip,

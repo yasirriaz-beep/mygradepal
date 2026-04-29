@@ -354,6 +354,7 @@ function QuestionPageContent() {
               const isSelected = selectedOption === key;
               const isCorrect = submitted && hasCorrectAnswer && key === correctAnswer;
               const isWrong = submitted && isSelected && hasCorrectAnswer && key !== correctAnswer;
+              const noAnswerKey = submitted && !hasCorrectAnswer;
 
               return (
                 <button
@@ -366,9 +367,29 @@ function QuestionPageContent() {
                     padding: "12px 14px",
                     borderRadius: 10,
                     border: `1.5px solid ${
-                      isCorrect ? "#1D9E75" : isWrong ? "#E24B4A" : isSelected ? "#1D9E75" : "#e5e7eb"
+                      isCorrect
+                        ? "#1D9E75"
+                        : isWrong
+                          ? "#E24B4A"
+                          : noAnswerKey
+                            ? isSelected
+                              ? "#9ca3af"
+                              : "#e5e7eb"
+                            : isSelected
+                              ? "#1D9E75"
+                              : "#e5e7eb"
                     }`,
-                    background: isCorrect ? "#E1F5EE" : isWrong ? "#FCEBEB" : isSelected ? "#f0fdf9" : "white",
+                    background: isCorrect
+                      ? "#E1F5EE"
+                      : isWrong
+                        ? "#FCEBEB"
+                        : noAnswerKey
+                          ? isSelected
+                            ? "#f9fafb"
+                            : "white"
+                          : isSelected
+                            ? "#f0fdf9"
+                            : "white",
                     cursor: submitted ? "default" : "pointer",
                     textAlign: "left",
                     fontFamily: "inherit",
@@ -385,7 +406,17 @@ function QuestionPageContent() {
                       flexShrink: 0,
                       fontSize: 13,
                       fontWeight: 600,
-                      background: isCorrect ? "#1D9E75" : isWrong ? "#E24B4A" : isSelected ? "#1D9E75" : "#f3f4f6",
+                      background: isCorrect
+                        ? "#1D9E75"
+                        : isWrong
+                          ? "#E24B4A"
+                          : noAnswerKey
+                            ? isSelected
+                              ? "#9ca3af"
+                              : "#f3f4f6"
+                            : isSelected
+                              ? "#1D9E75"
+                              : "#f3f4f6",
                       color: isSelected || isCorrect || isWrong ? "white" : "#6b7280",
                     }}
                   >
@@ -497,9 +528,40 @@ function QuestionPageContent() {
                 margin: "0 0 4px",
               }}
             >
+              Mark scheme guidance
+            </p>
+            <p style={{ fontSize: 13, color: "#0F6E56", margin: "0 0 2px" }}>
+              Check your answer against the mark scheme below.
+            </p>
+            <p style={{ fontSize: 13, color: "#0F6E56", margin: 0 }}>
+              The correct option is not stored for this question yet.
+            </p>
+          </div>
+        )}
+
+        {isMultipleChoice && submitted && (
+          <div
+            style={{
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              borderRadius: 10,
+              padding: "12px 14px",
+              marginTop: 12,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#6b7280",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+                margin: "0 0 6px",
+              }}
+            >
               Mark scheme
             </p>
-            <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.7, whiteSpace: "pre-line" }}>
               {question?.mark_scheme ?? "Mark scheme not available."}
             </p>
           </div>

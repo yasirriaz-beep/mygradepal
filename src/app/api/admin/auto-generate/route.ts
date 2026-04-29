@@ -206,6 +206,12 @@ ${existingSummary}`;
       frequency_score: 50,
       prediction_tier: "possible",
       source: "MGP_Generated",
+      // IMPORTANT: always populate correct_answer field for MCQ questions.
+      // Extract the letter (A/B/C/D) before saving.
+      correct_answer:
+        String(q.paper_type ?? paperType).toUpperCase() === "MCQ"
+          ? String(q.correct_answer ?? "").trim().charAt(0).toUpperCase()
+          : "",
       options_json: q.options ? JSON.stringify(q.options) : null,
       common_mistake: String(q.common_mistake ?? ""),
       exam_tip: String(q.exam_tip ?? ""),
