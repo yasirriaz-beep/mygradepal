@@ -697,7 +697,7 @@ export default function DashboardPage() {
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: "0 0 2px" }}>Full Cambridge Syllabus</p>
                     <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>View the complete {subject} syllabus checklist</p>
                   </div>
-                  <Link href={`/learn/${encodeURIComponent(subject.toLowerCase())}`} style={{ background: TEAL, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
+                  <Link href={`/study/${encodeURIComponent(subject.toLowerCase())}`} style={{ background: TEAL, color: "white", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
                     View →
                   </Link>
                 </div>

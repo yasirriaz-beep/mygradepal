@@ -250,7 +250,7 @@ export default function GeneratingPlanPage() {
             {/* CTA buttons */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push(`/study/${encodeURIComponent(subject.toLowerCase())}`)}
                 style={{ width: "100%", padding: "15px", borderRadius: 12, background: teal, color: "white", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "'Sora', sans-serif" }}
               >
                 Let's go → Start learning

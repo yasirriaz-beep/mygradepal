@@ -58,7 +58,7 @@ export default function LearnPage() {
             <p className="heading-font text-xl font-semibold text-slate-900">{subject}</p>
             <p className="mt-2 text-sm text-slate-600">Master key concepts with your Personal Tutor.</p>
             <Link
-              href={`/learn/${encodeURIComponent(subject)}`}
+              href={`/study/${encodeURIComponent(subject.toLowerCase())}`}
               className="mt-4 inline-block rounded-xl bg-brand-teal px-4 py-2 text-sm font-semibold text-white"
             >
               Start learning

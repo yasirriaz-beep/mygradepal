@@ -253,7 +253,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    router.push("/generating-plan");
+    router.push(`/study/${encodeURIComponent(form.subject.toLowerCase())}`);
   };
 
   const teal = "#189080";
