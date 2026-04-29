@@ -252,6 +252,23 @@ function AdminPanel() {
         >
           {backfillRunning ? "Running..." : "Start Backfill"}
         </button>
+        <a
+          href="/api/admin/export-questions"
+          download
+          style={{
+            display: "inline-block",
+            background: "#1D9E75",
+            color: "white",
+            borderRadius: 8,
+            padding: "10px 20px",
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: "none",
+            marginTop: 12
+          }}
+        >
+          Export Chemistry Questions (CSV)
+        </a>
       </div>
 
       <div style={s.tabs}>
