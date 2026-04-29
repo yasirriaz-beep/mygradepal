@@ -671,7 +671,7 @@ export default function DashboardPage() {
                             <Link href={`/tutor?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(t.topic)}`} style={{ background: "#e8f8f4", color: TEAL, borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                               💬 Tutor
                             </Link>
-                            <Link href={`/learn/${encodeURIComponent(subject.toLowerCase())}?topic=${encodeURIComponent(t.topic)}`} style={{ background: "#f8fafc", color: "#374151", borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                            <Link href={`/study/${encodeURIComponent(subject.toLowerCase())}`} style={{ background: "#f8fafc", color: "#374151", borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
                               📖 Notes
                             </Link>
                             <Link href={`/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(t.topic)}`} style={{ background: "#fff7ed", color: ORANGE, borderRadius: 8, padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
