@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
+function redistributeAnswers(questions: Record<string, unknown>[]): Record<string, unknown>[] {
+  const targetSequence = ['A', 'B', 'C', 'D'];
+  return questions.map((q, index) => {
+    if (!q.options || String(q.paper_type ?? '').toUpperCase() !== 'MCQ') return q;
+    const targetPosition = targetSequence[index % 4];
+    const currentCorrect = String(q.correct_answer ?? '').trim().toUpperCase();
+    if (!currentCorrect || !['A','B','C','D'].includes(currentCorrect)) return q;
+    if (currentCorrect === targetPosition) return q;
+    const options = { ...(q.options as Record<string, string>) };
+    const correctValue = options[currentCorrect];
+    const targetValue = options[targetPosition];
+    options[currentCorrect] = targetValue;
+    options[targetPosition] = correctValue;
+    return { ...q, options, correct_answer: targetPosition };
+  });
+}
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,50 +52,6 @@ const SUBJECT_CODES: Record<string, string> = {
   Mathematics: "0580",
   Biology: "0610",
 };
-
-interface GeneratedQuestion {
-  question_text: string;
-  options: { A: string; B: string; C: string; D: string } | null;
-  correct_answer: string;
-  mark_scheme: string;
-  mygradepal_explanation: string;
-  common_mistake: string;
-  exam_tip: string;
-  syllabus_ref: string;
-  difficulty_level: string;
-  command_word: string;
-  paper_type: string;
-  topic: string;
-  subtopic: string;
-}
-
-function redistributeAnswers(questions: GeneratedQuestion[]): GeneratedQuestion[] {
-  const targetSequence = ['A', 'B', 'C', 'D'];
-
-  return questions.map((q, index) => {
-    if (!q.options || q.paper_type !== 'MCQ') return q;
-
-    const targetPosition = targetSequence[index % 4];
-    const currentCorrect = q.correct_answer?.trim().toUpperCase();
-
-    if (!currentCorrect || !['A','B','C','D'].includes(currentCorrect)) return q;
-    if (currentCorrect === targetPosition) return q;
-
-    // Swap the correct answer into the target position
-    const options = { ...q.options } as Record<string, string>;
-    const correctValue = options[currentCorrect];
-    const targetValue = options[targetPosition];
-
-    options[currentCorrect] = targetValue;
-    options[targetPosition] = correctValue;
-
-    return {
-      ...q,
-      options: options as { A: string; B: string; C: string; D: string },
-      correct_answer: targetPosition,
-    };
-  });
-}
 
 // GET — check what gaps exist
 export async function GET(req: NextRequest) {
@@ -220,7 +193,8 @@ ${existingSummary}`;
     let questions: Record<string, unknown>[];
     try {
       const clean = rawText.replace(/```json|```/g, "").trim();
-      questions = JSON.parse(clean) as Record<string, unknown>[];
+      const parsed = JSON.parse(clean) as Record<string, unknown>[];
+      questions = redistributeAnswers(parsed);
     } catch {
       return NextResponse.json({ error: "Parse failed", raw: rawText.slice(0, 200) }, { status: 422 });
     }
@@ -230,14 +204,7 @@ ${existingSummary}`;
     const shouldAutoApprove = autoApprove === true || autoApprove === "true";
     const tableName = shouldAutoApprove ? "questions" : "pending_questions";
 
-    const rebalanced = redistributeAnswers(
-      questions.map((q, i) => ({
-        ...q,
-        paper_type: String(q.paper_type ?? paperType),
-        options: q.options as { A: string; B: string; C: string; D: string } | null,
-        correct_answer: String(q.correct_answer ?? ""),
-      }))
-    );
+    const rebalanced = redistributeAnswers(questions);
 
     const rows = rebalanced.map((q, i) => ({
       subject,
