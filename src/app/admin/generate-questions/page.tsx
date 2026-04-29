@@ -74,6 +74,24 @@ interface TopicProgress {
   pct: number;
 }
 
+const REBALANCE_PLAN = [
+  { topic: "Organic Chemistry", subtopic: "Alkanes", count: 10 },
+  { topic: "Organic Chemistry", subtopic: "Alkenes", count: 10 },
+  { topic: "Organic Chemistry", subtopic: "Alcohols", count: 10 },
+  { topic: "Organic Chemistry", subtopic: "Carboxylic acids", count: 10 },
+  { topic: "Organic Chemistry", subtopic: "Polymers", count: 10 },
+  { topic: "Chemistry of the Environment", subtopic: "Water treatment", count: 10 },
+  { topic: "Chemistry of the Environment", subtopic: "Air pollution", count: 10 },
+  { topic: "Chemistry of the Environment", subtopic: "Greenhouse effect", count: 10 },
+  { topic: "Experimental Techniques & Analysis", subtopic: "Separation techniques", count: 10 },
+  { topic: "Experimental Techniques & Analysis", subtopic: "Identification tests", count: 10 },
+  { topic: "Experimental Techniques & Analysis", subtopic: "Chromatography", count: 10 },
+  { topic: "Metals", subtopic: "Reactivity series", count: 10 },
+  { topic: "Metals", subtopic: "Extraction of metals", count: 10 },
+  { topic: "States of Matter", subtopic: "Kinetic particle theory", count: 10 },
+  { topic: "Chemical Energetics", subtopic: "Bond energies", count: 10 },
+];
+
 export default function GenerateQuestionsPage() {
   const [subject, setSubject] = useState("Chemistry");
   const [topic, setTopic] = useState("Stoichiometry");
@@ -90,6 +108,11 @@ export default function GenerateQuestionsPage() {
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([]);
   const [progress, setProgress] = useState<TopicProgress[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [rebalancing, setRebalancing] = useState(false);
+  const [rebalanceLog, setRebalanceLog] = useState<string[]>([]);
+  const [rebalanceStats, setRebalanceStats] = useState<{
+    correct_answer: string; count: number; percentage: number
+  }[]>([]);
 
   // Load topic progress
   useEffect(() => {
@@ -161,6 +184,90 @@ export default function GenerateQuestionsPage() {
 
   const updateField = (idx: number, field: keyof GeneratedQuestion, value: string) =>
     setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, [field]: value } : q)));
+
+  const runAutoRebalance = async () => {
+    setRebalancing(true);
+    setRebalanceLog([]);
+
+    for (let i = 0; i < REBALANCE_PLAN.length; i++) {
+      const item = REBALANCE_PLAN[i];
+      setRebalanceLog((prev) => [...prev,
+        `[${i + 1}/${REBALANCE_PLAN.length}] Generating ${item.count} MCQ for ${item.topic} — ${item.subtopic}...`
+      ]);
+
+      try {
+        // Generate
+        const genRes = await fetch("/api/admin/generate-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject: "Chemistry",
+            topic: item.topic,
+            subtopic: item.subtopic,
+            difficulty: "Mixed",
+            paperType: "MCQ",
+            count: item.count,
+          }),
+        });
+
+        const genData = (await genRes.json()) as { error?: string; questions?: Record<string, unknown>[] };
+
+        if (genData.error) {
+          setRebalanceLog((prev) => [...prev, "  ⚠️ Generation failed — retrying..."]);
+          // Retry once
+          await new Promise((r) => setTimeout(r, 3000));
+          const retryRes = await fetch("/api/admin/generate-questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              subject: "Chemistry",
+              topic: item.topic,
+              subtopic: item.subtopic,
+              difficulty: "Mixed",
+              paperType: "MCQ",
+              count: item.count,
+            }),
+          });
+          const retryData = (await retryRes.json()) as { error?: string; questions?: Record<string, unknown>[] };
+          if (retryData.error) {
+            setRebalanceLog((prev) => [...prev, "  ❌ Skipped after retry"]);
+            continue;
+          }
+          genData.questions = retryData.questions;
+        }
+
+        // Auto-approve all
+        const generatedQuestions = (genData.questions ?? []).map((q: Record<string, unknown>) => ({
+          ...q, approved: true
+        }));
+
+        const saveRes = await fetch("/api/admin/generate-questions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questions: generatedQuestions, subject: "Chemistry" }),
+        });
+
+        const saveData = (await saveRes.json()) as {
+          saved?: number;
+          answer_distribution?: { correct_answer: string; count: number; percentage: number }[];
+        };
+        if (saveData.answer_distribution) {
+          setRebalanceStats(saveData.answer_distribution);
+        }
+        setRebalanceLog((prev) => [...prev,
+          `  ✅ Saved ${saveData.saved ?? 0} questions`
+        ]);
+      } catch {
+        setRebalanceLog((prev) => [...prev, "  ❌ Error — skipped"]);
+      }
+
+      // 4 second gap between batches to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+
+    setRebalanceLog((prev) => [...prev, "\n🎉 Done! Check distribution below."]);
+    setRebalancing(false);
+  };
 
   const approvedCount = questions.filter((q) => q.approved).length;
   const subtopics = SUBTOPICS[topic] ?? [];
@@ -294,6 +401,62 @@ export default function GenerateQuestionsPage() {
               {loading ? "⏳ Generating..." : `Generate ${count} Questions →`}
             </button>
             {loading && <p style={{ fontSize: 11, color: "#6b7280", textAlign: "center", margin: "8px 0 0" }}>Takes 15–30 seconds...</p>}
+          </div>
+
+          <div style={{
+            background: "white", borderRadius: 12,
+            padding: "1.25rem", border: "1px solid #e5e7eb",
+            marginTop: 16
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>
+              Auto Rebalance
+            </h3>
+            <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+              Automatically generates 150 MCQ questions across 15
+              under-represented topics and subtopics. Takes ~10 minutes.
+              All questions saved directly — no approval needed.
+            </p>
+
+            <button
+              onClick={() => void runAutoRebalance()}
+              disabled={rebalancing}
+              style={{
+                background: rebalancing ? "#d1d5db" : "#1D9E75",
+                color: "white", border: "none", borderRadius: 8,
+                padding: "10px 20px", fontSize: 14, fontWeight: 600,
+                cursor: rebalancing ? "default" : "pointer",
+                fontFamily: "inherit", marginBottom: 12,
+                width: "100%"
+              }}
+            >
+              {rebalancing ? "Running... do not close this tab" : "Start Auto Rebalance →"}
+            </button>
+
+            {rebalanceLog.length > 0 && (
+              <div style={{
+                background: "#f9fafb", borderRadius: 8, padding: 12,
+                maxHeight: 300, overflowY: "auto",
+                fontFamily: "monospace", fontSize: 12,
+                border: "1px solid #e5e7eb"
+              }}>
+                {rebalanceLog.map((line, i) => (
+                  <div key={i} style={{
+                    marginBottom: 2,
+                    color: line.includes("✅") ? "#1D9E75" :
+                           line.includes("❌") ? "#E24B4A" :
+                           line.includes("⚠️") ? "#D97706" :
+                           line.includes("🎉") ? "#1D9E75" : "#374151"
+                  }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+            {rebalanceStats.length > 0 && (
+              <div style={{ marginTop: 10, fontSize: 12, color: "#374151" }}>
+                {rebalanceStats.map((s) => `${s.correct_answer}: ${s.count} (${s.percentage}%)`).join(" • ")}
+              </div>
+            )}
           </div>
 
           {/* Topic progress */}
