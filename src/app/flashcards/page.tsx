@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Flashcard = {
@@ -26,7 +26,7 @@ type ProgressRow = {
 
 type Mode = "quick" | "spaced" | "weak";
 
-export default function FlashcardsPage() {
+function FlashcardsContent() {
   const params = useSearchParams();
   const initialSubject = params.get("subject") ?? "Chemistry";
   const initialChapter = params.get("chapter") ?? "All";
@@ -323,5 +323,22 @@ export default function FlashcardsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function FlashcardsPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        <p style={{ color: "#6b7280" }}>Loading flashcards...</p>
+      </div>
+    }>
+      <FlashcardsContent />
+    </Suspense>
   );
 }
