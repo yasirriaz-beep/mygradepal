@@ -1,158 +1,5 @@
 "use client";
 
-import Logo from "@/components/Logo";
-import { useRouter } from "next/navigation";
-
-const TEAL = "#1D9E75";
-
-export default function OnboardingPage() {
-  const router = useRouter();
-
-  const handleStartChemistry = () => {
-    localStorage.setItem("mgp_onboarded", "true");
-    router.push("/learn/Chemistry");
-  };
-
-  return (
-    <main style={{ minHeight: "100vh", background: "#f0faf8", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 96px" }}>
-        <header style={{ background: "white", borderRadius: 16, padding: "20px 20px 18px", border: "1px solid #d1fae5", marginBottom: 16 }}>
-          <Logo className="text-2xl" />
-          <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 700, color: "#0f172a", margin: "12px 0 6px" }}>
-            Welcome to MyGradePal
-          </h1>
-          <p style={{ margin: 0, fontSize: 14, color: "#6b7280" }}>
-            Your personalised IGCSE revision companion
-          </p>
-        </header>
-
-        <section style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 18, marginBottom: 16 }}>
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 14px" }}>
-            How it works
-          </h2>
-
-          <div style={{ marginBottom: 18 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: TEAL, margin: "0 0 6px" }}>1. Choose your subject</p>
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 10px" }}>Start with Chemistry. More subjects coming soon.</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <span style={{ background: "#e8f8f4", color: TEAL, border: "1.5px solid #86efac", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700 }}>Chemistry</span>
-              <span style={{ background: "#f3f4f6", color: "#6b7280", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700 }}>Physics (coming soon)</span>
-              <span style={{ background: "#f3f4f6", color: "#6b7280", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700 }}>Maths (coming soon)</span>
-              <span style={{ background: "#f3f4f6", color: "#6b7280", border: "1.5px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700 }}>Biology (coming soon)</span>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 18 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: TEAL, margin: "0 0 10px" }}>2. Pick your track</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
-              <div style={{ background: "#e8f8f4", border: "1px solid #a7f3d0", borderRadius: 12, padding: 12 }}>
-                <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700, color: TEAL }}>Learn track</p>
-                <p style={{ margin: "0 0 10px", fontSize: 12, color: "#0f766e" }}>Study from scratch, chapter by chapter</p>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                  <li>Expert tutor explains every subtopic</li>
-                  <li>Video reinforcement</li>
-                  <li>Exam style questions</li>
-                </ul>
-              </div>
-              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 12, padding: 12 }}>
-                <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700, color: "#6d28d9" }}>Past paper prep</p>
-                <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6b21a8" }}>Practice with real past papers</p>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                  <li>Papers from 2019 to 2025</li>
-                  <li>Smart predict - likely exam topics</li>
-                  <li>Expert mark scheme review</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 18 }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: TEAL, margin: "0 0 6px" }}>3. Study a subtopic</p>
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 10px" }}>
-              Each subtopic has a structured flow. Work through the tabs in order:
-            </p>
-            <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-              Explain → Formulas → Example → Test → Exam Style
-            </p>
-            <div style={{ borderLeft: `4px solid ${TEAL}`, background: "#f0fdf9", borderRadius: 10, padding: "10px 12px" }}>
-              <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                The Explain tab shows key points and exam tips written specifically for Cambridge 0620. Scroll down and ask your
-                expert tutor anything - it knows your exact subtopic.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: TEAL, margin: "0 0 6px" }}>4. Use your expert tutor</p>
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 10px" }}>
-              Your expert tutor is available on every subtopic page. You can ask it:
-            </p>
-            <ul style={{ margin: "0 0 10px", paddingLeft: 18, fontSize: 13, color: "#374151", lineHeight: 1.7 }}>
-              <li>&quot;Explain this in simpler words&quot;</li>
-              <li>&quot;Give me a trick to remember this&quot;</li>
-              <li>&quot;What is the Cambridge mark scheme answer?&quot;</li>
-              <li>&quot;I got this wrong - what did I miss?&quot;</li>
-            </ul>
-            <div style={{ borderLeft: `4px solid ${TEAL}`, background: "#f0fdf9", borderRadius: 10, padding: "10px 12px" }}>
-              <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                You can also speak your question using the microphone button - useful on mobile.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 18, marginBottom: 16 }}>
-          <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 14px" }}>
-            Tips for best results
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Do the Explain tab first</p>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Read the key points before watching the video.</p>
-            </div>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Check the estimated time</p>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Each subtopic shows how long it takes to complete.</p>
-            </div>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Attempt every question</p>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Try first, then check the expert explanation.</p>
-            </div>
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Ask in your own words</p>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>Your tutor understands plain English and Urdu.</p>
-            </div>
-          </div>
-        </section>
-
-        <section style={{ background: TEAL, color: "white", borderRadius: 16, padding: "18px 18px 16px" }}>
-          <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 22, fontWeight: 700, margin: "0 0 4px" }}>Ready to start?</h3>
-          <p style={{ margin: "0 0 14px", fontSize: 13, color: "rgba(255,255,255,0.9)" }}>
-            Chemistry is fully loaded - 12 chapters, 43 videos, papers from 2019 to 2025
-          </p>
-          <button
-            type="button"
-            onClick={handleStartChemistry}
-            style={{
-              background: "white",
-              color: TEAL,
-              border: "none",
-              borderRadius: 10,
-              padding: "11px 18px",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Start Chemistry →
-          </button>
-        </section>
-      </div>
-    </main>
-  );
-}
-"use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -842,8 +689,17 @@ export default function OnboardingPage() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 20 }}>🤖</span>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: teal, margin: 0 }}>YOUR PERSONAL TUTOR</p>
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: teal,
+                      flexShrink: 0,
+                    }}
+                    aria-hidden
+                  />
+                  <p style={{ fontSize: 12, fontWeight: 700, color: teal, margin: 0 }}>YOUR EXPERT TUTOR</p>
                 </div>
                 {loading ? (
                   <p style={{ fontSize: 14, color: "#6b7280" }}>Building your personalised message...</p>
