@@ -217,34 +217,60 @@ export default function StudyTrackPage() {
           </button>
         </div>
 
-        <div style={{ background: "#FAEEDA", border: "2px solid #BA7517", borderRadius: 16, padding: "1.25rem", marginTop: 10, marginBottom: 22 }}>
-          <p style={{ fontSize: 11, color: "#633806", textTransform: "uppercase", margin: "0 0 4px" }}>
-            Quick study
-          </p>
-          <p style={{ fontSize: 18, fontWeight: 500, color: "#412402", margin: "0 0 8px" }}>
-            Flashcards
-          </p>
-          <p style={{ fontSize: 13, color: "#633806", margin: "0 0 14px" }}>
-            58 cards across 12 chapters.
-            Tap to flip. Know it / Unsure / No idea.
-          </p>
-          <button
-            onClick={() => router.push("/flashcards?subject=Chemistry")}
+        <div
+          onClick={() => router.push(`/flashcards?subject=${encodeURIComponent(label)}`)}
+          style={{
+            background: "white",
+            border: "2px solid #F59E0B",
+            borderRadius: 16,
+            padding: "1.5rem",
+            cursor: "pointer",
+            transition: "all 0.15s",
+            marginTop: 12,
+            marginBottom: 22,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLDivElement).style.background = "#FFFBEB";
+            (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLDivElement).style.background = "white";
+            (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+          }}
+        >
+          <p
             style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "none",
-              background: "#BA7517",
-              color: "white",
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "'Sora', sans-serif",
+              color: "#B45309",
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              margin: "0 0 8px",
             }}
           >
-            Study flashcards →
-          </button>
+            Quick Revision
+          </p>
+          <p style={{ fontSize: 20, fontWeight: 600, color: "#1C1C1E", margin: "0 0 8px" }}>
+            🃏 Flashcards
+          </p>
+          <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+            60 hand-crafted cards across all 12 chapters. Tap to flip. Track what you know.
+          </p>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "#F59E0B",
+              color: "white",
+              borderRadius: 8,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Start revision →
+          </div>
         </div>
 
         {/* Tip */}
