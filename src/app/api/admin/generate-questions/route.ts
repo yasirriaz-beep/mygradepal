@@ -243,6 +243,7 @@ Make questions varied — do not repeat the same concept twice.${existingSummary
     try {
       const clean = rawText.replace(/```json|```/g, "").trim();
       questions = JSON.parse(clean) as GeneratedQuestion[];
+      console.log("DEBUG answers:", questions.map(q => ({ pt: q.paper_type, ca: q.correct_answer })));
     } catch {
       return NextResponse.json(
         { error: "Claude returned invalid JSON. Try again.", raw: rawText.slice(0, 300) },
