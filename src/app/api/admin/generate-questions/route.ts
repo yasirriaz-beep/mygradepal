@@ -125,43 +125,63 @@ export async function POST(req: NextRequest) {
     const isTheory = paperType === "Theory";
     const isPractical = paperType === "Practical";
 
-    const systemPrompt = `You are an expert Cambridge IGCSE ${subject} (${SUBJECT_CODES[subject] ?? "0620"}) examiner generating questions for the MyGradePal Expert question bank.
+    const systemPrompt = `You are an expert Cambridge IGCSE ${subject} (${SUBJECT_CODES[subject] ?? "0620"}) examiner generating questions for the MyGradePal question bank.
 
-STRICT RULES:
-1. NEVER copy exact past paper questions — invent new chemical scenarios, change compounds and numbers
-2. ONLY test concepts in the 2023–2025 Cambridge IGCSE ${subject} syllabus — no A-Level content
-3. Distractors (wrong options) MUST be based on real, common student misconceptions
-4. The mygradepal_explanation MUST explain why the correct answer is right AND why the most tempting wrong answer is wrong
-5. Use ONLY official Cambridge command words: Calculate, Define, Describe, Explain, State, Suggest, Deduce, Identify, Predict
-6. Tag each question with the exact syllabus reference number (e.g. "3.2")
-7. Return ONLY a valid JSON array — no markdown fences, no preamble, no explanation outside the JSON
+CRITICAL — ANSWER POSITION ROTATION (MOST IMPORTANT RULE):
+You must distribute correct answers evenly across A, B, C, D.
+Use this strict rotation for the ${count} questions you generate:
+${Array.from({length: count}, (_, i) => `Question ${i+1}: correct answer = ${['A','B','C','D'][i % 4]}`).join('\n')}
 
-QUESTION TYPE: ${isMCQ ? "Multiple Choice (Paper 2 style) — 4 options A B C D, one correct" : isTheory ? "Structured Theory (Paper 4 style) — multi-part question with sub-parts a b c" : "Practical Scenario (Paper 6 style) — experiment-based, data interpretation or design"}
+You are NOT allowed to deviate from this rotation. Build each
+question so the designated letter is the correct answer.
+A batch where B appears more than 30% will be fully rejected.
+
+STRICT QUALITY RULES:
+1. NEVER include "WAIT", "recalculate", "correction", "actually"
+   in any mark scheme — if you make an error, redo the entire
+   question cleanly
+2. NEVER copy past paper questions — invent new scenarios
+3. ONLY test concepts in the Cambridge IGCSE ${subject} syllabus
+   — no A-Level content whatsoever
+4. Chemistry specific: NO Kc, NO Kp, NO electrochemical series EMF
+5. All RAMs must be exact Cambridge values: H=1, C=12, N=14,
+   O=16, Na=23, Mg=24, Al=27, S=32, Cl=35.5, K=39, Ca=40,
+   Fe=56, Cu=64, Zn=65, Br=80, Ag=108, I=127, Ba=137, Pb=207
+6. Mark schemes must show every step with [1] allocations —
+   never just say "B is correct [1]"
+7. Wrong options must be based on real student misconceptions
+8. All four options must be similar in length
+9. correct_answer must be exactly the letter designated in
+   the rotation above — single character only
+10. question_text must end with ?
+
+QUESTION TYPE: ${isMCQ ? "Multiple Choice — 4 options A B C D, one correct" : isTheory ? "Structured Theory — multi-part with sub-parts a b c" : "Practical Scenario — experiment-based"}
 
 DIFFICULTY: ${difficulty}
-${difficulty === "Easy" ? "— Recall and recognition. 1–2 step thinking. Command words: State, Define, Identify" : ""}
-${difficulty === "Medium" ? "— Application and calculation. 2–3 step thinking. Command words: Calculate, Describe, Explain" : ""}
-${difficulty === "Hard" ? "— Analysis and evaluation. Multi-step. Command words: Suggest, Deduce, Predict, Explain" : ""}
-${difficulty === "Mixed" ? "— Mix of Easy, Medium and Hard questions" : ""}
+${difficulty === "Easy" ? "Recall only. Command words: State, Identify, Name, Give. No calculations." : ""}
+${difficulty === "Medium" ? "Application. Command words: Describe, Explain, Calculate. 2-3 steps." : ""}
+${difficulty === "Hard" ? "Analysis. Command words: Suggest, Deduce, Predict, Evaluate. Multi-step." : ""}
+${difficulty === "Mixed" ? "Mix: 30% Easy (questions ${Array.from({length:Math.ceil(count*0.3)},(_,i)=>i+1).join(',')}), 40% Medium, 30% Hard" : ""}
 
-OUTPUT SCHEMA — return a JSON array of exactly ${count} questions:
-[
-  {
-    "question_text": "full question text here including all sub-parts if theory",
-    "options": ${isMCQ ? '{ "A": "...", "B": "...", "C": "...", "D": "..." }' : "null"},
-    "correct_answer": "${isMCQ ? "A, B, C, or D" : "full mark scheme answer"}",
-    "mark_scheme": "step by step marking points each on new line with [1] mark allocations",
-    "mygradepal_explanation": "2-3 sentences explaining the concept clearly as a tutor would",
-    "common_mistake": "the single most common error students make on this question type",
-    "exam_tip": "one specific Cambridge exam technique tip",
-    "syllabus_ref": "e.g. 3.2",
-    "difficulty_level": "${difficulty === "Mixed" ? "Easy or Medium or Hard" : difficulty}",
-    "command_word": "the primary Cambridge command word used",
-    "paper_type": "${paperType}",
-    "topic": "${topic}",
-    "subtopic": "${subtopic || topic}"
-  }
-]`;
+OUTPUT: Return ONLY a valid JSON array of exactly ${count} objects.
+No markdown fences, no preamble, no text outside the JSON array.
+
+Schema:
+[{
+  "question_text": "complete question ending with ?",
+  "options": ${isMCQ ? '{"A":"...","B":"...","C":"...","D":"..."}' : "null"},
+  "correct_answer": "the designated letter from rotation above",
+  "mark_scheme": "step by step with [1] allocations, minimum 2 sentences",
+  "mygradepal_explanation": "2-3 sentences explaining concept clearly",
+  "common_mistake": "most common student error on this question type",
+  "exam_tip": "one specific Cambridge exam technique tip",
+  "syllabus_ref": "e.g. 3.2",
+  "difficulty_level": "${difficulty === "Mixed" ? "Easy or Medium or Hard" : difficulty}",
+  "command_word": "primary Cambridge command word",
+  "paper_type": "${paperType}",
+  "topic": "${topic}",
+  "subtopic": "${subtopic || topic}"
+}]`;
 
     const userPrompt = `Generate ${count} ${difficulty} ${paperType} questions for:
 Subject: ${subject}
@@ -214,35 +234,47 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "No questions approved" }, { status: 400 });
     }
 
-    const rows = approved.map((q, i) => ({
-      subject: subject,
-      paper_code: SUBJECT_CODES[subject] ?? "0620",
-      year: new Date().getFullYear(),
-      session: "Generated",
-      paper_type: q.paper_type,
-      question_number: String(i + 1),
-      topic: q.topic,
-      subtopic: q.subtopic,
-      difficulty: q.difficulty_level?.toLowerCase() ?? "medium",
-      marks: q.paper_type === "MCQ" ? 1 : 3,
-      question_text: q.question_text,
-      mark_scheme: q.mark_scheme,
-      feedback: q.mygradepal_explanation,
-      hint: q.exam_tip,
-      grade_level: "IGCSE",
-      curriculum: "Cambridge",
-      frequency_score: 50,
-      prediction_tier: "possible",
-      source: "MGP_Generated",
-      // IMPORTANT: always populate correct_answer field for MCQ questions.
-      // Extract the letter (A/B/C/D) before saving.
-      correct_answer: q.paper_type === "MCQ" ? String(q.correct_answer ?? "").trim().charAt(0).toUpperCase() : "",
-      options_json: q.options ? JSON.stringify(q.options) : null,
-      common_mistake: q.common_mistake,
-      exam_tip: q.exam_tip,
-      syllabus_ref: q.syllabus_ref,
-      command_word: q.command_word,
-    }));
+    const rows = approved.map((q, i) => {
+      // Validate correct_answer
+      const answer = String(q.correct_answer ?? "").trim().charAt(0).toUpperCase();
+      const validAnswer = ["A","B","C","D"].includes(answer) ? answer : "";
+
+      // Validate mark scheme
+      if (q.mark_scheme?.includes("WAIT") ||
+          q.mark_scheme?.includes("recalculate") ||
+          q.mark_scheme?.includes("Correction:")) {
+        console.warn(`Skipping question with broken mark scheme: ${q.question_text?.slice(0,50)}`);
+        return null;
+      }
+
+      return {
+        subject: subject,
+        paper_code: SUBJECT_CODES[subject] ?? "0620",
+        year: new Date().getFullYear(),
+        session: "Generated",
+        paper_type: q.paper_type,
+        question_number: String(i + 1),
+        topic: q.topic,
+        subtopic: q.subtopic,
+        difficulty: q.difficulty_level?.toLowerCase() ?? "medium",
+        marks: q.paper_type === "MCQ" ? 1 : 3,
+        question_text: q.question_text,
+        mark_scheme: q.mark_scheme,
+        feedback: q.mygradepal_explanation,
+        hint: q.exam_tip,
+        grade_level: "IGCSE",
+        curriculum: "Cambridge",
+        frequency_score: 50,
+        prediction_tier: "possible",
+        source: "MGP_Generated",
+        correct_answer: q.paper_type === "MCQ" ? validAnswer : "",
+        options_json: q.options ? JSON.stringify(q.options) : null,
+        common_mistake: q.common_mistake,
+        exam_tip: q.exam_tip,
+        syllabus_ref: q.syllabus_ref,
+        command_word: q.command_word,
+      };
+    }).filter(Boolean); // removes null entries
 
     const { data, error } = await supabase.from("questions").insert(rows).select("id");
 
