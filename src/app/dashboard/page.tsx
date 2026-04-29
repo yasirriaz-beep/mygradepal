@@ -181,9 +181,10 @@ export default function DashboardPage() {
       .select("onboarding_complete, target_grade, exam_session, exam_year, onboarding_subject")
       .eq("id", studentId).single()
       .then(({ data }) => {
-        if (data.target_grade)      setTargetGrade(String(data.target_grade));
-        if (data.exam_session)      setExamSession(String(data.exam_session));
-        if (data.exam_year)         setExamYear(Number(data.exam_year));
+        if (!data) return;
+        if (data.target_grade)       setTargetGrade(String(data.target_grade));
+        if (data.exam_session)       setExamSession(String(data.exam_session));
+        if (data.exam_year)          setExamYear(Number(data.exam_year));
         if (data.onboarding_subject) setSubject(String(data.onboarding_subject));
       });
   }, [studentId, router]);
