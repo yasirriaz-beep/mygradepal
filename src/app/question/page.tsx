@@ -22,6 +22,9 @@ type QuestionRow = {
   difficulty: string | null;
   marks: number | null;
   paper_type: string | null;
+  mark_scheme: string | null;
+  correct_answer: string | null;
+  options_json: unknown;
 };
 
 type McqOption = {
@@ -78,6 +81,8 @@ function QuestionPageContent() {
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [questionIds, setQuestionIds] = useState<string[]>([]);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const studentId = "demo-student";
 
   const safeTotal = Number.isFinite(totalParam) && totalParam > 0 ? totalParam : 1;
@@ -104,6 +109,8 @@ function QuestionPageContent() {
       setError(null);
       setResult(null);
       setAnswer("");
+      setSelectedOption(null);
+      setSubmitted(false);
 
       if (!questionId) {
         setError("Missing question id in URL.");
@@ -114,7 +121,9 @@ function QuestionPageContent() {
 
       const { data, error: questionError } = await supabase
         .from("questions")
-        .select("*")
+        .select(
+          "id, question_text, question, subject, topic, topic_name, subtopic, difficulty, marks, paper_type, mark_scheme, correct_answer, options_json",
+        )
         .eq("id", questionId)
         .single();
 
@@ -131,6 +140,9 @@ function QuestionPageContent() {
           difficulty: (data.difficulty as string) ?? null,
           marks: (data.marks as number) ?? null,
           paper_type: (data.paper_type as string) ?? null,
+          mark_scheme: (data.mark_scheme as string) ?? null,
+          correct_answer: (data.correct_answer as string) ?? null,
+          options_json: data.options_json ?? null,
         });
       }
 
@@ -160,6 +172,16 @@ function QuestionPageContent() {
       return;
     }
 
+    if (isMultipleChoice) {
+      if (!selectedOption) {
+        setError("Please select an option before submitting.");
+        return;
+      }
+      setError(null);
+      setSubmitted(true);
+      return;
+    }
+
     if (!answer.trim()) {
       setError("Please write an answer before submitting.");
       return;
@@ -179,6 +201,7 @@ function QuestionPageContent() {
       }
 
       setResult(data as MarkingResult);
+      setSubmitted(true);
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : "Something went wrong while marking.";
@@ -200,9 +223,28 @@ function QuestionPageContent() {
   }, [result]);
 
   const questionText = question?.question_text ?? "";
+  const parsedOptions = useMemo(() => {
+    const rawOptions = question?.options_json;
+    if (!rawOptions) return null;
+    if (typeof rawOptions === "string") {
+      try {
+        const parsed = JSON.parse(rawOptions) as Record<string, unknown>;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+    if (typeof rawOptions === "object" && rawOptions !== null) {
+      return rawOptions as Record<string, unknown>;
+    }
+    return null;
+  }, [question?.options_json]);
+  const isMultipleChoice = !!parsedOptions && Object.keys(parsedOptions).length > 0;
   const mcqData = useMemo(() => parseQuestionForMcq(questionText), [questionText]);
-  const isMcq = mcqData.options.length > 0;
-  const displayedQuestion = isMcq ? mcqData.stem : questionText;
+  const displayedQuestion = !isMultipleChoice && mcqData.options.length > 0 ? mcqData.stem : questionText;
+  const correctAnswer = (question?.correct_answer ?? "").trim();
+  const hasCorrectAnswer = correctAnswer.length > 0;
+  const isSubmitted = isMultipleChoice ? submitted : !!result;
 
   const handleBackToPractice = () => {
     router.push(returnTo);
@@ -259,7 +301,7 @@ function QuestionPageContent() {
       <div className="rounded-2xl bg-white p-5 shadow-card">
         <div className="mb-2 flex items-center gap-2">
           {(() => {
-            const typeKey = (question?.paper_type ?? (isMcq ? "MCQ" : "Theory")).toLowerCase();
+            const typeKey = (question?.paper_type ?? (isMultipleChoice ? "MCQ" : "Theory")).toLowerCase();
             const typeStyle = QUESTION_TYPE_COLORS[typeKey] ?? QUESTION_TYPE_COLORS.mcq;
             const diffKey = (question?.difficulty ?? "medium").toLowerCase();
             const diffStyle = DIFFICULTY_COLORS[diffKey] ?? DIFFICULTY_COLORS.medium;
@@ -275,7 +317,7 @@ function QuestionPageContent() {
                     padding: "2px 8px",
                   }}
                 >
-                  {question?.paper_type ?? (isMcq ? "MCQ" : "Theory")}
+                  {question?.paper_type ?? (isMultipleChoice ? "MCQ" : "Theory")}
                 </span>
                 <span
                   style={{
@@ -306,33 +348,63 @@ function QuestionPageContent() {
           {displayedQuestion || "Loading question..."}
         </h1>
 
-        {isMcq ? (
-          <fieldset className="mt-6">
-            <legend className="block text-sm font-medium text-slate-700">Select one answer</legend>
-            <div className="mt-3 space-y-2">
-              {mcqData.options.map((option) => {
-                const optionValue = `${option.key}. ${option.text}`;
-                return (
-                  <label
-                    key={option.key}
-                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-brand-teal"
+        {isMultipleChoice && parsedOptions ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "16px 0" }}>
+            {Object.entries(parsedOptions).map(([key, value]) => {
+              const isSelected = selectedOption === key;
+              const isCorrect = submitted && hasCorrectAnswer && key === correctAnswer;
+              const isWrong = submitted && isSelected && hasCorrectAnswer && key !== correctAnswer;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => !submitted && setSelectedOption(key)}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    border: `1.5px solid ${
+                      isCorrect ? "#1D9E75" : isWrong ? "#E24B4A" : isSelected ? "#1D9E75" : "#e5e7eb"
+                    }`,
+                    background: isCorrect ? "#E1F5EE" : isWrong ? "#FCEBEB" : isSelected ? "#f0fdf9" : "white",
+                    cursor: submitted ? "default" : "pointer",
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      background: isCorrect ? "#1D9E75" : isWrong ? "#E24B4A" : isSelected ? "#1D9E75" : "#f3f4f6",
+                      color: isSelected || isCorrect || isWrong ? "white" : "#6b7280",
+                    }}
                   >
-                    <input
-                      type="radio"
-                      name="mcq-answer"
-                      value={optionValue}
-                      checked={answer === optionValue}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      className="mt-1 h-4 w-4 accent-brand-teal"
-                    />
-                    <span className="text-sm text-slate-800">
-                      <span className="font-semibold">{option.key}.</span> {option.text}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
+                    {key}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      color: isWrong ? "#A32D2D" : isCorrect ? "#085041" : "#374151",
+                      lineHeight: 1.5,
+                      paddingTop: 2,
+                    }}
+                  >
+                    {String(value)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         ) : (
           <>
             <label htmlFor="studentAnswer" className="mt-6 block text-sm font-medium text-slate-700">
@@ -343,15 +415,29 @@ function QuestionPageContent() {
               value={answer}
               onChange={(event) => setAnswer(event.target.value)}
               placeholder="Write your explanation here..."
-              className="mt-2 h-40 w-full rounded-xl border border-teal-100 p-3 text-slate-900 outline-none ring-brand-teal transition focus:ring-2"
+              style={{
+                width: "100%",
+                minHeight: 120,
+                padding: 12,
+                borderRadius: 10,
+                border: "1.5px solid #e5e7eb",
+                fontSize: 14,
+                fontFamily: "inherit",
+                resize: "vertical",
+              }}
             />
           </>
         )}
 
-        {!result && (
+        {!isSubmitted && (
           <button
             onClick={handleSubmit}
-            disabled={isMarking || isLoadingQuestion || !question}
+            disabled={
+              isMarking ||
+              isLoadingQuestion ||
+              !question ||
+              (isMultipleChoice ? !selectedOption : !answer.trim())
+            }
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange px-4 py-3 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isMarking && (
@@ -363,6 +449,61 @@ function QuestionPageContent() {
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {isLoadingQuestion && <p className="mt-3 text-sm text-slate-600">Loading question...</p>}
+
+        {isMultipleChoice && submitted && hasCorrectAnswer && (
+          <div
+            style={{
+              background: selectedOption === correctAnswer ? "#E1F5EE" : "#FCEBEB",
+              border: `1px solid ${selectedOption === correctAnswer ? "#1D9E75" : "#E24B4A"}`,
+              borderRadius: 10,
+              padding: "12px 14px",
+              marginTop: 12,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: selectedOption === correctAnswer ? "#085041" : "#791F1F",
+                margin: "0 0 6px",
+              }}
+            >
+              {selectedOption === correctAnswer
+                ? "Correct!"
+                : `Incorrect — correct answer is ${correctAnswer}`}
+            </p>
+            <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
+              {question?.mark_scheme ?? "Review the explanation with your tutor."}
+            </p>
+          </div>
+        )}
+
+        {isMultipleChoice && submitted && !hasCorrectAnswer && (
+          <div
+            style={{
+              background: "#f0fdf9",
+              border: "1px solid #a7f3d0",
+              borderRadius: 10,
+              padding: "12px 14px",
+              marginTop: 12,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#0F6E56",
+                textTransform: "uppercase",
+                margin: "0 0 4px",
+              }}
+            >
+              Mark scheme
+            </p>
+            <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
+              {question?.mark_scheme ?? "Mark scheme not available."}
+            </p>
+          </div>
+        )}
       </div>
 
       {result && (
@@ -386,7 +527,12 @@ function QuestionPageContent() {
             </div>
           </div>
 
-          <div className="mt-5 flex gap-3">
+        </section>
+      )}
+
+      {isSubmitted && (
+        <section className="mt-4 rounded-2xl bg-white p-4 shadow-card">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={() => navigateToIndex(currentIndex - 1)}
