@@ -827,6 +827,61 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                 )}
               </div>
             )}
+            {currentStep === "explain" && (
+              <div
+                style={{
+                  background: "#FFFBEB",
+                  border: "1.5px solid #F59E0B",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginTop: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#92400E",
+                      margin: "0 0 2px",
+                    }}
+                  >
+                    Reinforce what you just learned
+                  </p>
+                  <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
+                    Review flashcards for this chapter
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const chapterName = topicEntry?.topic?.trim() ?? "";
+                    const url = chapterName
+                      ? `/flashcards?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapterName)}`
+                      : `/flashcards?subject=${encodeURIComponent(subject)}`;
+                    window.open(url, "_blank");
+                  }}
+                  style={{
+                    background: "#F59E0B",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 14px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  🃏 Flashcards →
+                </button>
+              </div>
+            )}
             {currentStep === "formulas" && (
               <>
                 {staticContent?.formulas && staticContent.formulas.length > 0 ? (
