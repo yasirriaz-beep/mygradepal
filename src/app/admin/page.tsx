@@ -22,6 +22,9 @@ function AdminPanel() {
     question_text:'', mark_scheme:''
   })
   const [bulkText, setBulkText] = useState('')
+  const [backfillStatus, setBackfillStatus] = useState<string>("")
+  const [backfillRunning, setBackfillRunning] = useState(false)
+  const [totalUpdated, setTotalUpdated] = useState(0)
 
   const s = {
     page: {fontFamily:'system-ui,sans-serif',minHeight:'100vh',background:'#f0f8f7',padding:'24px'},
@@ -96,6 +99,37 @@ function AdminPanel() {
     const data = await res.json()
     setMsg(`Imported ${data.imported || 0} questions`)
     setTimeout(() => setMsg(''), 3000)
+  }
+
+  const runBackfill = async () => {
+    setBackfillRunning(true)
+    let runCount = 0
+    let totalDone = 0
+
+    while (runCount < 30) {
+      setBackfillStatus(`Run ${runCount + 1}/30 — updating...`)
+
+      const res = await fetch("/api/admin/backfill-answers", {
+        method: "POST"
+      })
+      const data = await res.json()
+
+      if (data.error === "No questions found — all done!") {
+        setBackfillStatus(`Done! All questions updated.`)
+        break
+      }
+
+      totalDone += data.updated ?? 0
+      setTotalUpdated(totalDone)
+      setBackfillStatus(
+        `Run ${runCount + 1}/30 complete — ${totalDone} answers filled so far`
+      )
+
+      runCount++
+      await new Promise(r => setTimeout(r, 3000))
+    }
+
+    setBackfillRunning(false)
   }
 
   return (
@@ -186,6 +220,39 @@ function AdminPanel() {
           Review AI-generated questions and approve them to go live
         </p>
       </Link>
+
+      <div style={{ background: "white", borderRadius: 12, padding: "1.25rem", border: "1px solid #e5e7eb", marginBottom: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
+          Backfill MCQ Correct Answers
+        </h3>
+        <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
+          Fills in missing correct answers for MCQ questions using
+          Claude. Processes 20 at a time. ~574 questions need updating.
+        </p>
+        {backfillStatus && (
+          <p style={{ fontSize: 13, color: "#1D9E75", margin: "0 0 10px" }}>
+            {backfillStatus}
+          </p>
+        )}
+        {totalUpdated > 0 && (
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#085041", margin: "0 0 10px" }}>
+            Total updated this session: {totalUpdated}
+          </p>
+        )}
+        <button
+          onClick={() => void runBackfill()}
+          disabled={backfillRunning}
+          style={{
+            background: backfillRunning ? "#d1d5db" : "#1D9E75",
+            color: "white", border: "none", borderRadius: 8,
+            padding: "10px 20px", fontSize: 14, fontWeight: 600,
+            cursor: backfillRunning ? "default" : "pointer",
+            fontFamily: "inherit"
+          }}
+        >
+          {backfillRunning ? "Running..." : "Start Backfill"}
+        </button>
+      </div>
 
       <div style={s.tabs}>
         <button style={tab==='add' ? s.tabActive : s.tabInactive} onClick={() => setTab('add')}>Add Question</button>
