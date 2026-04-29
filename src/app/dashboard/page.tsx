@@ -316,6 +316,22 @@ export default function DashboardPage() {
                 {tab.label}
               </button>
             ))}
+            <Link
+              href="/flashcards"
+              style={{
+                color: "#374151",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "11px 12px",
+                borderRadius: 10,
+              }}
+            >
+              🃏 Flashcards
+            </Link>
           </nav>
 
           {/* Bottom links */}
@@ -440,6 +456,23 @@ export default function DashboardPage() {
                 {tab.label}
               </button>
             ))}
+            <Link
+              href="/flashcards"
+              style={{
+                color: "#374151",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flex: "0 0 auto",
+                padding: "14px 16px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🃏 Flashcards
+            </Link>
           </div>
 
           {/* ── TAB CONTENT ── */}
