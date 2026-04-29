@@ -12,6 +12,12 @@ import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
 const TEAL = "#189080";
 const ORANGE = "#f5731e";
 
+const QUESTION_TYPE_COLORS: Record<string, { border: string; bg: string; text: string }> = {
+  mcq: { border: "#1D9E75", bg: "#E1F5EE", text: "#0F6E56" },
+  theory: { border: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
+  practical: { border: "#D85A30", bg: "#FAECE7", text: "#712B13" },
+};
+
 const SUBJECTS = [
   { name: "Chemistry", code: "0620", color: TEAL },
   { name: "Physics", code: "0625", color: "#137265" },
@@ -196,9 +202,9 @@ const getChapterFromTopic = (topicParam: string): string => {
 };
 
 const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
-  easy: { bg: "#f0fdf4", text: "#16a34a" },
-  medium: { bg: "#fff7ed", text: "#d97706" },
-  hard: { bg: "#fef2f2", text: "#dc2626" },
+  easy: { bg: "#EAF3DE", text: "#27500A" },
+  medium: { bg: "#FAEEDA", text: "#633806" },
+  hard: { bg: "#FCEBEB", text: "#791F1F" },
 };
 
 type QuestionRow = {
@@ -230,6 +236,7 @@ function PracticePageContent() {
   const [activeTopic, setActiveTopic] = useState<string | null>(chapterTopic || null);
   const [activeType, setActiveType] = useState("All");
   const [activeDiff, setActiveDiff] = useState("All");
+  const [hoveredType, setHoveredType] = useState<string | null>(null);
 
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -428,8 +435,16 @@ function PracticePageContent() {
       </div>
 
       <div style={{ padding: "16px 16px 0" }}>
-        {/* Topic selector */}
-        <div style={{ marginBottom: 14 }}>
+        {/* Filters */}
+        <div
+          style={{
+            background: "#f3f4f6",
+            border: "1px solid #e5e7eb",
+            borderRadius: 14,
+            padding: "14px 14px 12px",
+            marginBottom: 14,
+          }}
+        >
           <div style={{ marginBottom: 16 }}>
             <label style={{
               fontSize: 11, fontWeight: 700, color: "#6b7280",
@@ -474,59 +489,69 @@ function PracticePageContent() {
               <option value="Experimental Techniques & Analysis">Experimental Techniques & Analysis</option>
             </select>
           </div>
-        </div>
 
-        <div style={{ marginBottom: 8 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
-            Type
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {["All", "MCQ", "Theory", "Practical"].map((type) => (
-              <button
-                key={type}
-                onClick={() => setActiveType(type)}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  background: activeType === type ? "#189080" : "white",
-                  color: activeType === type ? "white" : "#189080",
-                  border: "1.5px solid #189080"
-                }}
-              >
-                {type}
-              </button>
-            ))}
+          <div style={{ marginBottom: 8 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
+              Type
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["All", "MCQ", "Theory", "Practical"].map((type) => {
+                const palette =
+                  type === "All"
+                    ? { bg: "#e8f8f4", border: "#189080", text: "#189080" }
+                    : QUESTION_TYPE_COLORS[type.toLowerCase()];
+                const isHighlighted = activeType === type || hoveredType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setActiveType(type)}
+                    onMouseEnter={() => setHoveredType(type)}
+                    onMouseLeave={() => setHoveredType(null)}
+                    style={{
+                      padding: "6px 16px",
+                      borderRadius: 20,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      background: isHighlighted ? palette.bg : "white",
+                      color: isHighlighted ? palette.text : "#6b7280",
+                      border: `1.5px solid ${isHighlighted ? palette.border : "#d1d5db"}`,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
-            Difficulty
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {["All", "Easy", "Medium", "Hard"].map((diff) => (
-              <button
-                key={diff}
-                onClick={() => setActiveDiff(diff)}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  background: activeDiff === diff ? "#189080" : "white",
-                  color: activeDiff === diff ? "white" : "#189080",
-                  border: "1.5px solid #189080"
-                }}
-              >
-                {diff}
-              </button>
-            ))}
+          <div style={{ marginBottom: 2 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
+              Difficulty
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["All", "Easy", "Medium", "Hard"].map((diff) => (
+                <button
+                  key={diff}
+                  onClick={() => setActiveDiff(diff)}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: 20,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    background: activeDiff === diff ? "#189080" : "white",
+                    color: activeDiff === diff ? "white" : "#189080",
+                    border: "1.5px solid #189080"
+                  }}
+                >
+                  {diff}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -559,6 +584,8 @@ function PracticePageContent() {
             {questions.map((q) => {
               const diffStyle =
                 DIFFICULTY_COLORS[q.difficulty?.toLowerCase()] ?? DIFFICULTY_COLORS.medium;
+              const typeStyle =
+                QUESTION_TYPE_COLORS[(q.paper_type ?? "MCQ").toLowerCase()] ?? QUESTION_TYPE_COLORS.mcq;
               return (
                 <div
                   key={q.id}
@@ -566,6 +593,7 @@ function PracticePageContent() {
                     background: "white",
                     borderRadius: 14,
                     border: "1px solid #e5e7eb",
+                    borderLeft: `4px solid ${typeStyle.border}`,
                     padding: "14px 16px",
                   }}
                 >
@@ -575,8 +603,8 @@ function PracticePageContent() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: subjectColor,
-                        background: subjectColor + "18",
+                        color: typeStyle.text,
+                        background: typeStyle.bg,
                         borderRadius: 6,
                         padding: "2px 8px",
                       }}
@@ -596,41 +624,25 @@ function PracticePageContent() {
                     >
                       {q.difficulty ?? "medium"}
                     </span>
-                    {q.source === "Cambridge" && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "#7c3aed",
-                          background: "#f5f3ff",
-                          borderRadius: 6,
-                          padding: "2px 8px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        📄 Cambridge {q.year}
-                      </span>
-                    )}
-                    {q.source === "MGP_Generated" && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: ORANGE,
-                          background: "#fff7ed",
-                          borderRadius: 6,
-                          padding: "2px 8px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        ⚡ Expert
-                      </span>
-                    )}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#92400e",
+                        background: "#fff7ed",
+                        borderRadius: 6,
+                        padding: "2px 8px",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Expert
+                    </span>
                     <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: "auto" }}>
                       {q.marks} mark{q.marks !== 1 ? "s" : ""}
                     </span>
                   </div>
 
                   {/* Topic */}
-                  <p style={{ fontSize: 12, fontWeight: 600, color: subjectColor, margin: "0 0 6px" }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: typeStyle.text, margin: "0 0 8px" }}>
                     {q.topic} {q.subtopic ? `· ${q.subtopic}` : ""}
                   </p>
 
@@ -654,13 +666,10 @@ function PracticePageContent() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#374151",
+                      color: "#1f2937",
                       lineHeight: 1.6,
                       margin: "0 0 12px",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
+                      fontWeight: 400,
                     }}
                   >
                     {q.question_text}
@@ -671,13 +680,14 @@ function PracticePageContent() {
                     href={`/question?id=${encodeURIComponent(String(q.id))}`}
                     style={{
                       display: "inline-block",
-                      background: subjectColor,
-                      color: "white",
+                      background: typeStyle.bg,
+                      color: typeStyle.text,
                       borderRadius: 8,
                       padding: "8px 16px",
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: "none",
+                      border: `1px solid ${typeStyle.border}`,
                     }}
                   >
                     Attempt question →
@@ -709,6 +719,19 @@ function PracticePageContent() {
             )}
           </div>
         )}
+
+        <div style={{ margin: "14px 0 6px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          {[
+            { label: "MCQ", color: QUESTION_TYPE_COLORS.mcq.border },
+            { label: "Theory", color: QUESTION_TYPE_COLORS.theory.border },
+            { label: "Practical", color: QUESTION_TYPE_COLORS.practical.border },
+          ].map((item) => (
+            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: item.color, display: "inline-block" }} />
+              <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <BottomNav />
