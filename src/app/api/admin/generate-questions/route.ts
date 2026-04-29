@@ -64,6 +64,34 @@ interface GeneratedQuestion {
   subtopic: string;
 }
 
+function redistributeAnswers(questions: GeneratedQuestion[]): GeneratedQuestion[] {
+  const targetSequence = ['A', 'B', 'C', 'D'];
+
+  return questions.map((q, index) => {
+    if (!q.options || q.paper_type !== 'MCQ') return q;
+
+    const targetPosition = targetSequence[index % 4];
+    const currentCorrect = q.correct_answer?.trim().toUpperCase();
+
+    if (!currentCorrect || !['A','B','C','D'].includes(currentCorrect)) return q;
+    if (currentCorrect === targetPosition) return q;
+
+    // Swap the correct answer into the target position
+    const options = { ...q.options } as Record<string, string>;
+    const correctValue = options[currentCorrect];
+    const targetValue = options[targetPosition];
+
+    options[currentCorrect] = targetValue;
+    options[targetPosition] = correctValue;
+
+    return {
+      ...q,
+      options: options as { A: string; B: string; C: string; D: string },
+      correct_answer: targetPosition,
+    };
+  });
+}
+
 // GET — fetch topic progress stats
 export async function GET(req: NextRequest) {
   const subject = req.nextUrl.searchParams.get("subject") ?? "Chemistry";
@@ -127,14 +155,22 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `You are an expert Cambridge IGCSE ${subject} (${SUBJECT_CODES[subject] ?? "0620"}) examiner generating questions for the MyGradePal question bank.
 
-CRITICAL — ANSWER POSITION ROTATION (MOST IMPORTANT RULE):
-You must distribute correct answers evenly across A, B, C, D.
-Use this strict rotation for the ${count} questions you generate:
-${Array.from({length: count}, (_, i) => `Question ${i+1}: correct answer = ${['A','B','C','D'][i % 4]}`).join('\n')}
+CRITICAL — ANSWER POSITION ROTATION:
+Assign correct answers in this exact repeating sequence:
+Question 1=A, Question 2=B, Question 3=C, Question 4=D,
+Question 5=A, Question 6=B, Question 7=C, Question 8=D,
+Question 9=A, Question 10=B, Question 11=C, Question 12=D.
 
-You are NOT allowed to deviate from this rotation. Build each
-question so the designated letter is the correct answer.
-A batch where B appears more than 30% will be fully rejected.
+This pattern MUST be followed exactly regardless of how
+many questions are requested. Do NOT choose answer
+positions based on how you construct questions. Instead:
+1. Assign the answer letter from the rotation first
+2. Write the correct answer as that option
+3. Fill remaining options with plausible distractors
+
+VIOLATION CHECK: Count your answers before returning.
+If B appears more than 30% → regenerate entire batch.
+If D appears less than 20% → regenerate entire batch.
 
 STRICT QUALITY RULES:
 1. NEVER include "WAIT", "recalculate", "correction", "actually"
@@ -214,7 +250,8 @@ Make questions varied — do not repeat the same concept twice.${existingSummary
       );
     }
 
-    return NextResponse.json({ questions, count: questions.length });
+    const rebalanced = redistributeAnswers(questions);
+    return NextResponse.json({ questions: rebalanced, count: rebalanced.length });
   } catch (err) {
     console.error("Generate error:", err);
     return NextResponse.json({ error: "Generation failed" }, { status: 500 });
