@@ -204,6 +204,23 @@ function FlashcardsContent() {
             {chapters.map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <Link
+            href="/flashcards/print"
+            style={{
+              display: "inline-block",
+              background: "#1D9E75",
+              color: "white",
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            🖨 Print flashcards
+          </Link>
+        </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
           {[
