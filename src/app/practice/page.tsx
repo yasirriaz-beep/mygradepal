@@ -387,7 +387,7 @@ function PracticePageContent() {
           Practice
         </h1>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: 0 }}>
-          {activeTopic ?? activeSubject} · Past paper style questions
+          {activeTopic ?? activeSubject} · Exam style questions
         </p>
       </div>
 

@@ -46,6 +46,12 @@ export default function LoginPage() {
       return;
     }
 
+    if (typeof window !== "undefined" && localStorage.getItem("mgp_onboarded") !== "true") {
+      router.push("/onboarding");
+      router.refresh();
+      return;
+    }
+
     const { data: student, error: studentError } = await supabase
       .from("students")
       .select("onboarding_complete")

@@ -220,7 +220,7 @@ Respond ONLY with a valid JSON object. No markdown, no backticks, just raw JSON.
     }
   ],
   "worked_example": {
-    "question": "A real O Level past paper style question for this specific subtopic",
+    "question": "A real O Level exam style question for this specific subtopic",
     "steps": [
       "Step 1: what to do first and why",
       "Step 2: the calculation",

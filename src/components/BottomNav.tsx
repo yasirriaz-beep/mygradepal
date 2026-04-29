@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { BarChart3, BookOpen, LayoutGrid, Sparkles, UserRound, Waypoints } from "lucide-react";
+import { BarChart3, BookOpen, CircleHelp, LayoutGrid, Sparkles, UserRound, Waypoints } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { href: "/learn", label: "Learn", icon: BookOpen },
   { href: "/practice", label: "Practice", icon: Waypoints },
+  { href: "/onboarding", label: "How to use", icon: CircleHelp },
   { href: "/predict", label: "Predict", icon: Sparkles },
   { href: "/progress", label: "Progress", icon: BarChart3 },
   { href: "/account", label: "Account", icon: UserRound }

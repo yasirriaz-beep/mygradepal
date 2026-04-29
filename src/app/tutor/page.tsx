@@ -27,7 +27,7 @@ const lessonSteps: Array<{ key: LessonStep; label: string }> = [
   { key: "formulas", label: "Formulas" },
   { key: "example", label: "Example" },
   { key: "test", label: "Test" },
-  { key: "past-paper", label: "Past Paper" },
+  { key: "past-paper", label: "Exam Style" },
 ];
 
 type StaticTopicContent = {
@@ -1062,7 +1062,7 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
                 }}
               >
                 <p style={{ fontSize: 13, fontWeight: 700, color: "#189080", marginBottom: 8 }}>
-                  📄 Past paper style questions
+                  📄 Exam style questions
                 </p>
                 <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 18, lineHeight: 1.6 }}>
                   Try real exam-style questions for <strong>{topic}</strong>. You can keep using the tutor chat below anytime.

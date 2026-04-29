@@ -94,7 +94,7 @@ Explain what each variable means in one line.
 (Repeat FORMULA / VARIABLES block for each formula if there are multiple)
 
 WORKED EXAMPLE:
-QUESTION: A clear past paper style question
+QUESTION: A clear exam style question
 STEP 1: First step
 STEP 2: Second step
 STEP 3: Third step (if needed)

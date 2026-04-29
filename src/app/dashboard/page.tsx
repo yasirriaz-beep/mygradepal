@@ -155,6 +155,11 @@ export default function DashboardPage() {
       const user = data.session?.user;
       if (!user) { router.push("/login"); return; }
 
+      if (typeof window !== "undefined" && localStorage.getItem("mgp_onboarded") !== "true") {
+        router.push("/onboarding");
+        return;
+      }
+
       const meta = user.user_metadata ?? {};
       const name =
         (meta.child_name && meta.child_name !== "###") ? meta.child_name :
@@ -176,7 +181,6 @@ export default function DashboardPage() {
       .select("onboarding_complete, target_grade, exam_session, exam_year, onboarding_subject")
       .eq("id", studentId).single()
       .then(({ data }) => {
-        if (!data?.onboarding_complete) { router.push("/onboarding"); return; }
         if (data.target_grade)      setTargetGrade(String(data.target_grade));
         if (data.exam_session)      setExamSession(String(data.exam_session));
         if (data.exam_year)         setExamYear(Number(data.exam_year));
@@ -315,6 +319,9 @@ export default function DashboardPage() {
 
           {/* Bottom links */}
           <div style={{ padding: "12px 16px", borderTop: "1px solid #f1f5f9" }}>
+            <Link href="/onboarding" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, fontSize: 13, color: "#6b7280", textDecoration: "none", marginBottom: 2 }}>
+              📘 How to use
+            </Link>
             <Link href="/account" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, fontSize: 13, color: "#6b7280", textDecoration: "none", marginBottom: 2 }}>
               ⚙️ Account
             </Link>
@@ -345,6 +352,7 @@ export default function DashboardPage() {
                 </button>
                 {showMenu && (
                   <div style={{ position: "absolute", right: 0, top: 44, background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 6, zIndex: 50, minWidth: 140, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                    <Link href="/onboarding" style={{ display: "block", padding: "8px 12px", fontSize: 13, color: "#374151", textDecoration: "none" }}>📘 How to use</Link>
                     <Link href="/account" style={{ display: "block", padding: "8px 12px", fontSize: 13, color: "#374151", textDecoration: "none" }}>⚙️ Account</Link>
                     <button onClick={() => void handleSignOut()} style={{ width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 13, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}>
                       Logout
