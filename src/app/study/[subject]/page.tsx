@@ -217,6 +217,36 @@ export default function StudyTrackPage() {
           </button>
         </div>
 
+        <div style={{ background: "#FAEEDA", border: "2px solid #BA7517", borderRadius: 16, padding: "1.25rem", marginTop: 10, marginBottom: 22 }}>
+          <p style={{ fontSize: 11, color: "#633806", textTransform: "uppercase", margin: "0 0 4px" }}>
+            Quick study
+          </p>
+          <p style={{ fontSize: 18, fontWeight: 500, color: "#412402", margin: "0 0 8px" }}>
+            Flashcards
+          </p>
+          <p style={{ fontSize: 13, color: "#633806", margin: "0 0 14px" }}>
+            58 cards across 12 chapters.
+            Tap to flip. Know it / Unsure / No idea.
+          </p>
+          <button
+            onClick={() => router.push("/flashcards?subject=Chemistry")}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "none",
+              background: "#BA7517",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "'Sora', sans-serif",
+            }}
+          >
+            Study flashcards →
+          </button>
+        </div>
+
         {/* Tip */}
         <div
           style={{

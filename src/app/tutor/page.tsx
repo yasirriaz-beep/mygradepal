@@ -549,6 +549,12 @@ No markdown, no extra text, just raw JSON.`,
         >
           Already know this? Skip to practice →
         </Link>
+        <Link
+          href={`/flashcards?subject=${encodeURIComponent("Chemistry")}&chapter=${encodeURIComponent(topic)}`}
+          className="absolute right-3 top-12 max-w-[11rem] text-right text-[11px] leading-snug text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 sm:right-4 sm:top-12 sm:max-w-none sm:text-xs"
+        >
+          Study with flashcards →
+        </Link>
         <p className="text-xs text-slate-500">{subject}</p>
         <h1 className="heading-font pr-2 text-2xl font-bold text-slate-900">{topic}</h1>
         <div className="mt-3">
