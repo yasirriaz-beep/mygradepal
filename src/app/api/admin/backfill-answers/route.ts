@@ -30,23 +30,31 @@ function parseOptions(value: unknown): McqOptions | null {
 }
 
 export async function POST() {
-  // Fetch up to 100 MCQ questions missing correct_answer
+  const startTime = Date.now();
+  const TIME_LIMIT = 45000; // 45 seconds max
+
+  // Fetch up to 20 MCQ questions missing correct_answer
   const { data: questions, error } = await supabase
     .from("questions")
     .select("id, question_text, options_json, mark_scheme")
     .eq("subject", "Chemistry")
     .not("options_json", "is", null)
     .or("correct_answer.is.null,correct_answer.eq.")
-    .limit(100);
+    .limit(20);
 
   if (error || !questions?.length) {
-    return NextResponse.json({ error: error?.message ?? "No questions found" });
+    return NextResponse.json({
+      error: error?.message ?? "No questions found — all done!",
+    });
   }
 
   let updated = 0;
   let failed = 0;
 
   for (const q of questions) {
+    // Stop if approaching time limit
+    if (Date.now() - startTime > TIME_LIMIT) break;
+
     try {
       const options = parseOptions(q.options_json);
       if (!options) {
@@ -64,7 +72,7 @@ export async function POST() {
 Options: A) ${options.A} B) ${options.B} C) ${options.C} D) ${options.D}
 Mark scheme: ${q.mark_scheme}
 
-Reply with ONLY the single correct letter: A, B, C, or D. Nothing else.`,
+Reply with ONLY the correct letter: A, B, C, or D. Nothing else.`,
           },
         ],
       });
@@ -92,6 +100,7 @@ Reply with ONLY the single correct letter: A, B, C, or D. Nothing else.`,
     processed: questions.length,
     updated,
     failed,
-    message: `Updated ${updated} questions. Run again for next batch.`,
+    remaining: 574 - updated,
+    message: `Updated ${updated}. Run again for next batch.`,
   });
 }
