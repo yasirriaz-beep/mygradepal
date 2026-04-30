@@ -4,8 +4,16 @@ import { Resend } from "resend";
 
 type AlertType = "absence" | "streak_broken" | "weekly_report";
 type DeliveryMethod = "email" | "whatsapp";
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = "MyGradePal Alerts <alerts@mygradepal.com>";
+
+let resendClient: Resend | null = null;
+function getResendClient(): Resend | null {
+  if (resendClient) return resendClient;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  resendClient = new Resend(apiKey);
+  return resendClient;
+}
 
 function buildBaseEmailTemplate(title: string, intro: string, detailsHtml: string, primaryButtonText: string, primaryButtonLink: string): string {
   return `
@@ -81,6 +89,12 @@ export async function sendAbsenceAlert(userId: string, missedDate: string, sessi
   );
 
   try {
+    const resend = getResendClient();
+    if (!resend) {
+      console.warn("[alerts] RESEND_API_KEY missing, skipping absence email send");
+      return;
+    }
+
     await resend.emails.send({
       from: FROM_EMAIL,
       to: parentEmail,
@@ -153,6 +167,12 @@ export async function sendWeeklyReport(userId: string): Promise<void> {
   );
 
   try {
+    const resend = getResendClient();
+    if (!resend) {
+      console.warn("[alerts] RESEND_API_KEY missing, skipping weekly report email send");
+      return;
+    }
+
     await resend.emails.send({
       from: FROM_EMAIL,
       to: parentEmail,
