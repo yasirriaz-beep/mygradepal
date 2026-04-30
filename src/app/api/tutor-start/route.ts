@@ -11,6 +11,32 @@ type TutorStartRequest = {
   studentId: string;
 };
 
+function buildCachedLessonMessage(topic: string, row: Record<string, unknown>): string | null {
+  const definition = String(row.definition ?? "").trim();
+  const points = Array.isArray(row.key_points) ? (row.key_points as unknown[]).map((p) => String(p)) : [];
+  const formula = Array.isArray(row.formulas) && row.formulas.length > 0 ? String((row.formulas[0] as { formula?: string }).formula ?? "") : "";
+  const worked = (row.worked_example as { question?: string; steps?: string[]; answer?: string } | null) ?? null;
+  const quickCheck = String(row.quick_check ?? "").trim();
+
+  if (!definition && points.length === 0 && !formula && !quickCheck) return null;
+
+  return `📚 Topic: ${topic}
+
+Let me teach you this step by step.
+
+What is ${topic.toLowerCase()}?
+${definition || "A core concept in your syllabus."}
+
+Key formula you must know:
+${formula || "See key points below."}
+
+Example from a past paper:
+${worked?.question ?? "Apply the concept in a short exam-style question."}
+${Array.isArray(worked?.steps) ? worked.steps.join("\n") : ""}
+
+Quick check: ${quickCheck || "Explain this topic in one sentence."}`;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TutorStartRequest;
@@ -26,6 +52,19 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServiceClient();
+    const existing = await supabase
+      .from("topic_content")
+      .select("*")
+      .eq("subject", subject)
+      .eq("subtopic", topic)
+      .single();
+    if (existing.data) {
+      const cachedMessage = buildCachedLessonMessage(topic, existing.data as Record<string, unknown>);
+      if (cachedMessage) {
+        return NextResponse.json({ message: cachedMessage, mastery: 0, cached: true });
+      }
+    }
+
     const { data: scoreRow } = await supabase
       .from("topic_scores")
       .select("mastery")
@@ -44,7 +83,7 @@ export async function POST(request: Request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 450,
         system:
           "You are MyGradePal, a structured IGCSE tutor. Produce clean textbook-style mini-lessons for Pakistani students.",
@@ -95,6 +134,14 @@ Keep it concise and student-friendly.`,
       .replace(/\*/g, "")
       .replace(/`{1,3}/g, "")
       .trim();
+
+    await supabase
+      .from("topic_content")
+      .upsert({
+        subject,
+        subtopic: topic,
+        content: cleanedMessage,
+      });
 
     return NextResponse.json({ message: cleanedMessage, mastery });
   } catch (error) {

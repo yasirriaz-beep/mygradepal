@@ -43,7 +43,7 @@ export async function markAnswer({
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
       system:
         "You are an IGCSE examiner. You must respond with ONLY a JSON object, no other text. The JSON must have exactly these fields: marks_awarded (number), total_marks (number), feedback (string), hint (string)",

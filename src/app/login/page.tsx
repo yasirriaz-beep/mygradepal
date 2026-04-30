@@ -120,7 +120,7 @@ function LoginPageContent() {
               target_grade: string;
               tier: number;
               days_per_week: number;
-              session_duration: string;
+              session_duration: number;
               parent_email?: string;
             };
             const { error: profileError } = await supabase.from("user_profiles").insert({

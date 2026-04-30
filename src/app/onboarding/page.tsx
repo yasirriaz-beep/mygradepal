@@ -8,7 +8,7 @@ type GradeOption = "A*" | "A" | "B" | "C" | "D" | "Just Pass";
 type SessionOption = "May/June" | "Oct/Nov";
 
 const SUBJECTS = [
-  { id: "chemistry", label: "Chemistry 0620", active: true, paperCode: "P2/P4/P6", questions: "4,200+ questions" },
+  { id: "chemistry", label: "Chemistry 0620", active: true, paperCode: "P2/P4/P6", questions: "6,800+ questions" },
   { id: "physics", label: "Physics 0625", active: false },
   { id: "biology", label: "Biology 0610", active: false },
   { id: "mathematics", label: "Mathematics 0580", active: false },
@@ -22,6 +22,67 @@ const SUBJECTS = [
 const GRADES: GradeOption[] = ["A*", "A", "B", "C", "D", "Just Pass"];
 const DAYS_PER_WEEK = [2, 3, 4, 5, 6, 7];
 const SESSION_DURATIONS = ["30 min", "45 min", "1 hour", "1.5 hours", "2 hours"] as const;
+const TOPIC_HOURS = [
+  { topic: "Organic Chemistry", hours: 22 },
+  { topic: "Atoms Elements and Compounds", hours: 18 },
+  { topic: "Acids Bases and Salts", hours: 17 },
+  { topic: "Chemical Reactions", hours: 16 },
+  { topic: "Metals", hours: 14 },
+  { topic: "The Periodic Table", hours: 11 },
+  { topic: "Air and Water", hours: 11 },
+  { topic: "Electrochemistry", hours: 11 },
+  { topic: "Stoichiometry", hours: 13 },
+  { topic: "Experimental Techniques", hours: 9 },
+  { topic: "Chemical Energetics", hours: 9 },
+  { topic: "States of Matter", hours: 7 },
+] as const;
+const TIER_TOTAL_HOURS: Record<1 | 2 | 3 | 4, number> = {
+  1: 420,
+  2: 280,
+  3: 141,
+  4: 70,
+};
+const TOPIC_COLORS = [
+  "bg-teal-100 text-teal-800 border-teal-200",
+  "bg-indigo-100 text-indigo-800 border-indigo-200",
+  "bg-amber-100 text-amber-800 border-amber-200",
+  "bg-emerald-100 text-emerald-800 border-emerald-200",
+  "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
+  "bg-sky-100 text-sky-800 border-sky-200",
+] as const;
+const PASS_DEFINITIONS = [
+  {
+    id: 1,
+    name: "Learn",
+    ratio: 0.5,
+    description: "First time through - take your time, understand every concept deeply",
+    color: "teal",
+  },
+  {
+    id: 2,
+    name: "Practice",
+    ratio: 0.3,
+    description: "Second time - faster now, focus on past papers and weak spots",
+    color: "orange",
+  },
+  {
+    id: 3,
+    name: "Master",
+    ratio: 0.2,
+    description: "Third time - quick revision, full past papers under exam conditions",
+    color: "green",
+  },
+] as const;
+
+function parseSessionDurationToMinutes(duration: (typeof SESSION_DURATIONS)[number]): number {
+  const value = duration.toLowerCase().trim();
+  if (value.includes("hour")) {
+    const hours = Number.parseFloat(value);
+    return Number.isFinite(hours) ? Math.round(hours * 60) : 45;
+  }
+  const minutes = Number.parseInt(value, 10);
+  return Number.isFinite(minutes) ? minutes : 45;
+}
 
 function getExamDate(session: SessionOption, year: number): Date {
   const month = session === "May/June" ? 4 : 9;
@@ -58,7 +119,8 @@ type GuestProfile = {
   target_grade: GradeOption | "";
   tier: 1 | 2 | 3 | 4;
   days_per_week: number;
-  session_duration: (typeof SESSION_DURATIONS)[number];
+  session_duration: number;
+  study_mode: "guided" | "free";
   parent_email?: string;
 };
 
@@ -75,6 +137,16 @@ export default function OnboardingPage() {
   const [daysPerWeek, setDaysPerWeek] = useState<number>(4);
   const [sessionDuration, setSessionDuration] = useState<(typeof SESSION_DURATIONS)[number]>("45 min");
   const [parentEmail, setParentEmail] = useState<string>("");
+  const [studyMode, setStudyMode] = useState<"guided" | "free">("guided");
+  const [topicSchedule, setTopicSchedule] = useState<string[]>([
+    "Week 1-2: Organic Chemistry",
+    "Week 3-4: Atoms & Compounds",
+    "Week 5-6: Acids, Bases & Salts",
+    "Week 7-8: Chemical Reactions",
+    "Week 9-10: Metals + Periodic Table",
+    "Week 11-12: Remaining topics",
+    "Week 13+: Past papers + revision",
+  ]);
 
   const examDate = useMemo(() => getExamDate(session, examYear), [session, examYear]);
   const daysRemaining = useMemo(() => getDaysRemaining(examDate), [examDate]);
@@ -82,15 +154,141 @@ export default function OnboardingPage() {
   const tierMessage = useMemo(() => getTierMessage(tier), [tier]);
   const progressStep = Math.min(step, 5);
   const years = useMemo(() => Array.from({ length: 8 }, (_, i) => new Date().getFullYear() + i), []);
-  const previewDates = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() + i);
-        return d;
-      }),
-    [],
-  );
+  const planDaysPerWeek = useMemo(() => (step < 5 ? 5 : daysPerWeek), [step, daysPerWeek]);
+  const totalStudyHours = useMemo(() => TIER_TOTAL_HOURS[tier], [tier]);
+  const dailyHours = useMemo(() => {
+    if (daysRemaining <= 0) return 4;
+    const raw = (totalStudyHours / daysRemaining / Math.max(planDaysPerWeek, 1)) * 7;
+    return Math.min(4, Math.max(1, Number(raw.toFixed(1))));
+  }, [daysRemaining, planDaysPerWeek, totalStudyHours]);
+  const weeksUntilExam = useMemo(() => Math.max(1, Math.ceil(daysRemaining / 7)), [daysRemaining]);
+  const timeline = useMemo(() => {
+    let currentStartDate = new Date();
+    currentStartDate.setHours(0, 0, 0, 0);
+    let weekCursor = 1;
+    return TOPIC_HOURS.map((item, idx) => {
+      const topicWeeks = Math.max(1, Math.ceil(item.hours / Math.max(dailyHours, 1)));
+      const startWeek = weekCursor;
+      const endWeek = weekCursor + topicWeeks - 1;
+      const startDate = new Date(currentStartDate);
+      currentStartDate.setDate(currentStartDate.getDate() + topicWeeks * 7);
+      weekCursor = endWeek + 1;
+      return {
+        ...item,
+        startWeek,
+        endWeek,
+        weeks: topicWeeks,
+        startDate,
+        color: TOPIC_COLORS[idx % TOPIC_COLORS.length],
+      };
+    });
+  }, [dailyHours]);
+  const passPlan = useMemo(() => {
+    const totalWeeks = Math.max(weeksUntilExam, 1);
+    let weekCursor = 1;
+    let dateCursor = new Date();
+    dateCursor.setHours(0, 0, 0, 0);
+    return PASS_DEFINITIONS.map((pass, index) => {
+      const passHours = Math.round(totalStudyHours * pass.ratio);
+      const passWeeks =
+        index === PASS_DEFINITIONS.length - 1
+          ? Math.max(1, totalWeeks - (weekCursor - 1))
+          : Math.max(1, Math.round(totalWeeks * pass.ratio));
+      const startWeek = weekCursor;
+      const endWeek = Math.min(totalWeeks, startWeek + passWeeks - 1);
+      const startDate = new Date(dateCursor);
+      dateCursor.setDate(dateCursor.getDate() + passWeeks * 7);
+      weekCursor = endWeek + 1;
+      return {
+        ...pass,
+        passHours,
+        passWeeks,
+        startWeek,
+        endWeek,
+        startDate,
+        barWidth: pass.id === 1 ? "100%" : pass.id === 2 ? "60%" : "40%",
+      };
+    });
+  }, [totalStudyHours, weeksUntilExam]);
+  const dailyCalendar = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const totalDays = 30;
+    const dates = Array.from({ length: totalDays }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return d;
+    });
+
+    const isStudyDay = (date: Date) => {
+      const mondayBased = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+      if (planDaysPerWeek >= 7) return true;
+      if (planDaysPerWeek === 6) return mondayBased !== 6;
+      return mondayBased < planDaysPerWeek;
+    };
+
+    const studyDayCount = dates.filter((d) => isStudyDay(d)).length;
+    const totalTopicHours = TOPIC_HOURS.reduce((sum, t) => sum + t.hours, 0);
+    const topicDayBase = TOPIC_HOURS.map((t) => {
+      const rawDays = (t.hours / totalTopicHours) * studyDayCount;
+      return { topic: t.topic, rawDays, assignedDays: Math.floor(rawDays) };
+    });
+    let assigned = topicDayBase.reduce((sum, t) => sum + t.assignedDays, 0);
+    let remaining = studyDayCount - assigned;
+    const byRemainder = [...topicDayBase]
+      .map((t) => ({ ...t, rem: t.rawDays - t.assignedDays }))
+      .sort((a, b) => b.rem - a.rem);
+    let idx = 0;
+    while (remaining > 0 && byRemainder.length > 0) {
+      byRemainder[idx % byRemainder.length].assignedDays += 1;
+      remaining -= 1;
+      idx += 1;
+    }
+
+    const topicColorMap = new Map<string, string>();
+    TOPIC_HOURS.forEach((t, i) => topicColorMap.set(t.topic, TOPIC_COLORS[i % TOPIC_COLORS.length]));
+    const shortTopic = (topic: string) =>
+      topic
+        .replace("Atoms Elements and Compounds", "Atoms & Compounds")
+        .replace("Acids Bases and Salts", "Acids/Bases")
+        .replace("The Periodic Table", "Periodic Table")
+        .replace("Experimental Techniques", "Experiments");
+
+    const studyQueue: Array<{ topic: string; color: string }> = [];
+    byRemainder.forEach((t) => {
+      for (let i = 0; i < t.assignedDays; i += 1) {
+        studyQueue.push({
+          topic: t.topic,
+          color: topicColorMap.get(t.topic) ?? "bg-slate-100 text-slate-700 border-slate-200",
+        });
+      }
+    });
+
+    const cells = dates.map((date) => {
+      const study = isStudyDay(date);
+      if (!study) {
+        return {
+          date,
+          topic: "Rest",
+          duration: "",
+          color: "bg-slate-100 text-slate-500 border-slate-200",
+        };
+      }
+      const next = studyQueue.shift() ?? {
+        topic: "Past Papers",
+        color: "bg-orange-100 text-orange-800 border-orange-200",
+      };
+      return {
+        date,
+        topic: shortTopic(next.topic),
+        duration: "35 min",
+        color: next.color,
+      };
+    });
+
+    const firstOffset = (dates[0].getDay() + 6) % 7;
+    return { cells, firstOffset, today };
+  }, [planDaysPerWeek]);
 
   const canContinue =
     (step === 1 && subject === "Chemistry 0620") ||
@@ -127,7 +325,8 @@ export default function OnboardingPage() {
         target_grade: targetGrade,
         tier,
         days_per_week: daysPerWeek,
-        session_duration: sessionDuration,
+        session_duration: parseSessionDurationToMinutes(sessionDuration),
+        study_mode: studyMode,
         parent_email: parentEmail.trim() || undefined,
       };
 
@@ -287,22 +486,157 @@ export default function OnboardingPage() {
 
         {step === 4 && (
           <section>
-            <h1 className="text-2xl font-semibold text-slate-900">Your study tier is ready</h1>
-            <p className="mt-2 text-sm text-slate-600">Tier {tier}</p>
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700">{tierMessage}</div>
+            <h1 className="text-2xl font-semibold text-slate-900">Study Plan Overview</h1>
 
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold text-slate-700">Your next 7 days (preview)</h2>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {previewDates.map((date) => (
-                  <div key={date.toISOString()} className="rounded-lg border border-slate-200 p-3 text-sm">
-                    <p className="font-medium text-slate-800">
-                      {date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                    </p>
-                    <p className="mt-1 text-slate-600">Session: Topic review + practice set</p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setStudyMode("guided")}
+                className={`relative rounded-xl border p-5 text-left transition ${
+                  studyMode === "guided"
+                    ? "scale-[1.01] border-teal-400 bg-teal-50 shadow-sm"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                <span className="text-2xl">📅</span>
+                <p className="mt-2 text-base font-semibold text-slate-900">Follow my plan</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  We plan every day for you. Just open the app and follow today&apos;s task. Best for most students.
+                </p>
+                <span className="absolute right-3 top-3 rounded-full bg-teal-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  Recommended
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStudyMode("free")}
+                className={`rounded-xl border p-4 text-left transition ${
+                  studyMode === "free" ? "border-slate-400 bg-slate-50 shadow-sm" : "border-slate-200 bg-white"
+                }`}
+              >
+                <span className="text-2xl">🧭</span>
+                <p className="mt-2 text-base font-semibold text-slate-900">I&apos;ll navigate myself</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Browse topics freely. Best if you&apos;re self-disciplined or need to strengthen specific areas.
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  You can switch to a guided plan anytime from your dashboard settings.
+                </p>
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-1 text-sm text-slate-700">
+              <p>Your exam is in {daysRemaining} days.</p>
+              <p>Study 35 min/day on Chemistry to stay on track.</p>
+            </div>
+
+            {studyMode === "guided" ? (
+              <>
+                <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {passPlan.map((pass) => {
+                      const barClass =
+                        pass.color === "teal" ? "bg-teal-500" : pass.color === "orange" ? "bg-orange-500" : "bg-green-500";
+                      return (
+                        <div key={`pass-${pass.id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <p className="text-sm font-semibold text-slate-800">
+                            Pass {pass.id} - {pass.name}
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-slate-700">{pass.passHours} hours allocated</p>
+                          <p className="mt-1 text-xs text-slate-600">
+                            Weeks {pass.startWeek}-{pass.endWeek}
+                          </p>
+                          <p className="mt-2 text-xs text-slate-600">{pass.description}</p>
+                          <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
+                            <div className={`h-2 rounded-full ${barClass}`} style={{ width: pass.barWidth }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                  <p className="mt-3 text-sm italic text-slate-500">
+                    Each pass gets faster - by Pass 3 you will move through topics 3x quicker than Pass 1.
+                  </p>
+                </div>
+
+                <div className="mt-7">
+                  <h2 className="text-sm font-semibold text-slate-700">Topic Schedule</h2>
+                  <div className="mt-3 space-y-3">
+                    {topicSchedule.map((item, index) => (
+                      <div key={`${item}-${index}`} className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+                        <p className="font-medium text-slate-700">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-7">
+                  <h2 className="text-sm font-semibold text-slate-700">Daily Calendar (Next 30 Days)</h2>
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="mb-2 grid grid-cols-7 gap-1">
+                      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                        <div key={d} className="text-center text-[10px] font-semibold uppercase text-slate-500">
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: dailyCalendar.firstOffset }, (_, i) => (
+                        <div key={`blank-${i}`} />
+                      ))}
+                      {dailyCalendar.cells.map((cell) => {
+                        const isToday = cell.date.toDateString() === dailyCalendar.today.toDateString();
+                        return (
+                          <div key={cell.date.toISOString()} className={`rounded border p-1.5 text-[10px] leading-tight ${cell.color} ${isToday ? "ring-2 ring-teal-500" : ""}`}>
+                            <p className="font-semibold">
+                              {cell.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </p>
+                            <p className="truncate">{cell.topic}</p>
+                            <p>{cell.duration || "Rest"}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-700">
+                    Your only job is to open MyGradePal and follow today&apos;s task. We handle the rest.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  You&apos;re in control. We&apos;ll track your progress and suggest weak areas to focus on - but you choose what to
+                  study each day.
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <h2 className="text-sm font-semibold text-slate-700">Topic Mastery</h2>
+                  <div className="mt-3 space-y-2">
+                    {TOPIC_HOURS.map((t) => (
+                      <div key={t.topic} className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm">
+                        <span className="text-slate-700">{t.topic}</span>
+                        <span className="font-semibold text-slate-500">0%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  💡 Start with Organic Chemistry - it&apos;s the most tested topic
+                </div>
               </div>
+            )}
+
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-900">
+                💡 Top students repeat the full course 3 times. First to learn, second to practice, third to master. Your plan is
+                built around this.
+              </p>
+            </div>
+
+            <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              Study <span className="font-semibold text-orange-600">{dailyHours} hours</span> per day,{" "}
+              <span className="font-semibold text-orange-600">{planDaysPerWeek} days</span> per week to complete Chemistry before your exam.
             </div>
           </section>
         )}

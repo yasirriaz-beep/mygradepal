@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Question not found." }, { status: 404 });
     }
 
-    console.log("[/api/mark] Question found, calling Anthropic model claude-sonnet-4-20250514");
+    console.log("[/api/mark] Question found, calling Anthropic model claude-haiku-4-5-20251001");
     const markingResult = await markAnswer({
       questionText: question.question_text,
       markScheme: question.mark_scheme,

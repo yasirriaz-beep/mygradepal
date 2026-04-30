@@ -213,7 +213,7 @@ export default function Home() {
 
       <div className="stats-bar">
         <div className="stats-grid">
-          <div className="stat"><div className="stat-value">6,800+</div><div className="stat-label">Past paper questions</div></div>
+          <div className="stat"><div className="stat-value">5,200+</div><div className="stat-label">Past paper questions</div></div>
           <div className="stat"><div className="stat-value">15 years</div><div className="stat-label">Cambridge data analysed</div></div>
           <div className="stat"><div className="stat-value">7</div><div className="stat-label">O Level / IGCSE subjects covered</div></div>
           <div className="stat"><div className="stat-value">24/7</div><div className="stat-label">Always available</div></div>

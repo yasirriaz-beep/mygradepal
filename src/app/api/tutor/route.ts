@@ -27,6 +27,36 @@ type TutorRequest = {
   targetGrade?: "C" | "B" | "A" | "A*";
 };
 
+function buildModeContentFromCache(row: Record<string, unknown>, mode: NonNullable<TutorRequest["mode"]>): string | null {
+  if (typeof row.content === "string" && row.content.trim()) return row.content;
+  if (mode === "explain") {
+    const definition = String(row.definition ?? "").trim();
+    const points = Array.isArray(row.key_points) ? (row.key_points as unknown[]).map((p) => String(p)).filter(Boolean) : [];
+    if (definition || points.length > 0) {
+      return `DEFINITION: ${definition}\nKEY POINTS:\n${points.map((p) => `- ${p}`).join("\n")}`.trim();
+    }
+  }
+  if (mode === "formulas") {
+    const formulas = Array.isArray(row.formulas) ? (row.formulas as Array<{ formula?: string; variables?: string }>) : [];
+    if (formulas.length > 0) {
+      return formulas
+        .map((f) => `FORMULA: ${String(f.formula ?? "")}\nVARIABLES: ${String(f.variables ?? "")}`.trim())
+        .join("\n\n");
+    }
+  }
+  if (mode === "example") {
+    const worked = (row.worked_example as { question?: string; steps?: string[]; answer?: string; takeaway?: string } | null) ?? null;
+    if (worked?.question) {
+      return `WORKED EXAMPLE:\nQUESTION: ${worked.question}\n${(worked.steps ?? []).join("\n")}\nANSWER: ${worked.answer ?? ""}\nTAKEAWAY: ${worked.takeaway ?? ""}`.trim();
+    }
+  }
+  if (mode === "test") {
+    const quick = String(row.quick_check ?? "").trim();
+    if (quick) return quick;
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TutorRequest;
@@ -42,6 +72,18 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServiceClient();
+    const existing = await supabase
+      .from("topic_content")
+      .select("*")
+      .eq("subject", subject)
+      .eq("subtopic", topic)
+      .single();
+    if (existing.data && mode !== "chat") {
+      const cached = buildModeContentFromCache(existing.data as Record<string, unknown>, mode);
+      if (cached) {
+        return NextResponse.json({ message: cached, cached: true });
+      }
+    }
     const { data: studentData } = await supabase
       .from("students")
       .select("target_grade")
@@ -136,7 +178,7 @@ The student is targeting Grade ${resolvedTargetGrade}. ${gradeInstruction}`;
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 400,
         system: systemPrompt,
         messages: anthropicMessages,
@@ -161,6 +203,14 @@ The student is targeting Grade ${resolvedTargetGrade}. ${gradeInstruction}`;
       .replace(/\*/g, "")
       .replace(/`{1,3}/g, "")
       .trim();
+
+    if (mode !== "chat" && cleanedText) {
+      await supabase.from("topic_content").upsert({
+        subject,
+        subtopic: topic,
+        content: cleanedText,
+      });
+    }
 
     return NextResponse.json({ message: cleanedText });
   } catch (error) {

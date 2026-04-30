@@ -220,13 +220,20 @@ const getSubtopicTime = (subject: string, subtopicName: string): string => {
 
 export default function LearnSubjectPage() {
   const params = useParams<{ subject: string }>();
-  const subject = decodeURIComponent(params.subject);
+  const rawSubject = params?.subject;
+  const normalizedParam = Array.isArray(rawSubject) ? rawSubject[0] : rawSubject;
+  const subject = normalizedParam ? decodeURIComponent(normalizedParam) : "";
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [studiedTopics, setStudiedTopics] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!subject) {
+      setIsLoading(false);
+      setError("No subject provided.");
+      return;
+    }
     const loadMastery = async () => {
       setIsLoading(true);
       setError(null);
@@ -274,8 +281,22 @@ export default function LearnSubjectPage() {
     <main className="mx-auto min-h-screen max-w-5xl bg-[#F7F8FA] px-4 pb-24 pt-6 sm:px-6">
       <h1 className="heading-font text-3xl font-bold text-slate-900">{heading}</h1>
 
+      {!subject && (
+        <article className="mt-5 rounded-2xl bg-white p-6 shadow-card">
+          <p className="text-sm text-slate-700">Subject is missing. Please return to Learn and choose a subject.</p>
+          <Link href="/learn" className="mt-3 inline-block rounded-lg bg-brand-teal px-4 py-2 text-sm font-semibold text-white">
+            Back to Learn
+          </Link>
+        </article>
+      )}
+
       {isLoading && <p className="mt-4 text-sm text-slate-600">Loading topics...</p>}
-      {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+      {error && (
+        <article className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-700">Could not load learning progress right now.</p>
+          <p className="mt-1 text-xs text-red-600">{error}</p>
+        </article>
+      )}
 
       <section className="mt-5 space-y-3">
         {!isChemistry && (
