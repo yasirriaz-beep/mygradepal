@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 type ParsedQuestion = {
   subject: string | null;
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, imported: parsed.length });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Bulk import failed.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

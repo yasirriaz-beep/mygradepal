@@ -1,783 +1,503 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
-import BottomNav from "@/components/BottomNav";
-import FinishSession from "@/components/FinishSession";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { startSession, updateSession } from "@/lib/studySessionClient";
-import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
 
-const TEAL = "#189080";
-const ORANGE = "#f5731e";
+type ResultType = "got_it" | "close" | "missed";
 
-const QUESTION_TYPE_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  mcq: { border: "#1D9E75", bg: "#E1F5EE", text: "#0F6E56" },
-  theory: { border: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
-  practical: { border: "#D85A30", bg: "#FAECE7", text: "#712B13" },
-};
-
-const SUBJECTS = [
-  { name: "Chemistry", code: "0620", color: TEAL },
-  { name: "Physics", code: "0625", color: "#137265" },
-  { name: "Mathematics", code: "0580", color: ORANGE },
-  { name: "Biology", code: "0610", color: "#16a34a" },
-];
-
-const CHEMISTRY_TOPICS = [
-  "States of Matter",
-  "Atoms, Elements and Compounds",
-  "Stoichiometry",
-  "Electrochemistry",
-  "Chemical Energetics",
-  "Chemical Reactions",
-  "Acids, Bases and Salts",
-  "The Periodic Table",
-  "Metals",
-  "Chemistry of the Environment",
-  "Organic Chemistry",
-  "Experimental Techniques & Analysis",
-];
-
-const getChapterFromTopic = (topicParam: string): string => {
-  const t = topicParam.toLowerCase();
-
-  if (
-    t.includes("state") ||
-    t.includes("solid") ||
-    t.includes("liquid") ||
-    t.includes("gas") ||
-    t.includes("melting") ||
-    t.includes("boiling") ||
-    t.includes("evapor") ||
-    t.includes("diffusion") ||
-    t.includes("heating curve") ||
-    t.includes("cooling curve") ||
-    (t.includes("pressure") && t.includes("volume"))
-  )
-    return "States of Matter";
-
-  if (
-    t.includes("atom") ||
-    t.includes("element") ||
-    t.includes("compound") ||
-    t.includes("bond") ||
-    t.includes("ionic") ||
-    t.includes("covalent") ||
-    t.includes("metallic") ||
-    t.includes("isotope") ||
-    t.includes("electron config") ||
-    t.includes("proton") ||
-    t.includes("neutron") ||
-    t.includes("diamond") ||
-    t.includes("graphite") ||
-    t.includes("mixture")
-  )
-    return "Atoms, Elements and Compounds";
-
-  if (
-    t.includes("mole") ||
-    t.includes("stoich") ||
-    t.includes("empirical") ||
-    t.includes("molecular formula") ||
-    t.includes("concentration") ||
-    t.includes("reacting mass") ||
-    t.includes("balancing") ||
-    t.includes("avogadro") ||
-    t.includes("gas volume") ||
-    t.includes("yield")
-  )
-    return "Stoichiometry";
-
-  if (
-    t.includes("electrolysis") ||
-    t.includes("electroplat") ||
-    t.includes("fuel cell") ||
-    t.includes("anode") ||
-    t.includes("cathode") ||
-    t.includes("brine") ||
-    t.includes("electrochem")
-  )
-    return "Electrochemistry";
-
-  if (
-    t.includes("exothermic") ||
-    t.includes("endothermic") ||
-    t.includes("bond energy") ||
-    t.includes("activation energy") ||
-    t.includes("energy profile") ||
-    t.includes("energetic")
-  )
-    return "Chemical Energetics";
-
-  if (
-    t.includes("rate of reaction") ||
-    t.includes("collision") ||
-    t.includes("equilibrium") ||
-    t.includes("reversible") ||
-    t.includes("catalyst") ||
-    t.includes("rate graph")
-  )
-    return "Chemical Reactions";
-
-  if (
-    t.includes("acid") ||
-    t.includes("alkali") ||
-    t.includes("neutrali") ||
-    t.includes("titration") ||
-    t.includes("salt") ||
-    t.includes("ph scale") ||
-    t.includes("indicator") ||
-    t.includes("oxide")
-  )
-    return "Acids, Bases and Salts";
-
-  if (
-    t.includes("group 1") ||
-    t.includes("group 7") ||
-    t.includes("halogen") ||
-    t.includes("alkali metal") ||
-    t.includes("transition metal") ||
-    t.includes("period 3") ||
-    t.includes("periodic table")
-  )
-    return "The Periodic Table";
-
-  if (
-    t.includes("reactivity series") ||
-    t.includes("blast furnace") ||
-    t.includes("rusting") ||
-    t.includes("alloy") ||
-    t.includes("extraction of metal") ||
-    t.includes("aluminium extraction") ||
-    t.includes("sacrificial") ||
-    t.includes("galvani")
-  )
-    return "Metals";
-
-  if (
-    t.includes("water treatment") ||
-    t.includes("hard water") ||
-    t.includes("air pollution") ||
-    t.includes("greenhouse") ||
-    t.includes("eutrophication") ||
-    t.includes("fertiliser") ||
-    t.includes("acid rain") ||
-    t.includes("environment")
-  )
-    return "Chemistry of the Environment";
-
-  if (
-    t.includes("alkane") ||
-    t.includes("alkene") ||
-    t.includes("alcohol") ||
-    t.includes("ester") ||
-    t.includes("polymer") ||
-    t.includes("fermentation") ||
-    t.includes("carboxylic") ||
-    t.includes("amino acid") ||
-    t.includes("organic") ||
-    t.includes("crude oil") ||
-    t.includes("cracking") ||
-    t.includes("nylon")
-  )
-    return "Organic Chemistry";
-
-  if (
-    t.includes("filtration") ||
-    t.includes("distillation") ||
-    t.includes("chromatography") ||
-    t.includes("flame test") ||
-    t.includes("rf value") ||
-    t.includes("experimental") ||
-    t.includes("qualitative") ||
-    t.includes("gas test") ||
-    t.includes("ion test")
-  )
-    return "Experimental Techniques & Analysis";
-
-  // fallback: return original param (handles direct chapter-level clicks)
-  return topicParam;
-};
-
-const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
-  easy: { bg: "#EAF3DE", text: "#27500A" },
-  medium: { bg: "#FAEEDA", text: "#633806" },
-  hard: { bg: "#FCEBEB", text: "#791F1F" },
-};
-
-const DIFFICULTY_ORDER: Record<string, number> = {
-  easy: 1,
-  medium: 2,
-  hard: 3,
-};
-
-type QuestionRow = {
+type Question = {
   id: string;
-  subject: string;
+  question_id: string;
   topic: string;
   subtopic: string;
-  difficulty: string;
   marks: number;
+  difficulty: "easy" | "medium" | "hard";
   year: number;
-  session: string;
   paper_type: string;
+  ao_level: "AO1" | "AO2" | "AO3" | null;
+  question_type: string | null;
   question_text: string;
+  mark_scheme: string | null;
+  exam_tip: string | null;
+  common_mistake: string | null;
+  has_diagram: boolean;
+  image_ref: string | null;
   source: string;
-  diagram_url?: string | null;
 };
 
-function PracticePageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const rawTopic = searchParams.get("topic") ?? "";
-  const chapterTopic = getChapterFromTopic(rawTopic);
+type AttemptRow = {
+  question_id: string;
+  result: ResultType;
+  attempted_at: string;
+};
 
-  const [studentId, setStudentId] = useState("demo-student");
-  const [studentName, setStudentName] = useState("Student");
-  const [sessionId, setSessionId] = useState<string | null>(null);
+const TOPICS = [
+  "Acids Bases and Salts",
+  "Air and Water",
+  "Atoms Elements and Compounds",
+  "Chemical Energetics",
+  "Chemical Reactions",
+  "Electrochemistry",
+  "Experimental Techniques",
+  "Metals",
+  "Organic Chemistry",
+  "States of Matter",
+  "Stoichiometry",
+  "The Periodic Table",
+] as const;
 
-  const [activeSubject, setActiveSubject] = useState(searchParams.get("subject") ?? "Chemistry");
-  const [activeTopic, setActiveTopic] = useState<string | null>(chapterTopic || null);
-  const [activeType, setActiveType] = useState("All");
-  const [activeDiff, setActiveDiff] = useState("All");
-  const [hoveredType, setHoveredType] = useState<string | null>(null);
+const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => 2016 + i);
+const PAPER_OPTIONS = ["P21", "P22", "P23", "P41", "P42", "P43"];
+const PAGE_SIZE = 50;
 
-  const [questions, setQuestions] = useState<QuestionRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+function normalizePaperType(paperType: string): string {
+  const value = paperType.toUpperCase().replace(/\s+/g, "");
+  if (value.startsWith("P")) return value;
+  if (/^\d{2}$/.test(value)) return `P${value}`;
+  return value;
+}
 
-  const [isTrialBlocked, setIsTrialBlocked] = useState(false);
-  const [trialUsed, setTrialUsed] = useState(0);
+function normalizeQuestionType(value: string | null): string {
+  const v = String(value ?? "").toLowerCase();
+  if (v.includes("calc")) return "Calculation";
+  if (v.includes("equation")) return "Equation";
+  if (v.includes("diagram")) return "Diagram";
+  if (v.includes("explain")) return "Explanation";
+  return "Short";
+}
 
-  const PAGE_SIZE = 20;
-
-  // -- Auth ---------------------------------------------------------------
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      setStudentId(data.user.id);
-      setStudentName(
-        String(data.user.user_metadata?.child_name ?? data.user.user_metadata?.name ?? "Student")
-      );
-    });
-  }, []);
-
-  // -- Session tracking ---------------------------------------------------
-  useEffect(() => {
-    startSession({ studentId, source: "practice", topic: activeTopic ?? undefined })
-      .then((s) => setSessionId(s.sessionId))
-      .catch(() => setSessionId(null));
-  }, [studentId, activeTopic]);
-
-  useEffect(() => {
-    if (!sessionId) return;
-    const timer = setInterval(() => {
-      void updateSession({ sessionId, studentId, incrementMinutes: 1 });
-    }, 60000);
-    return () => clearInterval(timer);
-  }, [sessionId, studentId]);
-
-  // -- Load questions -----------------------------------------------------
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-
-      // Trial check
-      const usage = await getTrialUsage(studentId);
-      setTrialUsed(usage.questionsUsed);
-      if (usage.questionsUsed >= TRIAL_LIMITS.questions) {
-        setIsTrialBlocked(true);
-        setLoading(false);
-        return;
-      }
-
-      let query = supabase
-        .from("questions")
-        .select(
-          "id, subject, topic, subtopic, difficulty, marks, year, session, paper_type, question_text, source, diagram_url"
-        )
-        .eq("subject", activeSubject)
-        .order("topic", { ascending: true })
-        .order("difficulty", { ascending: true })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-      if (activeTopic) query = query.eq("topic", activeTopic);
-      if (activeType !== "All") query = query.eq("paper_type", activeType);
-      if (activeDiff !== "All") query = query.eq("difficulty", activeDiff.toLowerCase());
-
-      const { data, error } = await query;
-      if (error) console.error(error.message);
-
-      const rows = [...((data ?? []) as QuestionRow[])];
-      rows.sort((a, b) => {
-        const aOrder = DIFFICULTY_ORDER[a.difficulty?.toLowerCase() ?? "medium"] ?? 2;
-        const bOrder = DIFFICULTY_ORDER[b.difficulty?.toLowerCase() ?? "medium"] ?? 2;
-        return aOrder - bOrder;
-      });
-      setQuestions((prev) => {
-        const merged = page === 0 ? rows : [...prev, ...rows];
-        return [...merged].sort((a, b) => {
-          const aOrder = DIFFICULTY_ORDER[a.difficulty?.toLowerCase() ?? "medium"] ?? 2;
-          const bOrder = DIFFICULTY_ORDER[b.difficulty?.toLowerCase() ?? "medium"] ?? 2;
-          return aOrder - bOrder;
-        });
-      });
-      setHasMore(rows.length === PAGE_SIZE);
-      setLoading(false);
-    };
-
-    void load();
-  }, [studentId, activeSubject, activeTopic, activeType, activeDiff, page]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(0);
-  }, [activeSubject, activeTopic, activeType, activeDiff]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    sessionStorage.setItem("practice_question_ids", JSON.stringify(questions.map((q) => String(q.id))));
-  }, [questions]);
-
-  const subjectColor = SUBJECTS.find((s) => s.name === activeSubject)?.color ?? TEAL;
-
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f0faf8",
-        fontFamily: "'DM Sans', sans-serif",
-        paddingBottom: 80,
-      }}
-    >
-      {/* Trial blocked overlay */}
-      {isTrialBlocked && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15,23,42,0.75)",
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              borderRadius: 20,
-              padding: 32,
-              maxWidth: 400,
-              width: "100%",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>
-              Free trial complete
-            </p>
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 20px" }}>
-              {studentName} used {trialUsed} questions during the trial.
-            </p>
-            <button
-              onClick={() => router.push("/pricing")}
-              style={{
-                width: "100%",
-                padding: "13px",
-                borderRadius: 12,
-                background: TEAL,
-                color: "white",
-                fontSize: 15,
-                fontWeight: 700,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Upgrade to continue →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div style={{ background: TEAL, padding: "16px 16px 20px" }}>
-        <h1
-          style={{
-            fontFamily: "'Sora', sans-serif",
-            fontSize: 22,
-            fontWeight: 700,
-            color: "white",
-            margin: "0 0 4px",
-          }}
-        >
-          Practice
-        </h1>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", margin: 0 }}>
-          {activeTopic ?? activeSubject} · Exam style questions
-        </p>
-      </div>
-
-      {/* Subject tabs */}
-      <div
-        style={{
-          background: "white",
-          borderBottom: "1px solid #e5e7eb",
-          display: "flex",
-          overflowX: "auto",
-        }}
-      >
-        {SUBJECTS.map((sub) => (
-          <button
-            key={sub.name}
-            onClick={() => {
-              setActiveSubject(sub.name);
-              setActiveTopic(null);
-            }}
-            style={{
-              flex: "0 0 auto",
-              padding: "12px 18px",
-              fontSize: 13,
-              fontWeight: activeSubject === sub.name ? 700 : 500,
-              color: activeSubject === sub.name ? sub.color : "#9ca3af",
-              background: "none",
-              border: "none",
-              borderBottom: `3px solid ${
-                activeSubject === sub.name ? sub.color : "transparent"
-              }`,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {sub.name}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: "16px 16px 0" }}>
-        {/* Filters */}
-        <div
-          style={{
-            background: "#f3f4f6",
-            border: "1px solid #e5e7eb",
-            borderRadius: 14,
-            padding: "14px 14px 12px",
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <label style={{
-              fontSize: 11, fontWeight: 700, color: "#6b7280",
-              textTransform: "uppercase", letterSpacing: 1,
-              display: "block", marginBottom: 6
-            }}>
-              Topic
-            </label>
-            <select
-              value={activeTopic ?? "All Topics"}
-              onChange={(e) => setActiveTopic(e.target.value === "All Topics" ? null : e.target.value)}
-              style={{
-                width: "100%",
-                maxWidth: 400,
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1.5px solid #e5e7eb",
-                fontSize: 14,
-                color: "#111827",
-                background: "white",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                appearance: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 12px center",
-                paddingRight: 36,
-              }}
-            >
-              <option value="All Topics">All Topics</option>
-              <option value="States of Matter">States of Matter</option>
-              <option value="Atoms, Elements and Compounds">Atoms, Elements and Compounds</option>
-              <option value="Stoichiometry">Stoichiometry</option>
-              <option value="Electrochemistry">Electrochemistry</option>
-              <option value="Chemical Energetics">Chemical Energetics</option>
-              <option value="Chemical Reactions">Chemical Reactions</option>
-              <option value="Acids, Bases and Salts">Acids, Bases and Salts</option>
-              <option value="The Periodic Table">The Periodic Table</option>
-              <option value="Metals">Metals</option>
-              <option value="Chemistry of the Environment">Chemistry of the Environment</option>
-              <option value="Organic Chemistry">Organic Chemistry</option>
-              <option value="Experimental Techniques & Analysis">Experimental Techniques & Analysis</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: 8 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
-              Type
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["All", "MCQ", "Theory", "Practical"].map((type) => {
-                const palette =
-                  type === "All"
-                    ? { bg: "#e8f8f4", border: "#189080", text: "#189080" }
-                    : QUESTION_TYPE_COLORS[type.toLowerCase()];
-                const isHighlighted = activeType === type || hoveredType === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setActiveType(type)}
-                    onMouseEnter={() => setHoveredType(type)}
-                    onMouseLeave={() => setHoveredType(null)}
-                    style={{
-                      padding: "6px 16px",
-                      borderRadius: 20,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      background: isHighlighted ? palette.bg : "white",
-                      color: isHighlighted ? palette.text : "#6b7280",
-                      border: `1.5px solid ${isHighlighted ? palette.border : "#d1d5db"}`,
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 2 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 6px" }}>
-              Difficulty
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["All", "Easy", "Medium", "Hard"].map((diff) => (
-                <button
-                  key={diff}
-                  onClick={() => setActiveDiff(diff)}
-                  style={{
-                    padding: "6px 16px",
-                    borderRadius: 20,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    background: activeDiff === diff ? "#189080" : "white",
-                    color: activeDiff === diff ? "white" : "#189080",
-                    border: "1.5px solid #189080"
-                  }}
-                >
-                  {diff}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Results count */}
-        <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 12px" }}>
-          {loading && page === 0 ? "Loading..." : `${questions.length} questions${hasMore ? "+" : ""}`}
-        </p>
-
-        {/* Question cards */}
-        {!loading && questions.length === 0 ? (
-          <div
-            style={{
-              background: "white",
-              borderRadius: 14,
-              padding: 32,
-              textAlign: "center",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <p style={{ fontSize: 32, margin: "0 0 10px" }}>📭</p>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>
-              No questions found
-            </p>
-            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-              Try a different topic or filter
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {questions.map((q) => {
-              const diffStyle =
-                DIFFICULTY_COLORS[q.difficulty?.toLowerCase()] ?? DIFFICULTY_COLORS.medium;
-              const typeStyle =
-                QUESTION_TYPE_COLORS[(q.paper_type ?? "MCQ").toLowerCase()] ?? QUESTION_TYPE_COLORS.mcq;
-              const returnTo = `/practice?subject=${encodeURIComponent(activeSubject)}${
-                activeTopic ? `&topic=${encodeURIComponent(activeTopic)}` : ""
-              }`;
-              return (
-                <div
-                  key={q.id}
-                  style={{
-                    background: "white",
-                    borderRadius: 14,
-                    border: "1px solid #e5e7eb",
-                    borderLeft: `4px solid ${typeStyle.border}`,
-                    padding: "14px 16px",
-                  }}
-                >
-                  {/* Top row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: typeStyle.text,
-                        background: typeStyle.bg,
-                        borderRadius: 6,
-                        padding: "2px 8px",
-                      }}
-                    >
-                      {q.paper_type ?? "MCQ"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: diffStyle.text,
-                        background: diffStyle.bg,
-                        borderRadius: 6,
-                        padding: "2px 8px",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {q.difficulty ?? "medium"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "#92400e",
-                        background: "#fff7ed",
-                        borderRadius: 6,
-                        padding: "2px 8px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      Expert
-                    </span>
-                    <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: "auto" }}>
-                      {q.marks} mark{q.marks !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-
-                  {/* Topic */}
-                  <p style={{ fontSize: 12, fontWeight: 600, color: typeStyle.text, margin: "0 0 8px" }}>
-                    {q.topic} {q.subtopic ? `· ${q.subtopic}` : ""}
-                  </p>
-
-                  {/* Question preview */}
-                  {q.diagram_url && (
-                    <div
-                      style={{
-                        marginBottom: 12,
-                        borderRadius: 10,
-                        overflow: "hidden",
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <img
-                        src={q.diagram_url}
-                        alt="Question diagram"
-                        style={{ width: "100%", display: "block" }}
-                      />
-                    </div>
-                  )}
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: "#1f2937",
-                      lineHeight: 1.6,
-                      margin: "0 0 12px",
-                      fontWeight: 400,
-                    }}
-                  >
-                    {q.question_text}
-                  </p>
-
-                  {/* Attempt button */}
-                  <Link
-                    href={`/question?id=${encodeURIComponent(String(q.id))}&index=${questions.findIndex((item) => item.id === q.id) + 1}&total=${questions.length}&returnTo=${encodeURIComponent(returnTo)}`}
-                    style={{
-                      display: "inline-block",
-                      background: typeStyle.bg,
-                      color: typeStyle.text,
-                      borderRadius: 8,
-                      padding: "8px 16px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      textDecoration: "none",
-                      border: `1px solid ${typeStyle.border}`,
-                    }}
-                  >
-                    Attempt question →
-                  </Link>
-                </div>
-              );
-            })}
-
-            {/* Load more */}
-            {hasMore && (
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 12,
-                  background: "white",
-                  border: `1.5px solid ${subjectColor}`,
-                  color: subjectColor,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  marginTop: 4,
-                }}
-              >
-                {loading ? "Loading..." : "Load more questions →"}
-              </button>
-            )}
-          </div>
-        )}
-
-        <div style={{ margin: "14px 0 6px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          {[
-            { label: "MCQ", color: QUESTION_TYPE_COLORS.mcq.border },
-            { label: "Theory", color: QUESTION_TYPE_COLORS.theory.border },
-            { label: "Practical", color: QUESTION_TYPE_COLORS.practical.border },
-          ].map((item) => (
-            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: item.color, display: "inline-block" }} />
-              <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <BottomNav />
-      <Suspense fallback={null}>
-        <FinishSession />
-      </Suspense>
-    </main>
-  );
+function getPaperIdFromQuestionId(questionId: string): string | null {
+  // Example: 0620_s25_p42_q1a -> 0620_s25_p42
+  const parts = questionId.split("_q");
+  if (parts.length < 2) return null;
+  return parts[0];
 }
 
 export default function PracticePage() {
-  return (
-    <Suspense
-      fallback={
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <p>Loading...</p>
-        </div>
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
+  const [activeSubtopic, setActiveSubtopic] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState("All");
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
+  const [paper, setPaper] = useState("All");
+  const [aoLevel, setAoLevel] = useState("All");
+  const [qType, setQType] = useState("All");
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
+  const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
+  const [saveStatus, setSaveStatus] = useState<string>("");
+  const [userId, setUserId] = useState("demo-user");
+  const [attemptsByQuestionId, setAttemptsByQuestionId] = useState<Record<string, ResultType>>({});
+  const [feedbackByCardId, setFeedbackByCardId] = useState<Record<string, ResultType>>({});
+  const feedbackRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [cursor, setCursor] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalAvailable, setTotalAvailable] = useState<number | null>(null);
+  const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.id) setUserId(data.user.id);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const loadAttempts = async () => {
+      const { data, error } = await supabase
+        .from("user_attempts")
+        .select("question_id, result, attempted_at")
+        .eq("user_id", userId)
+        .order("attempted_at", { ascending: false });
+
+      if (error) return;
+
+      const latest: Record<string, ResultType> = {};
+      for (const row of (data ?? []) as AttemptRow[]) {
+        if (!latest[row.question_id]) latest[row.question_id] = row.result;
       }
-    >
-      <PracticePageContent />
-    </Suspense>
+      setAttemptsByQuestionId(latest);
+    };
+    void loadAttempts();
+  }, [userId]);
+
+  const loadBatch = async (from: number, append: boolean) => {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error, count } = await supabase
+      .from("questions")
+      .select("*", { count: "exact" })
+      .eq("source", "past_paper")
+      .order("question_id", { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      console.error("[practice] failed to load questions", {
+        message: error.message,
+        hint: error.hint,
+        details: error.details,
+        note: "If this is a permission/RLS issue, ensure anon role has SELECT on public.questions and an allow SELECT policy.",
+      });
+      return;
+    }
+
+    const rows = (data ?? []) as Question[];
+    setTotalAvailable(count ?? null);
+    console.log(`[practice] fetched ${rows.length} rows (range ${from}-${to})`);
+    setAllQuestions((prev) => (append ? [...prev, ...rows] : rows));
+
+    const newCursor = from + rows.length;
+    setCursor(newCursor);
+    if (rows.length < PAGE_SIZE) {
+      setHasMore(false);
+    } else if (typeof count === "number") {
+      setHasMore(newCursor < count);
+    }
+  };
+
+  useEffect(() => {
+    const loadInitial = async () => {
+      setLoading(true);
+      setAllQuestions([]);
+      setCursor(0);
+      setHasMore(true);
+      await loadBatch(0, false);
+      setLoading(false);
+    };
+    void loadInitial();
+  }, []);
+
+  useEffect(() => {
+    const loadTopicCounts = async () => {
+      const { data, error } = await supabase
+        .from("questions")
+        .select("topic")
+        .eq("source", "past_paper");
+      if (error) {
+        console.error("[practice] failed to load topic counts", error.message);
+        return;
+      }
+      const counts: Record<string, number> = {};
+      for (const t of TOPICS) counts[t] = 0;
+      for (const row of (data ?? []) as Array<{ topic?: string }>) {
+        const topic = row.topic ?? "";
+        if (counts[topic] !== undefined) counts[topic] += 1;
+      }
+      setTopicCounts(counts);
+    };
+    void loadTopicCounts();
+  }, []);
+
+  const subtopicMap = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const q of allQuestions) {
+      if (!map[q.topic]) map[q.topic] = new Set();
+      if (q.subtopic) map[q.topic].add(q.subtopic);
+    }
+    return map;
+  }, [allQuestions]);
+
+  const filtered = useMemo(() => {
+    return allQuestions.filter((q) => {
+      const qPaper = normalizePaperType(q.paper_type);
+      const qDifficulty = q.difficulty?.toLowerCase() ?? "medium";
+      const questionType = normalizeQuestionType(q.question_type);
+      const topicMatch = !activeTopic || q.topic === activeTopic;
+      const subtopicMatch = !activeSubtopic || q.subtopic === activeSubtopic;
+      const difficultyMatch = difficulty === "All" || qDifficulty === difficulty.toLowerCase();
+      const yearMatch = selectedYears.length === 0 || selectedYears.includes(Number(q.year));
+      const paperMatch = paper === "All" || qPaper === paper;
+      const aoMatch = aoLevel === "All" || (q.ao_level ?? "") === aoLevel;
+      const typeMatch = qType === "All" || questionType === qType;
+      return topicMatch && subtopicMatch && difficultyMatch && yearMatch && paperMatch && aoMatch && typeMatch;
+    });
+  }, [allQuestions, activeTopic, activeSubtopic, difficulty, selectedYears, paper, aoLevel, qType]);
+
+  const attemptedCount = useMemo(
+    () => filtered.filter((q) => Boolean(attemptsByQuestionId[q.question_id])).length,
+    [filtered, attemptsByQuestionId],
+  );
+  const attemptedPct = filtered.length > 0 ? Math.round((attemptedCount / filtered.length) * 100) : 0;
+
+  const saveAttempt = async (questionId: string, cardId: string, result: ResultType) => {
+    // Optimistic update for immediate chip/progress feedback.
+    setAttemptsByQuestionId((prev) => ({ ...prev, [questionId]: result }));
+    setFeedbackByCardId((prev) => ({ ...prev, [cardId]: result }));
+    setTimeout(() => {
+      feedbackRefs.current[cardId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    const res = await fetch("/api/practice/attempt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, question_id: questionId, result }),
+    });
+    if (res.ok) setSaveStatus("Attempt saved");
+  };
+
+  const loadMoreQuestions = async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    await loadBatch(cursor, true);
+    setLoadingMore(false);
+  };
+
+  if (loading) return <div className="p-6">Loading questions...</div>;
+
+  return (
+    <div className="min-h-screen bg-[#F7F8FA] p-4 md:p-6">
+      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+        <aside className="rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-slate-700">Topics</h2>
+          <div className="space-y-2">
+            {TOPICS.map((topic) => (
+              <div key={topic} className="rounded-lg border border-slate-100">
+                <button
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${activeTopic === topic ? "bg-teal-50 text-teal-700" : "text-slate-700"}`}
+                  onClick={() => {
+                    setActiveTopic((prev) => (prev === topic ? null : topic));
+                    setActiveSubtopic(null);
+                  }}
+                >
+                  <span>{topic}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{topicCounts[topic] ?? 0}</span>
+                </button>
+                <button
+                  className="w-full border-t border-slate-100 px-3 py-1 text-left text-xs text-slate-500"
+                  onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
+                >
+                  {openTopics[topic] ? "Hide subtopics" : "Show subtopics"}
+                </button>
+                {openTopics[topic] && (
+                  <div className="px-3 pb-2">
+                    {Array.from(subtopicMap[topic] ?? []).map((sub) => (
+                      <button
+                        key={sub}
+                        className={`block w-full rounded px-2 py-1 text-left text-xs ${activeSubtopic === sub ? "bg-teal-100 text-teal-800" : "text-slate-600 hover:bg-slate-100"}`}
+                        onClick={() => {
+                          setActiveTopic(topic);
+                          setActiveSubtopic((prev) => (prev === sub ? null : sub));
+                        }}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <section className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              {attemptedCount} / {filtered.length} questions attempted
+            </p>
+            <div className="h-2 w-full rounded-full bg-slate-200">
+              <div
+                className="h-2 rounded-full bg-teal-600 transition-all"
+                style={{ width: `${attemptedPct}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="grid gap-3 md:grid-cols-5">
+              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
+                <option>All</option><option>Easy</option><option>Medium</option><option>Hard</option>
+              </select>
+              <select
+                multiple
+                value={selectedYears.map(String)}
+                onChange={(e) => {
+                  const vals = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                  setSelectedYears(vals);
+                }}
+                className="h-28 rounded border border-slate-300 px-2 py-2 text-sm"
+              >
+                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={paper} onChange={(e) => setPaper(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
+                <option>All</option>
+                {PAPER_OPTIONS.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              <select value={aoLevel} onChange={(e) => setAoLevel(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
+                <option>All</option><option>AO1</option><option>AO2</option><option>AO3</option>
+              </select>
+              <select value={qType} onChange={(e) => setQType(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
+                <option>All</option><option>Short</option><option>Calculation</option><option>Equation</option><option>Diagram</option><option>Explanation</option>
+              </select>
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+              No questions match current filters.
+            </div>
+          ) : (
+            <>
+              {filtered.map((q) => {
+                const isExpanded = expandedQuestion === q.id;
+                const showAns = !!showAnswer[q.id];
+                const attempt = attemptsByQuestionId[q.question_id];
+                const feedback = feedbackByCardId[q.id];
+                const chip =
+                  attempt === "got_it"
+                    ? { label: "Got it", cls: "bg-green-100 text-green-700" }
+                    : attempt === "close"
+                      ? { label: "Close", cls: "bg-amber-100 text-amber-700" }
+                      : attempt === "missed"
+                        ? { label: "Missed it", cls: "bg-red-100 text-red-700" }
+                        : { label: "Not attempted", cls: "bg-slate-100 text-slate-600" };
+                return (
+                  <div key={q.id} className="rounded-xl border border-slate-200 bg-white p-6">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded bg-slate-100 px-2 py-1">{q.topic}</span>
+                      <span className="rounded bg-slate-100 px-2 py-1">{q.subtopic}</span>
+                      <span className="rounded bg-amber-100 px-2 py-1">{q.marks} marks</span>
+                      <span className="rounded bg-emerald-100 px-2 py-1 capitalize">{q.difficulty}</span>
+                      <span className="rounded bg-indigo-100 px-2 py-1">{q.year}</span>
+                      <span className={`rounded px-2 py-1 ${chip.cls}`}>{chip.label}</span>
+                    </div>
+                    <button
+                      className="text-left text-sm font-medium text-slate-800 hover:text-teal-700"
+                      onClick={() => setExpandedQuestion(isExpanded ? null : q.id)}
+                    >
+                      {q.question_id} {isExpanded ? "▲" : "▼"}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="mt-3 space-y-3 text-sm text-slate-700">
+                        <p className="text-[18px] leading-[1.8]">{q.question_text}</p>
+                        {q.has_diagram && (
+                          <>
+                            {q.figure_description?.trim() ? (
+                              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                  Diagram
+                                </p>
+                                <p className="text-sm text-indigo-900">{q.figure_description}</p>
+                              </div>
+                            ) : q.image_ref ? (
+                              <img
+                                src={`/output/images/${q.image_ref}`}
+                                alt="Question diagram"
+                                className="max-h-80 rounded border border-slate-200 object-contain"
+                              />
+                            ) : (
+                              <div className="rounded-lg border border-slate-200 bg-slate-100 p-3 text-slate-600">
+                                <p className="text-sm">Diagram required — refer to original paper.</p>
+                                {getPaperIdFromQuestionId(q.question_id) && (
+                                  <a
+                                    href={`/papers/${getPaperIdFromQuestionId(q.question_id)}_qp.pdf`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-1 inline-block text-xs font-medium text-slate-700 underline"
+                                  >
+                                    Download original PDF
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        <button
+                          className="rounded border border-slate-300 px-3 py-1 text-xs"
+                          onClick={() => setShowAnswer((prev) => ({ ...prev, [q.id]: !prev[q.id] }))}
+                        >
+                          {showAns ? "Hide Answer" : "Show Answer"}
+                        </button>
+
+                        {showAns && <p className="rounded bg-slate-50 p-3">{q.mark_scheme ?? "No answer available."}</p>}
+
+                        <div className="flex gap-2">
+                          <button className="rounded bg-green-600 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "got_it")}>Got it</button>
+                          <button className="rounded bg-amber-500 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "close")}>Close</button>
+                          <button className="rounded bg-red-600 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "missed")}>Missed it</button>
+                        </div>
+
+                        {feedback && (
+                          <div
+                            ref={(el) => {
+                              feedbackRefs.current[q.id] = el;
+                            }}
+                            className={`rounded-lg border p-3 ${
+                              feedback === "got_it"
+                                ? "border-green-200 bg-[#F0FFF4] text-green-900"
+                                : feedback === "close"
+                                  ? "border-blue-200 bg-[#F0F7FF] text-blue-900"
+                                  : "border-red-200 bg-[#FFF0F0] text-red-900"
+                            }`}
+                          >
+                            {feedback === "got_it" && (
+                              <>
+                                <p className="mb-2 text-sm font-semibold">Well done - full marks</p>
+                                <p className="rounded bg-white/70 p-2 text-sm font-medium">{q.mark_scheme ?? "No answer available."}</p>
+                              </>
+                            )}
+
+                            {feedback === "close" && (
+                              <>
+                                <p className="mb-2 text-sm font-semibold">Almost - here&apos;s what you missed</p>
+                                <p className="mb-2 rounded bg-white/70 p-2 text-sm">{q.mark_scheme ?? "No mark scheme available."}</p>
+                                {q.exam_tip && (
+                                  <p className="text-sm">
+                                    <span className="font-semibold">Exam tip:</span> {q.exam_tip}
+                                  </p>
+                                )}
+                              </>
+                            )}
+
+                            {feedback === "missed" && (
+                              <>
+                                <p className="mb-2 text-sm font-semibold">Let&apos;s learn from this</p>
+                                <p className="mb-2 rounded bg-white/70 p-2 text-sm">{q.mark_scheme ?? "No answer available."}</p>
+                                {q.common_mistake && (
+                                  <p className="mb-2 text-sm">
+                                    <span className="font-semibold">Common mistake:</span> {q.common_mistake}
+                                  </p>
+                                )}
+                                {q.exam_tip && (
+                                  <p className="mb-2 text-sm">
+                                    <span className="font-semibold">Exam tip:</span> {q.exam_tip}
+                                  </p>
+                                )}
+                                <a
+                                  href={`/learn?subtopic=${encodeURIComponent(q.subtopic)}`}
+                                  className="inline-block rounded bg-red-700 px-3 py-1 text-xs font-medium text-white"
+                                >
+                                  Study this topic
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                <span>
+                  Loaded {allQuestions.length}
+                  {totalAvailable !== null ? ` of ${totalAvailable}` : ""} questions
+                </span>
+                <button
+                  className="rounded border border-slate-300 px-3 py-1 disabled:opacity-50"
+                  disabled={!hasMore || loadingMore}
+                  onClick={() => void loadMoreQuestions()}
+                >
+                  {loadingMore ? "Loading..." : hasMore ? "Load more" : "All loaded"}
+                </button>
+              </div>
+            </>
+          )}
+          {saveStatus && <p className="text-xs text-emerald-700">{saveStatus}</p>}
+        </section>
+      </div>
+    </div>
   );
 }

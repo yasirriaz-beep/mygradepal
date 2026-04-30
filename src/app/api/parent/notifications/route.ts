@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 const demo = [
   {
@@ -27,7 +28,8 @@ export async function GET() {
       .eq("parent_id", "demo-parent")
       .order("sent_at", { ascending: false });
     return NextResponse.json({ notifications: (data?.length ? data : demo) });
-  } catch {
+  } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     return NextResponse.json({ notifications: demo });
   }
 }
@@ -38,6 +40,7 @@ export async function PATCH() {
     await supabase.from("notifications").update({ read: true }).eq("parent_id", "demo-parent");
     return NextResponse.json({ ok: true });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to mark notifications read.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

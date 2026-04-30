@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,7 +73,8 @@ export async function POST(req: NextRequest) {
       }
 
       b64 = dalleData.data?.[0]?.b64_json ?? "";
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { component: "question_import" } });
       return NextResponse.json({ 
         error: "Parse error: " + dalleText.slice(0, 200) 
       }, { status: 500 });
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, diagramUrl: urlData.publicUrl });
 
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     console.error("Diagram generation error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

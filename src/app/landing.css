@@ -159,6 +159,125 @@ nav {
   max-width: 760px;
 }
 
+.hero-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 40px;
+  align-items: center;
+}
+
+.hero-mockup {
+  background: linear-gradient(165deg, rgba(9, 39, 39, 0.96), rgba(8, 31, 31, 0.88));
+  border: 1px solid rgba(136, 235, 224, 0.28);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 45px rgba(2, 8, 8, 0.45);
+  color: #e6fbf8;
+}
+
+.mockup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.mockup-badge {
+  background: rgba(61, 214, 190, 0.2);
+  color: var(--teal-200);
+  border: 1px solid rgba(136, 235, 224, 0.3);
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mockup-streak {
+  color: #ffe7a3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mockup-title {
+  margin-top: 16px;
+  font-size: 20px;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.mockup-card {
+  margin-top: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(136, 235, 224, 0.2);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.mockup-label {
+  font-size: 11px;
+  color: #9fded6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.mockup-progress-track {
+  margin-top: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mockup-progress-fill {
+  height: 100%;
+  width: 68%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal-300), var(--teal-500));
+}
+
+.mockup-progress-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #b6ece6;
+}
+
+.mockup-next {
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(136, 235, 224, 0.18);
+  background: rgba(7, 22, 22, 0.62);
+  padding: 14px;
+}
+
+.mockup-next-label {
+  color: #8fd5cb;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.mockup-next-topic {
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .hero-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .hero-mockup {
+    max-width: 480px;
+  }
+}
+
 .hero-eyebrow {
   font-size: 12px;
   letter-spacing: 0.11em;

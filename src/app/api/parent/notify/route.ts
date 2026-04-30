@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 type NotifyBody = {
   parentId?: string;
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     console.log(`[notify] ${type} -> parent ${parentId}: ${message}`);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Notification failed.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

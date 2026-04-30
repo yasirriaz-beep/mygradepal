@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 type Body = {
   sessionId?: string;
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
       questionsAttempted: attempted,
     });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to update session.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

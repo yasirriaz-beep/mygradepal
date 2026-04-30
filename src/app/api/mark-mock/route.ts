@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { markMockAnswer } from "@/lib/claude";
 
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to mark mock answer.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

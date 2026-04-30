@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    Sentry.captureException(err, { tags: { component: "question_import" } });
     console.error("Approve error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
@@ -76,6 +78,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
+    Sentry.captureException(err, { tags: { component: "question_import" } });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

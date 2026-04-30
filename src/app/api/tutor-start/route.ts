@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
@@ -97,6 +98,7 @@ Keep it concise and student-friendly.`,
 
     return NextResponse.json({ message: cleanedMessage, mastery });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to start tutor.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

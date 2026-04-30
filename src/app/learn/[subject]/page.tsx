@@ -271,7 +271,7 @@ export default function LearnSubjectPage() {
   }, {} as Record<string, ChapterTopic[]>);
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-6 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-5xl bg-[#F7F8FA] px-4 pb-24 pt-6 sm:px-6">
       <h1 className="heading-font text-3xl font-bold text-slate-900">{heading}</h1>
 
       {isLoading && <p className="mt-4 text-sm text-slate-600">Loading topics...</p>}
@@ -279,7 +279,7 @@ export default function LearnSubjectPage() {
 
       <section className="mt-5 space-y-3">
         {!isChemistry && (
-          <article className="rounded-2xl bg-white p-5 shadow-card">
+          <article className="rounded-2xl bg-white p-6 shadow-card">
             <p className="text-sm text-slate-600">
               Chapter-based ordering is currently configured for Chemistry. Select Chemistry to view textbook chapters.
             </p>
@@ -307,7 +307,7 @@ export default function LearnSubjectPage() {
                 const chapterKey = `chapter-${chapter.chapter}`;
                 const isOpen = expanded[chapterKey] ?? chapter.chapter <= 2;
                 return (
-                  <article key={chapterKey} className="mb-3 rounded-2xl bg-white p-4 shadow-card">
+                  <article key={chapterKey} className="mb-3 rounded-2xl bg-white p-6 shadow-card">
                     <button
                       onClick={() => setExpanded((prev) => ({ ...prev, [chapterKey]: !isOpen }))}
                       className="flex w-full items-center justify-between gap-3 text-left"

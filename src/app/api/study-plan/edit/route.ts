@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (e) {
+    Sentry.captureException(e, { tags: { component: "question_import" } });
     const message = e instanceof Error ? e.message : "Failed to record edit.";
     console.error("[study-plan/edit] unexpected:", message, e);
     return NextResponse.json({ error: message }, { status: 500 });

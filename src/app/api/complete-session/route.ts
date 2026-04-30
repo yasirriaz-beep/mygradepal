@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { updateStreak } from "@/lib/streak";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
     topics_covered:      [topic],
     session_complete:    true,
   });
+  await updateStreak(studentId);
 
   // Get next session
   const { data: next } = await supabase

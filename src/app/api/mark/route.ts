@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { markAnswer } from "@/lib/claude";
 import { getSupabaseServiceClient } from "@/lib/supabase";
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
     console.log("[/api/mark] Attempt saved successfully, returning JSON response");
     return NextResponse.json(markingResult);
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Unknown server error.";
     console.log("[/api/mark] Unhandled error:", message);
     return NextResponse.json({ error: message }, { status: 500 });

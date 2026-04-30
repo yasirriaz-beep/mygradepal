@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 function redistributeAnswers(questions: Record<string, unknown>[]): Record<string, unknown>[] {
   const targetSequence = ['A', 'B', 'C', 'D'];
@@ -195,7 +196,8 @@ ${existingSummary}`;
       const clean = rawText.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean) as Record<string, unknown>[];
       questions = redistributeAnswers(parsed);
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { component: "question_import" } });
       return NextResponse.json({ error: "Parse failed", raw: rawText.slice(0, 200) }, { status: 422 });
     }
 
@@ -258,6 +260,7 @@ ${existingSummary}`;
       tableName,
     });
   } catch (err) {
+    Sentry.captureException(err, { tags: { component: "question_import" } });
     console.error("Auto-generate error:", err);
     return NextResponse.json({ error: "Generation failed" }, { status: 500 });
   }

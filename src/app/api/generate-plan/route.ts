@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 type StudyMode = "crash" | "rapid" | "full";
 type Priority = "high" | "medium" | "low";
@@ -271,6 +272,7 @@ export async function POST(request: Request) {
       plan: planEntries.slice(0, 7),
     });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Plan generation failed";
     console.error("[generate-plan] unexpected error:", message, error);
     return NextResponse.json({ error: message }, { status: 500 });

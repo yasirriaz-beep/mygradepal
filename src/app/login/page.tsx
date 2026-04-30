@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/Logo";
 import { supabase } from "@/lib/supabase";
 
@@ -9,6 +9,7 @@ type AuthTab = "login" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<AuthTab>("login");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,6 +23,12 @@ export default function LoginPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupComplete, setSignupComplete] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "signup") {
+      setTab("signup");
+    }
+  }, [searchParams]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -102,6 +109,41 @@ export default function LoginPage() {
         },
         { onConflict: "id" },
       );
+
+      if (typeof window !== "undefined") {
+        const rawGuest = localStorage.getItem("mgp_guest_profile");
+        if (rawGuest) {
+          try {
+            const guest = JSON.parse(rawGuest) as {
+              subject: string;
+              exam_date: string;
+              target_grade: string;
+              tier: number;
+              days_per_week: number;
+              session_duration: string;
+              parent_email?: string;
+            };
+            const { error: profileError } = await supabase.from("user_profiles").insert({
+              user_id: data.user.id,
+              subject: guest.subject,
+              exam_date: guest.exam_date,
+              target_grade: guest.target_grade,
+              tier: guest.tier,
+              days_per_week: guest.days_per_week,
+              session_duration: guest.session_duration,
+              parent_email: guest.parent_email ?? null,
+              student_name: childName || null,
+              created_at: new Date().toISOString(),
+            });
+            if (!profileError) {
+              localStorage.removeItem("mgp_guest_profile");
+              localStorage.setItem("mgp_onboarded", "true");
+            }
+          } catch {
+            // Ignore malformed guest payload and continue signup flow.
+          }
+        }
+      }
     }
 
     setIsSubmitting(false);

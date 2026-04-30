@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -244,7 +245,8 @@ Make questions varied — do not repeat the same concept twice.${existingSummary
       const clean = rawText.replace(/```json|```/g, "").trim();
       questions = JSON.parse(clean) as GeneratedQuestion[];
       console.log("DEBUG answers:", questions.map(q => ({ pt: q.paper_type, ca: q.correct_answer })));
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { component: "question_import" } });
       return NextResponse.json(
         { error: "Claude returned invalid JSON. Try again.", raw: rawText.slice(0, 300) },
         { status: 422 }
@@ -254,6 +256,7 @@ Make questions varied — do not repeat the same concept twice.${existingSummary
     const rebalanced = redistributeAnswers(questions);
     return NextResponse.json({ questions: rebalanced, count: rebalanced.length });
   } catch (err) {
+    Sentry.captureException(err, { tags: { component: "question_import" } });
     console.error("Generate error:", err);
     return NextResponse.json({ error: "Generation failed" }, { status: 500 });
   }
@@ -322,6 +325,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ saved: data?.length ?? 0 });
   } catch (err) {
+    Sentry.captureException(err, { tags: { component: "question_import" } });
     console.error("Save error:", err);
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }

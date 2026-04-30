@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -101,7 +102,8 @@ Return ONLY the JSON array. No explanation. No markdown. No preamble.`,
     try {
       const clean = rawText.replace(/```json|```/g, "").trim();
       questions = JSON.parse(clean) as ExtractedQuestion[];
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { component: "question_import" } });
       return NextResponse.json(
         { error: "Claude could not parse the PDF. Try a clearer scan.", raw: rawText.slice(0, 500) },
         { status: 422 },
@@ -113,6 +115,7 @@ Return ONLY the JSON array. No explanation. No markdown. No preamble.`,
       meta: { subject, year, session, paper: paperNum, code: paperCode, total: questions.length },
     });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     console.error("PDF import error:", error);
     return NextResponse.json({ error: "Import failed" }, { status: 500 });
   }
@@ -178,6 +181,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ saved: data?.length ?? 0 });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     console.error("Save error:", error);
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }

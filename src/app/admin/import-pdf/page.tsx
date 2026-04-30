@@ -1,731 +1,415 @@
 "use client";
-import { useRef, useState } from "react";
+
 import Link from "next/link";
+import { DragEvent, Fragment, useMemo, useRef, useState } from "react";
+import SentryErrorBoundary from "@/components/SentryErrorBoundary";
 
-const TEAL = "#189080";
-const ORANGE = "#f5731e";
+type Subject = "Chemistry" | "Physics" | "Mathematics" | "Biology";
+type PaperType = "Paper 2" | "Paper 4" | "Paper 6";
+type ZoneState = "idle" | "valid" | "invalid";
 
-const SUBJECTS = [
-  { name: "Chemistry", code: "0620" },
-  { name: "Physics", code: "0625" },
-  { name: "Mathematics", code: "0580" },
-  { name: "Biology", code: "0610" },
-  { name: "English", code: "0510" },
-  { name: "Pakistan Studies", code: "0448" },
-];
-
-const SESSIONS = ["Feb/Mar", "May/June", "Oct/Nov"];
-const PAPERS = ["1", "2", "3", "4", "5", "6"];
-const YEARS = Array.from({ length: 15 }, (_, i) => String(2024 - i));
-
-interface ExtractedQuestion {
-  question_number: string;
+type ExtractedQuestion = {
+  question_id: string;
   question_text: string;
-  marks: number;
+  answer: string;
+  figure_description?: string;
   topic: string;
   subtopic: string;
-  difficulty: string;
-  mark_scheme: string;
+  marks: number;
+  difficulty: "easy" | "medium" | "hard";
+  ao_level?: "AO1" | "AO2" | "AO3";
+  diagram_required: boolean;
   approved: boolean;
+};
+
+const SUBJECTS: Array<{ label: string; value: Subject }> = [
+  { label: "Chemistry 0620", value: "Chemistry" },
+  { label: "Physics 0625", value: "Physics" },
+  { label: "Maths 0580", value: "Mathematics" },
+  { label: "Biology 0610", value: "Biology" },
+];
+
+const PAPER_TYPES: PaperType[] = ["Paper 2", "Paper 4", "Paper 6"];
+
+function detectSubjectFromFilename(name: string): Subject | null {
+  const lower = name.toLowerCase();
+  if (lower.includes("0620")) return "Chemistry";
+  if (lower.includes("0625")) return "Physics";
+  if (lower.includes("0580")) return "Mathematics";
+  if (lower.includes("0610")) return "Biology";
+  return null;
 }
 
-interface Meta {
-  subject: string;
-  year: string;
-  session: string;
-  paper: string;
-  code: string;
-  total: number;
+function detectPaperTypeFromFilename(name: string): PaperType | null {
+  const lower = name.toLowerCase();
+  const match = lower.match(/_(\d{2})\.pdf$/) ?? lower.match(/_(\d{2})_/);
+  const paperCode = match?.[1];
+  if (!paperCode) return null;
+  if (paperCode.startsWith("2")) return "Paper 2";
+  if (paperCode.startsWith("4")) return "Paper 4";
+  if (paperCode.startsWith("6")) return "Paper 6";
+  return null;
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export default function ImportPDFPage() {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const qpInputRef = useRef<HTMLInputElement>(null);
+  const msInputRef = useRef<HTMLInputElement>(null);
 
-  const [subject, setSubject] = useState("Chemistry");
-  const [year, setYear] = useState("2023");
-  const [session, setSession] = useState("May/June");
-  const [paper, setPaper] = useState("2");
-  const [paperType, setPaperType] = useState<"question" | "markscheme">("question");
+  const [subject, setSubject] = useState<Subject>("Chemistry");
+  const [paperType, setPaperType] = useState<PaperType>("Paper 4");
 
+  const [qpFile, setQpFile] = useState<File | null>(null);
+  const [msFile, setMsFile] = useState<File | null>(null);
+  const [qpZoneState, setQpZoneState] = useState<ZoneState>("idle");
+  const [msZoneState, setMsZoneState] = useState<ZoneState>("idle");
+
+  const [questions, setQuestions] = useState<ExtractedQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [selectedFileName, setSelectedFileName] = useState("");
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [subjectAutoDetected, setSubjectAutoDetected] = useState(false);
+  const [paperTypeAutoDetected, setPaperTypeAutoDetected] = useState(false);
 
-  const [questions, setQuestions] = useState<ExtractedQuestion[]>([]);
-  const [meta, setMeta] = useState<Meta | null>(null);
+  const approvedCount = useMemo(
+    () => questions.filter((q) => q.approved).length,
+    [questions],
+  );
+  const totalMarks = useMemo(
+    () => questions.reduce((sum, q) => sum + Number(q.marks || 0), 0),
+    [questions],
+  );
+  const diagramCount = useMemo(
+    () => questions.filter((q) => q.diagram_required).length,
+    [questions],
+  );
 
-  const paperCode = SUBJECTS.find((s) => s.name === subject)?.code ?? "0620";
+  const canExtract = Boolean(qpFile && msFile && subject && paperType && !loading);
+
+  const zoneClass = (state: ZoneState) => {
+    if (state === "valid") return "border-green-500 bg-green-50";
+    if (state === "invalid") return "border-red-500 bg-red-50";
+    return "border-slate-300 bg-white";
+  };
+
+  const setFile = (file: File | null, target: "qp" | "ms") => {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Only PDF files are allowed.");
+      if (target === "qp") setQpZoneState("invalid");
+      if (target === "ms") setMsZoneState("invalid");
+      return;
+    }
+
+    setError("");
+    if (target === "qp") {
+      setQpFile(file);
+      setQpZoneState("valid");
+    } else {
+      setMsFile(file);
+      setMsZoneState("valid");
+    }
+
+    const detectedSubject = detectSubjectFromFilename(file.name);
+    if (detectedSubject) {
+      setSubject(detectedSubject);
+      setSubjectAutoDetected(true);
+    }
+
+    const detectedPaperType = detectPaperTypeFromFilename(file.name);
+    if (detectedPaperType) {
+      setPaperType(detectedPaperType);
+      setPaperTypeAutoDetected(true);
+    }
+  };
+
+  const onDrop = (e: DragEvent<HTMLDivElement>, target: "qp" | "ms") => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0] ?? null;
+    setFile(file, target);
+  };
 
   const handleExtract = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setError("Please select a PDF file");
-      return;
-    }
-    if (file.type !== "application/pdf") {
-      setError("File must be a PDF");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      setError("PDF must be under 20MB");
-      return;
-    }
+    if (!canExtract || !qpFile || !msFile) return;
 
     setLoading(true);
     setError("");
+    setSuccess("");
     setQuestions([]);
 
     const formData = new FormData();
-    formData.append("pdf", file);
+    formData.append("qp_pdf", qpFile);
+    formData.append("ms_pdf", msFile);
     formData.append("subject", subject);
-    formData.append("year", year);
-    formData.append("session", session);
-    formData.append("paper", paper);
-    formData.append("code", paperCode);
-    formData.append("type", paperType);
+    formData.append("paper_type", paperType);
 
     try {
-      const res = await fetch("/api/admin/import-pdf", { method: "POST", body: formData });
-      const data = (await res.json()) as { questions?: ExtractedQuestion[]; meta?: Meta; error?: string };
-
-      if (!res.ok || data.error) {
-        setError(data.error ?? "Extraction failed");
-        setLoading(false);
-        return;
+      const res = await fetch("/api/admin/extract-pdf", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(data?.error ?? "Extraction failed.");
+      } else {
+        const extracted = (await res.json()) as ExtractedQuestion[];
+        setQuestions(extracted.map((q) => ({ ...q, approved: true })));
       }
-
-      const withApproval = (data.questions ?? []).map((q) => ({ ...q, approved: true }));
-      setQuestions(withApproval);
-      setMeta(data.meta ?? null);
     } catch {
-      setError("Network error — please try again");
+      setError("Network error during extraction.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  const toggleApprove = (idx: number) => {
-    setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, approved: !q.approved } : q)));
+  const handleReject = (id: string) => {
+    setQuestions((prev) =>
+      prev.map((q) => (q.question_id === id ? { ...q, approved: false } : q)),
+    );
   };
 
-  const updateField = (idx: number, field: keyof ExtractedQuestion, value: string | number) => {
-    setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, [field]: value } : q)));
-  };
-
-  const handleSave = async () => {
-    if (!meta) return;
-    const approved = questions.filter((q) => q.approved);
-    if (approved.length === 0) {
-      setError("No questions selected to save");
+  const handleApproveAll = async () => {
+    if (approvedCount === 0) {
+      setError("No approved questions to save.");
       return;
     }
 
     setSaving(true);
     setError("");
-
+    setSuccess("");
     try {
-      const res = await fetch("/api/admin/import-pdf", {
+      const res = await fetch("/api/admin/extract-pdf", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questions, meta }),
+        body: JSON.stringify({
+          meta: { subject, paperType },
+          questions,
+        }),
       });
       const data = (await res.json()) as { saved?: number; error?: string };
-
       if (!res.ok || data.error) {
-        setError(data.error ?? "Save failed");
+        setError(data.error ?? "Save failed.");
       } else {
-        setSuccess(`✓ ${data.saved} questions saved to database successfully!`);
-        setQuestions([]);
-        setMeta(null);
-        setSelectedFileName("");
-        if (fileRef.current) fileRef.current.value = "";
+        setSuccess(`${data.saved ?? 0} questions saved to database`);
       }
     } catch {
-      setError("Save failed — please try again");
+      setError("Save failed.");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
-  const approvedCount = questions.filter((q) => q.approved).length;
-
   return (
-    <div style={{ minHeight: "100vh", background: "#f0faf8", fontFamily: "'DM Sans', sans-serif" }}>
-      <div
-        style={{
-          background: TEAL,
-          padding: "16px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700, color: "white", margin: 0 }}>
-            📄 PDF Import Tool
-          </p>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", margin: "2px 0 0" }}>
-            Upload Cambridge past papers — Claude extracts questions automatically
-          </p>
-        </div>
-        <Link
-          href="/admin?key=mgp2025"
-          style={{
-            fontSize: 13,
-            color: "white",
-            textDecoration: "none",
-            background: "rgba(255,255,255,0.15)",
-            borderRadius: 8,
-            padding: "7px 14px",
-          }}
-        >
-          ← Admin
-        </Link>
-      </div>
-
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px" }}>
-        <div
-          style={{
-            background: "white",
-            borderRadius: 16,
-            padding: "20px",
-            marginBottom: 16,
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#374151",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              margin: "0 0 16px",
-            }}
-          >
-            Step 1 — Select Paper Details
-          </p>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Subject
-              </label>
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "white",
-                }}
-              >
-                {SUBJECTS.map((s) => (
-                  <option key={s.code} value={s.name}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Year
-              </label>
-              <select
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "white",
-                }}
-              >
-                {YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Session
-              </label>
-              <select
-                value={session}
-                onChange={(e) => setSession(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "white",
-                }}
-              >
-                {SESSIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Paper Number
-              </label>
-              <select
-                value={paper}
-                onChange={(e) => setPaper(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "white",
-                }}
-              >
-                {PAPERS.map((p) => (
-                  <option key={p} value={p}>
-                    Paper {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Paper Type
-              </label>
-              <select
-                value={paperType}
-                onChange={(e) => setPaperType(e.target.value as "question" | "markscheme")}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "white",
-                }}
-              >
-                <option value="question">Question Paper</option>
-                <option value="markscheme">Mark Scheme</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-                Paper Code
-              </label>
-              <div
-                style={{
-                  padding: "9px 10px",
-                  borderRadius: 8,
-                  border: "1.5px solid #e5e7eb",
-                  fontSize: 13,
-                  background: "#f8fafc",
-                  color: "#374151",
-                  fontWeight: 600,
-                }}
-              >
-                {paperCode}/{year}/{session === "May/June" ? "s" : session === "Oct/Nov" ? "w" : "m"}
-                {year.slice(2)}/qp{paper}
-              </div>
-            </div>
-          </div>
+    <SentryErrorBoundary>
+      <div className="mx-auto max-w-7xl p-6">
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900">Admin PDF Extraction</h1>
+          <Link href="/admin?key=mgp2025" className="text-sm text-teal-700 hover:text-teal-900">
+            Back to Admin
+          </Link>
         </div>
 
-        <div
-          style={{
-            background: "white",
-            borderRadius: 16,
-            padding: "20px",
-            marginBottom: 16,
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#374151",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              margin: "0 0 16px",
-            }}
-          >
-            Step 2 — Upload PDF
-          </p>
-
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div
-            onClick={() => fileRef.current?.click()}
-            style={{
-              border: "2px dashed #e5e7eb",
-              borderRadius: 12,
-              padding: "32px",
-              textAlign: "center",
-              cursor: "pointer",
-              background: "#fafafa",
-              marginBottom: 14,
-            }}
+            className={`cursor-pointer rounded-xl border-2 border-dashed p-5 transition ${zoneClass(qpZoneState)}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => onDrop(e, "qp")}
+            onClick={() => qpInputRef.current?.click()}
           >
-            <p style={{ fontSize: 32, margin: "0 0 8px" }}>📄</p>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>Click to upload PDF</p>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Download from papacambridge.com · Max 20MB</p>
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              setError("");
-              setSelectedFileName(e.target.files?.[0]?.name ?? "");
-            }}
-          />
-
-          {selectedFileName && (
-            <p style={{ fontSize: 13, color: TEAL, fontWeight: 600, margin: "0 0 12px" }}>✓ {selectedFileName}</p>
-          )}
-
-          <div
-            style={{
-              background: "#f0faf8",
-              borderRadius: 10,
-              padding: "10px 14px",
-              border: "1px solid #a7f3d0",
-              marginBottom: 14,
-            }}
-          >
-            <p style={{ fontSize: 12, fontWeight: 700, color: TEAL, margin: "0 0 4px" }}>How to download from PapaCambridge:</p>
-            <p style={{ fontSize: 12, color: "#374151", margin: 0, lineHeight: 1.6 }}>
-              1. Go to papacambridge.com → IGCSE → {subject}
-              <br />
-              2. Select year and session
-              <br />
-              3. Download the Question Paper PDF
-              <br />
-              4. Upload it here — Claude will extract all questions automatically
+            <p className="text-sm font-semibold text-slate-900">Question Paper (QP)</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {qpFile
+                ? `${qpFile.name} • ${formatFileSize(qpFile.size)}`
+                : "Drop 1 PDF or click to select"}
             </p>
           </div>
 
-          {error && (
-            <div
-              style={{
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderRadius: 8,
-                padding: "10px 14px",
-                marginBottom: 12,
+          <div
+            className={`cursor-pointer rounded-xl border-2 border-dashed p-5 transition ${zoneClass(msZoneState)}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => onDrop(e, "ms")}
+            onClick={() => msInputRef.current?.click()}
+          >
+            <p className="text-sm font-semibold text-slate-900">Mark Scheme (MS)</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {msFile
+                ? `${msFile.name} • ${formatFileSize(msFile.size)}`
+                : "Drop 1 PDF or click to select"}
+            </p>
+          </div>
+        </div>
+
+        <input
+          ref={qpInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null, "qp")}
+        />
+        <input
+          ref={msInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null, "ms")}
+        />
+
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="flex items-center gap-2">
+            <select
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              value={subject}
+              onChange={(e) => {
+                setSubject(e.target.value as Subject);
+                setSubjectAutoDetected(false);
               }}
             >
-              <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}>⚠️ {error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div
-              style={{
-                background: "#f0fdf4",
-                border: "1px solid #a7f3d0",
-                borderRadius: 8,
-                padding: "10px 14px",
-                marginBottom: 12,
+              {SUBJECTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {subjectAutoDetected && (
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
+                Auto-detected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
+              value={paperType}
+              onChange={(e) => {
+                setPaperType(e.target.value as PaperType);
+                setPaperTypeAutoDetected(false);
               }}
             >
-              <p style={{ fontSize: 13, color: "#16a34a", margin: 0 }}>{success}</p>
-            </div>
-          )}
+              {PAPER_TYPES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            {paperTypeAutoDetected && (
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
+                Auto-detected
+              </span>
+            )}
+          </div>
+        </div>
 
+        <div className="mt-4">
           <button
             onClick={() => void handleExtract()}
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "13px",
-              borderRadius: 12,
-              background: loading ? "#e5e7eb" : TEAL,
-              color: loading ? "#9ca3af" : "white",
-              fontSize: 14,
-              fontWeight: 700,
-              border: "none",
-              cursor: loading ? "default" : "pointer",
-              fontFamily: "'Sora', sans-serif",
-            }}
+            disabled={!canExtract}
+            className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {loading ? "⏳ Claude is reading the PDF..." : "Extract Questions →"}
+            {loading && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            )}
+            {loading ? "Extracting..." : "Extract"}
           </button>
-
-          {loading && (
-            <p style={{ fontSize: 12, color: "#6b7280", textAlign: "center", margin: "10px 0 0" }}>
-              This takes 20–40 seconds depending on PDF size...
-            </p>
-          )}
         </div>
 
-        {questions.length > 0 && meta && (
-          <div
-            style={{
-              background: "white",
-              borderRadius: 16,
-              padding: "20px",
-              marginBottom: 16,
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#374151",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    margin: 0,
-                  }}
-                >
-                  Step 3 — Review & Approve
-                </p>
-                <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>
-                  {meta.total} questions extracted · {approvedCount} approved · {meta.subject} {meta.year} {meta.session}{" "}
-                  P{meta.paper}
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => setQuestions((q) => q.map((x) => ({ ...x, approved: true })))}
-                  style={{
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#374151",
-                    cursor: "pointer",
-                  }}
-                >
-                  Select all
-                </button>
-                <button
-                  onClick={() => setQuestions((q) => q.map((x) => ({ ...x, approved: false })))}
-                  style={{
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#374151",
-                    cursor: "pointer",
-                  }}
-                >
-                  Deselect all
-                </button>
-              </div>
+        {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        {success && (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {success}
+          </div>
+        )}
+
+        {questions.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+              {questions.length} questions extracted | {totalMarks} marks total | {diagramCount} diagrams
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {questions.map((q, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    border: `1.5px solid ${q.approved ? TEAL : "#e5e7eb"}`,
-                    borderRadius: 12,
-                    padding: "14px",
-                    background: q.approved ? "#f0fdf9" : "#fafafa",
-                    opacity: q.approved ? 1 : 0.6,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      marginBottom: 10,
-                      gap: 10,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: TEAL,
-                          background: "#e8f8f4",
-                          borderRadius: 6,
-                          padding: "2px 8px",
-                        }}
-                      >
-                        Q{q.question_number}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "#6b7280",
-                          background: "#f3f4f6",
-                          borderRadius: 6,
-                          padding: "2px 8px",
-                        }}
-                      >
-                        {q.marks} mark{q.marks !== 1 ? "s" : ""}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: ORANGE,
-                          background: "#fff7ed",
-                          borderRadius: 6,
-                          padding: "2px 8px",
-                        }}
-                      >
-                        {q.difficulty}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => toggleApprove(idx)}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 8,
-                        border: `1.5px solid ${q.approved ? TEAL : "#e5e7eb"}`,
-                        background: q.approved ? TEAL : "white",
-                        color: q.approved ? "white" : "#9ca3af",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {q.approved ? "✓ Approved" : "Approve"}
-                    </button>
-                  </div>
-
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: "#374151",
-                      lineHeight: 1.6,
-                      margin: "0 0 10px",
-                      background: "white",
-                      borderRadius: 8,
-                      padding: "10px",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
-                    {q.question_text}
-                  </p>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>
-                        Topic
-                      </label>
-                      <input
-                        value={q.topic}
-                        onChange={(e) => updateField(idx, "topic", e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "7px 8px",
-                          borderRadius: 6,
-                          border: "1px solid #e5e7eb",
-                          fontSize: 12,
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>
-                        Subtopic
-                      </label>
-                      <input
-                        value={q.subtopic}
-                        onChange={(e) => updateField(idx, "subtopic", e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "7px 8px",
-                          borderRadius: 6,
-                          border: "1px solid #e5e7eb",
-                          fontSize: 12,
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>
-                        Marks
-                      </label>
-                      <input
-                        type="number"
-                        value={q.marks}
-                        onChange={(e) => updateField(idx, "marks", parseInt(e.target.value, 10) || 0)}
-                        style={{
-                          width: "100%",
-                          padding: "7px 8px",
-                          borderRadius: 6,
-                          border: "1px solid #e5e7eb",
-                          fontSize: 12,
-                          boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-100">
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    <th className="px-3 py-2">question_id</th>
+                    <th className="px-3 py-2">topic</th>
+                    <th className="px-3 py-2">subtopic</th>
+                    <th className="px-3 py-2">marks</th>
+                    <th className="px-3 py-2">difficulty</th>
+                    <th className="px-3 py-2">ao_level</th>
+                    <th className="px-3 py-2">diagram_required</th>
+                    <th className="px-3 py-2">actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {questions.map((q) => (
+                    <Fragment key={q.question_id}>
+                      <tr className={!q.approved ? "opacity-40" : ""}>
+                        <td className="px-3 py-2">{q.question_id}</td>
+                        <td className="px-3 py-2">{q.topic}</td>
+                        <td className="px-3 py-2">{q.subtopic}</td>
+                        <td className="px-3 py-2">{q.marks}</td>
+                        <td className="px-3 py-2">{q.difficulty}</td>
+                        <td className="px-3 py-2">{q.ao_level ?? ""}</td>
+                        <td className="px-3 py-2">{String(q.diagram_required)}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100"
+                              onClick={() =>
+                                setExpandedRow((prev) => (prev === q.question_id ? null : q.question_id))
+                              }
+                            >
+                              {expandedRow === q.question_id ? "Hide" : "Expand"}
+                            </button>
+                            <button
+                              className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100"
+                              onClick={() => handleReject(q.question_id)}
+                              title="Reject question"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRow === q.question_id && (
+                        <tr>
+                          <td colSpan={8} className="bg-slate-50 px-4 py-3">
+                            <p className="mb-2 text-sm text-slate-800">
+                              <span className="font-semibold">question_text:</span> {q.question_text}
+                            </p>
+                            <p className="mb-2 text-sm text-slate-800">
+                              <span className="font-semibold">answer:</span> {q.answer}
+                            </p>
+                            <p className="text-sm text-slate-800">
+                              <span className="font-semibold">figure_description:</span>{" "}
+                              {q.figure_description ?? ""}
+                            </p>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div
-              style={{
-                marginTop: 20,
-                padding: "16px",
-                background: "#f8fafc",
-                borderRadius: 12,
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: 0 }}>
-                  Ready to save {approvedCount} questions
-                </p>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>{questions.length - approvedCount} skipped</p>
-              </div>
+            <div className="mt-4">
               <button
-                onClick={() => void handleSave()}
+                onClick={() => void handleApproveAll()}
                 disabled={saving || approvedCount === 0}
-                style={{
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 12,
-                  background: saving || approvedCount === 0 ? "#e5e7eb" : TEAL,
-                  color: saving || approvedCount === 0 ? "#9ca3af" : "white",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  border: "none",
-                  cursor: saving || approvedCount === 0 ? "default" : "pointer",
-                  fontFamily: "'Sora', sans-serif",
-                }}
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {saving ? "Saving to database..." : `Save ${approvedCount} Questions to Database →`}
+                {saving ? "Saving..." : "Approve All"}
               </button>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </SentryErrorBoundary>
   );
 }

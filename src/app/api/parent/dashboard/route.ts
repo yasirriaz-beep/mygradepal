@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -103,7 +104,8 @@ export async function GET() {
       longestStreak: Math.max(streak, 7),
       weekCalendar,
     });
-  } catch {
+  } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     return NextResponse.json({
       childName: "Ahmed",
       topAlert: {

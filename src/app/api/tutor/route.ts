@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS tutor_sessions (
 */
 
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
@@ -163,6 +164,7 @@ The student is targeting Grade ${resolvedTargetGrade}. ${gradeInstruction}`;
 
     return NextResponse.json({ message: cleanedText });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Tutor route failed.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import SentryErrorBoundary from "@/components/SentryErrorBoundary";
 
 const TEAL = "#189080";
 const ORANGE = "#f5731e";
@@ -273,7 +274,8 @@ export default function GenerateQuestionsPage() {
   const subtopics = SUBTOPICS[topic] ?? [];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0faf8", fontFamily: "'DM Sans', sans-serif" }}>
+    <SentryErrorBoundary>
+      <div style={{ minHeight: "100vh", background: "#f0faf8", fontFamily: "'DM Sans', sans-serif" }}>
       {/* Header */}
       <div style={{ background: TEAL, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
@@ -652,6 +654,7 @@ export default function GenerateQuestionsPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </SentryErrorBoundary>
   );
 }

@@ -33,9 +33,9 @@ export default function LearnPage() {
   }, []);
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-6 sm:px-6">
+    <main className="mx-auto min-h-screen max-w-5xl bg-[#F7F8FA] px-4 pb-24 pt-6 sm:px-6">
       <h1 className="heading-font text-3xl font-bold text-slate-900">What do you want to learn today?</h1>
-      <section className="mt-4 rounded-2xl bg-white p-4 shadow-card">
+      <section className="mt-4 rounded-2xl bg-white p-6 shadow-card">
         <p className="text-sm font-semibold text-slate-700">I am studying:</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {Object.keys(gradeSubjects).map((gradeOption) => (
@@ -54,7 +54,7 @@ export default function LearnPage() {
 
       <section className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {gradeSubjects[grade].map((subject) => (
-          <article key={subject} className="rounded-2xl bg-white p-5 shadow-card">
+          <article key={subject} className="rounded-2xl bg-white p-6 shadow-card">
             <p className="heading-font text-xl font-semibold text-slate-900">{subject}</p>
             <p className="mt-2 text-sm text-slate-600">Master key concepts with your Personal Tutor.</p>
             <Link
@@ -67,7 +67,7 @@ export default function LearnPage() {
         ))}
       </section>
 
-      <section className="mt-8 rounded-2xl bg-white p-5 shadow-card">
+      <section className="mt-8 rounded-2xl bg-white p-6 shadow-card">
         <h2 className="heading-font text-xl font-semibold text-slate-900">Continue learning</h2>
         {lastTopic ? (
           <div className="mt-3 flex items-center justify-between gap-3">

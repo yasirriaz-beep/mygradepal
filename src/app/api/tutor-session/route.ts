@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to save tutor session.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

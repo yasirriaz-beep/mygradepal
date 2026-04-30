@@ -117,25 +117,46 @@ export default function Home() {
           />
         </div>
         <div className="hero-overlay" />
-        <div className="hero-inner">
-          <p className="hero-eyebrow">Pakistan&apos;s most advanced O Level / IGCSE tutoring platform</p>
-          <h1 className="hero-title">
-            Your child&apos;s
-            <br />
-            <span className="accent">academy</span> —
-            <br />
-            <span className="accent-orange">at home.</span>
-          </h1>
-          <p className="hero-subtitle">
-            MyGradePal gives your child a 24/7 personal tutor for O Level / IGCSE —
-            No academies. No commute. No cancelled sessions. Just results — with complete visibility into every minute your child studies.
-          </p>
-          <p className="hero-note">
-            Our expert tutoring system is developed with qualified Cambridge O Level / IGCSE teachers
-          </p>
-          <div className="hero-actions">
-            <Link href="/login" className="btn-hero">Start free 7-day trial →</Link>
-            <a href="#how" className="btn-hero-secondary">See how it works</a>
+        <div className="hero-layout">
+          <div className="hero-inner">
+            <p className="hero-eyebrow">Pakistan&apos;s most advanced O Level / IGCSE tutoring platform</p>
+            <h1 className="hero-title">
+              Your child&apos;s
+              <br />
+              <span className="accent">academy</span> —
+              <br />
+              <span className="accent-orange">at home.</span>
+            </h1>
+            <p className="hero-subtitle">
+              MyGradePal gives your child a 24/7 personal tutor for O Level / IGCSE —
+              No academies. No commute. No cancelled sessions. Just results — with complete visibility into every minute your child studies.
+            </p>
+            <p className="hero-note">
+              Our expert tutoring system is developed with qualified Cambridge O Level / IGCSE teachers
+            </p>
+            <div className="hero-actions">
+              <Link href="/login" className="btn-hero">Start free 7-day trial →</Link>
+              <a href="#how" className="btn-hero-secondary">See how it works</a>
+            </div>
+          </div>
+
+          <div className="hero-mockup">
+            <div className="mockup-header">
+              <span className="mockup-badge">Chemistry 0620</span>
+              <span className="mockup-streak">🔥 12 day streak</span>
+            </div>
+            <p className="mockup-title">Student Dashboard</p>
+            <div className="mockup-card">
+              <p className="mockup-label">Topic Progress</p>
+              <div className="mockup-progress-track">
+                <div className="mockup-progress-fill" />
+              </div>
+              <p className="mockup-progress-text">68% complete this week</p>
+            </div>
+            <div className="mockup-next">
+              <p className="mockup-next-label">Next</p>
+              <p className="mockup-next-topic">Electrochemistry</p>
+            </div>
           </div>
         </div>
       </section>

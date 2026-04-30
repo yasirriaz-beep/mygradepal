@@ -1,3 +1,5 @@
+const { withSentryConfig } = require("@sentry/nextjs")
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -9,4 +11,8 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withSentryConfig(nextConfig, {
+  org: "mygradepal",
+  project: "javascript-nextjs",
+  silent: true,
+})

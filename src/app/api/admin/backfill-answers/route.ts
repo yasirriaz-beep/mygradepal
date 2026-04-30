@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const supabase = createClient(
@@ -24,7 +25,8 @@ function parseOptions(value: unknown): McqOptions | null {
       return parsed as McqOptions;
     }
     return null;
-  } catch {
+  } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     return null;
   }
 }
@@ -91,7 +93,8 @@ Reply with ONLY the correct letter: A, B, C, or D. Nothing else.`,
       } else {
         failed++;
       }
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { component: "question_import" } });
       failed++;
     }
   }

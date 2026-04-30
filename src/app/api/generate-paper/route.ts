@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 import { generatePredictedPaper } from "@/lib/claude";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
         paperText,
       });
     } catch (anthropicError) {
+      Sentry.captureException(anthropicError, { tags: { component: "question_import" } });
       const anthropicMessage =
         anthropicError instanceof Error
           ? anthropicError.message
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
       );
     }
   } catch (error) {
+    Sentry.captureException(error, { tags: { component: "question_import" } });
     const message = error instanceof Error ? error.message : "Failed to generate paper.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
