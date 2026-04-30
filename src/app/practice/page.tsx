@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type ResultType = "got_it" | "close" | "missed";
@@ -50,6 +50,152 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => 2016 + i);
 const PAPER_OPTIONS = ["P21", "P22", "P23", "P41", "P42", "P43"];
 const PAGE_SIZE = 50;
 
+function renderChemicalSubscripts(text: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  let lastIndex = 0;
+  const pattern = /([A-Za-z\)\]])(\d+)/g;
+  let match: RegExpExecArray | null = pattern.exec(text);
+  while (match) {
+    const [full, prefix, digits] = match;
+    const start = match.index;
+    if (start > lastIndex) out.push(text.slice(lastIndex, start));
+    out.push(prefix);
+    out.push(
+      <sub key={`sub-${start}`} className="align-sub text-[0.8em]">
+        {digits}
+      </sub>,
+    );
+    lastIndex = start + full.length;
+    match = pattern.exec(text);
+  }
+  if (lastIndex < text.length) out.push(text.slice(lastIndex));
+  return out;
+}
+
+function renderMultilineText(text: string): React.ReactNode {
+  const lines = text.split(/\r?\n/);
+  return lines.map((line, index) => (
+    <Fragment key={`line-${index}`}>
+      {renderChemicalSubscripts(line)}
+      {index < lines.length - 1 ? <br /> : null}
+    </Fragment>
+  ));
+}
+
+function looksLikeTableLine(line: string): boolean {
+  return line.includes("|");
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function parseTableRow(line: string): string[] {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function isSeparatorLine(line: string): boolean {
+  return /\|\s*:?-{3,}:?\s*\|/.test(line);
+}
+
+function renderTableCellHtml(cell: string): string {
+  const safe = escapeHtml(cell);
+  return safe.replace(/\r?\n/g, "<br/>");
+}
+
+function sanitizeTableHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
+function renderTableBlock(block: string, key: string): React.ReactNode {
+  const rawLines = block.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const parsedRows = rawLines.map((line) => ({ line, cells: parseTableRow(line) }));
+  const rows = parsedRows
+    .filter((row) => row.cells.length > 0 && row.cells.some((c) => c.length > 0))
+    .map((row) => row.cells);
+
+  if (rows.length === 0) return null;
+
+  const separatorIndex = rawLines.findIndex((line) => isSeparatorLine(line));
+  const hasHeaderSeparator = separatorIndex >= 0;
+  const header = hasHeaderSeparator ? parseTableRow(rawLines[0]) : null;
+  const bodyRows = hasHeaderSeparator
+    ? parsedRows
+        .filter((row, idx) => idx > separatorIndex)
+        .map((row) => row.cells)
+        .filter((cells) => cells.some((c) => c.length > 0))
+    : rows;
+
+  const border = "1px solid #e5e7eb";
+  const cellStyle = `border:${border};padding:8px;vertical-align:top;`;
+  const headerBg = "#f9fafb";
+
+  const headerHtml = header
+    ? `<thead><tr>${header
+        .map((cell) => `<th style="${cellStyle}background:${headerBg};text-align:left;font-weight:600;">${renderTableCellHtml(cell)}</th>`)
+        .join("")}</tr></thead>`
+    : "";
+  const bodyHtml = `<tbody>${bodyRows
+    .map(
+      (row) =>
+        `<tr>${row.map((cell) => `<td style="${cellStyle}">${renderTableCellHtml(cell)}</td>`).join("")}</tr>`,
+    )
+    .join("")}</tbody>`;
+  const safeTableHtml = sanitizeTableHtml(
+    `<table style="width:100%;border-collapse:collapse;border:${border};">${headerHtml}${bodyHtml}</table>`,
+  );
+
+  return (
+    <div key={key} className="overflow-x-auto rounded-lg border border-slate-200">
+      <div
+        className="text-sm text-slate-700"
+        dangerouslySetInnerHTML={{ __html: safeTableHtml }}
+      />
+    </div>
+  );
+}
+
+function QuestionText({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/);
+  const blocks: Array<{ kind: "table" | "text"; lines: string[] }> = [];
+  let current: { kind: "table" | "text"; lines: string[] } | null = null;
+
+  for (const line of lines) {
+    const kind: "table" | "text" = looksLikeTableLine(line) ? "table" : "text";
+    if (!current || current.kind !== kind) {
+      if (current) blocks.push(current);
+      current = { kind, lines: [line] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current) blocks.push(current);
+
+  return (
+    <div className="space-y-3 text-[18px] leading-[1.8] text-slate-700">
+      {blocks.map((block, idx) => {
+        const joined = block.lines.join("\n");
+        if (block.kind === "table") return renderTableBlock(joined, `table-${idx}`);
+        return (
+          <p key={`text-${idx}`} className="whitespace-normal">
+            {renderMultilineText(joined)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function normalizePaperType(paperType: string): string {
   const value = paperType.toUpperCase().replace(/\s+/g, "");
   if (value.startsWith("P")) return value;
@@ -96,6 +242,7 @@ export default function PracticePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalAvailable, setTotalAvailable] = useState<number | null>(null);
   const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
+  const [failedDiagramRefs, setFailedDiagramRefs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -125,12 +272,27 @@ export default function PracticePage() {
 
   const loadBatch = async (from: number, append: boolean) => {
     const to = from + PAGE_SIZE - 1;
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("questions")
       .select("*", { count: "exact" })
       .eq("source", "past_paper")
-      .order("question_id", { ascending: true })
-      .range(from, to);
+      .order("question_id", { ascending: true });
+
+    if (activeTopic) query = query.eq("topic", activeTopic);
+    if (activeSubtopic) query = query.eq("subtopic", activeSubtopic);
+    if (difficulty !== "All") query = query.eq("difficulty", difficulty.toLowerCase());
+    if (selectedYears.length > 0) query = query.in("year", selectedYears);
+    if (paper !== "All") query = query.eq("paper_type", paper.toLowerCase());
+    if (aoLevel !== "All") query = query.eq("ao_level", aoLevel);
+    if (qType !== "All") {
+      if (qType === "Calculation") query = query.ilike("question_type", "%calc%");
+      else if (qType === "Equation") query = query.ilike("question_type", "%equation%");
+      else if (qType === "Diagram") query = query.ilike("question_type", "%diagram%");
+      else if (qType === "Explanation") query = query.ilike("question_type", "%explain%");
+      else query = query.or("question_type.is.null,question_type.eq.");
+    }
+
+    const { data, error, count } = await query.range(from, to);
 
     if (error) {
       console.error("[practice] failed to load questions", {
@@ -162,11 +324,12 @@ export default function PracticePage() {
       setAllQuestions([]);
       setCursor(0);
       setHasMore(true);
+      setTotalAvailable(null);
       await loadBatch(0, false);
       setLoading(false);
     };
     void loadInitial();
-  }, []);
+  }, [activeTopic, activeSubtopic, difficulty, selectedYears, paper, aoLevel, qType]);
 
   useEffect(() => {
     const loadTopicCounts = async () => {
@@ -198,21 +361,7 @@ export default function PracticePage() {
     return map;
   }, [allQuestions]);
 
-  const filtered = useMemo(() => {
-    return allQuestions.filter((q) => {
-      const qPaper = normalizePaperType(q.paper_type);
-      const qDifficulty = q.difficulty?.toLowerCase() ?? "medium";
-      const questionType = normalizeQuestionType(q.question_type);
-      const topicMatch = !activeTopic || q.topic === activeTopic;
-      const subtopicMatch = !activeSubtopic || q.subtopic === activeSubtopic;
-      const difficultyMatch = difficulty === "All" || qDifficulty === difficulty.toLowerCase();
-      const yearMatch = selectedYears.length === 0 || selectedYears.includes(Number(q.year));
-      const paperMatch = paper === "All" || qPaper === paper;
-      const aoMatch = aoLevel === "All" || (q.ao_level ?? "") === aoLevel;
-      const typeMatch = qType === "All" || questionType === qType;
-      return topicMatch && subtopicMatch && difficultyMatch && yearMatch && paperMatch && aoMatch && typeMatch;
-    });
-  }, [allQuestions, activeTopic, activeSubtopic, difficulty, selectedYears, paper, aoLevel, qType]);
+  const filtered = useMemo(() => allQuestions, [allQuestions]);
 
   const attemptedCount = useMemo(
     () => filtered.filter((q) => Boolean(attemptsByQuestionId[q.question_id])).length,
@@ -241,8 +390,6 @@ export default function PracticePage() {
     await loadBatch(cursor, true);
     setLoadingMore(false);
   };
-
-  if (loading) return <div className="p-6">Loading questions...</div>;
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] p-4 md:p-6">
@@ -291,6 +438,17 @@ export default function PracticePage() {
 
         <section className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-700">
+                {totalAvailable ?? filtered.length} questions match your filters
+              </p>
+              {loading && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                  <span>Loading...</span>
+                </div>
+              )}
+            </div>
             <p className="mb-2 text-sm font-medium text-slate-700">
               {attemptedCount} / {filtered.length} questions attempted
             </p>
@@ -331,9 +489,9 @@ export default function PracticePage() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {!loading && filtered.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
-              No questions match current filters.
+              No questions found for these filters - try adjusting your selection.
             </div>
           ) : (
             <>
@@ -369,23 +527,30 @@ export default function PracticePage() {
 
                     {isExpanded && (
                       <div className="mt-3 space-y-3 text-sm text-slate-700">
-                        <p className="text-[18px] leading-[1.8]">{q.question_text}</p>
+                        <QuestionText text={q.question_text} />
                         {q.has_diagram && (
                           <>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                              Diagram
+                            </p>
+                            {q.image_ref && !failedDiagramRefs[q.id] ? (
+                              <img
+                                src={`/api/diagram?ref=${encodeURIComponent(q.image_ref)}`}
+                                alt="Question diagram"
+                                className="w-full max-w-full rounded-[8px] border border-slate-200"
+                                onError={() =>
+                                  setFailedDiagramRefs((prev) => ({
+                                    ...prev,
+                                    [q.id]: true,
+                                  }))
+                                }
+                              />
+                            ) : null}
                             {q.figure_description?.trim() ? (
                               <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
-                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                                  Diagram
-                                </p>
                                 <p className="text-sm text-indigo-900">{q.figure_description}</p>
                               </div>
-                            ) : q.image_ref ? (
-                              <img
-                                src={`/output/images/${q.image_ref}`}
-                                alt="Question diagram"
-                                className="max-h-80 rounded border border-slate-200 object-contain"
-                              />
-                            ) : (
+                            ) : !q.image_ref || failedDiagramRefs[q.id] ? (
                               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3 text-slate-600">
                                 <p className="text-sm">Diagram required — refer to original paper.</p>
                                 {getPaperIdFromQuestionId(q.question_id) && (
@@ -399,7 +564,7 @@ export default function PracticePage() {
                                   </a>
                                 )}
                               </div>
-                            )}
+                            ) : null}
                           </>
                         )}
 
