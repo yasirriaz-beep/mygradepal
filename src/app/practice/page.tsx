@@ -22,6 +22,7 @@ type Question = {
   common_mistake: string | null;
   has_diagram: boolean;
   image_ref: string | null;
+  figure_description: string | null;
   source: string;
 };
 
