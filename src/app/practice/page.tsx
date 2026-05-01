@@ -50,6 +50,7 @@ const TOPICS = [
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => 2016 + i);
 const PAGE_SIZE = 50;
 const COUNT_PAGE = 1000;
+const SIDEBAR_SUBTOPIC_PREVIEW = 10;
 /** Sidebar label for blank subtopic rows; loadBatch treats this as null/empty subtopic in the DB. */
 const NO_SUBTOPIC_LABEL = "(No subtopic)";
 
@@ -260,6 +261,11 @@ export default function PracticePage() {
     {},
   );
   const [sidebarCountsLoading, setSidebarCountsLoading] = useState(false);
+  /** When true for a topic, sidebar shows all subtopics (not only first 10). */
+  const [subtopicsExpandedByTopic, setSubtopicsExpandedByTopic] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [sidebarTopicSearch, setSidebarTopicSearch] = useState("");
   const [failedDiagramRefs, setFailedDiagramRefs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -404,6 +410,21 @@ export default function PracticePage() {
 
   const filtered = useMemo(() => allQuestions, [allQuestions]);
 
+  const sidebarSearchLower = sidebarTopicSearch.trim().toLowerCase();
+
+  const visibleSidebarTopics = useMemo(() => {
+    if (!sidebarSearchLower) return [...TOPICS];
+    return TOPICS.filter((topic) => {
+      if (topic.toLowerCase().includes(sidebarSearchLower)) return true;
+      const subs = Object.keys(subtopicCounts[topic] ?? {});
+      return subs.some((sub) => sub.toLowerCase().includes(sidebarSearchLower));
+    });
+  }, [sidebarSearchLower, subtopicCounts]);
+
+  useEffect(() => {
+    setSubtopicsExpandedByTopic({});
+  }, [sidebarSearchLower]);
+
   const displayedMatchCount =
     totalAvailable ?? (!loading ? filtered.length : null);
 
@@ -445,114 +466,158 @@ export default function PracticePage() {
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] p-4 md:p-6">
-      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-        <aside className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Topics</h2>
+      <div className="grid items-start gap-4 lg:grid-cols-[300px_1fr]">
+        <aside className="sticky top-0 max-h-screen self-start overflow-y-auto rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">Topics</h2>
+          <label htmlFor="sidebar-topic-search" className="sr-only">
+            Search topics
+          </label>
+          <input
+            id="sidebar-topic-search"
+            type="search"
+            value={sidebarTopicSearch}
+            onChange={(e) => setSidebarTopicSearch(e.target.value)}
+            placeholder="Search topics..."
+            className="mb-3 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+            autoComplete="off"
+          />
           <div className="space-y-2">
-            {TOPICS.map((topic) => {
-              const sortedSubs = Object.keys(subtopicCounts[topic] ?? {}).sort((a, b) =>
-                a.localeCompare(b),
-              );
-              const topicTotal = topicCounts[topic] ?? 0;
-              return (
-                <div key={topic} className="rounded-lg border border-slate-100">
-                  <button
-                    type="button"
-                    className={`w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50`}
-                    onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
-                  >
-                    <span className="font-medium text-slate-800">{topic}</span>
-                    <span className="tabular-nums text-slate-600">
-                      {sidebarCountsLoading ? (
-                        <>
-                          {"  "}
-                          <span aria-hidden>…</span>
-                        </>
-                      ) : (
-                        <>{"  "}
-                          {topicTotal}
-                        </>
-                      )}
-                    </span>
-                  </button>
-                  {openTopics[topic] && (
-                    <div className="border-t border-slate-100 px-2 pb-2 pt-1">
-                      <button
-                        type="button"
-                        className={`mb-1 block w-full rounded px-2 py-1.5 text-left text-xs ${
-                          activeTopic === topic && activeSubtopic === null
-                            ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
-                            : "text-slate-600 hover:bg-slate-50"
-                        }`}
-                        onClick={() => {
-                          setOpenTopics((prev) => ({ ...prev, [topic]: true }));
-                          if (activeTopic === topic && activeSubtopic === null) {
-                            setActiveTopic(null);
-                          } else {
-                            setActiveTopic(topic);
-                            setActiveSubtopic(null);
-                          }
-                        }}
-                      >
-                        <span className="tabular-nums text-slate-800">
-                          All subtopics
-                          {sidebarCountsLoading ? (
-                            <>
-                              {"  "}
-                              <span aria-hidden>…</span>
-                            </>
-                          ) : (
-                            <>
-                              {"  "}
-                              {topicTotal}
-                            </>
-                          )}
-                        </span>
-                      </button>
-                      {sortedSubs.map((sub) => {
-                        const n = subtopicCounts[topic]?.[sub] ?? 0;
-                        const isActive = activeTopic === topic && activeSubtopic === sub;
-                        return (
+            {visibleSidebarTopics.length === 0 ? (
+              <p className="px-1 text-xs text-slate-500">No topics match your search.</p>
+            ) : (
+              visibleSidebarTopics.map((topic) => {
+                const sortedSubs = Object.keys(subtopicCounts[topic] ?? {}).sort((a, b) =>
+                  a.localeCompare(b),
+                );
+                const topicMatchesSearch =
+                  !sidebarSearchLower || topic.toLowerCase().includes(sidebarSearchLower);
+                const filteredSubs = !sidebarSearchLower
+                  ? sortedSubs
+                  : sortedSubs.filter(
+                      (sub) =>
+                        topicMatchesSearch || sub.toLowerCase().includes(sidebarSearchLower),
+                    );
+                const topicTotal = topicCounts[topic] ?? 0;
+                const subtopicsExpanded = !!subtopicsExpandedByTopic[topic];
+                const previewSubs = subtopicsExpanded
+                  ? filteredSubs
+                  : filteredSubs.slice(0, SIDEBAR_SUBTOPIC_PREVIEW);
+                const subtopicListTotal = filteredSubs.length;
+                return (
+                  <div key={topic} className="rounded-lg border border-slate-100">
+                    <button
+                      type="button"
+                      className={`w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50`}
+                      onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
+                    >
+                      <span className="font-medium text-slate-800">{topic}</span>
+                      <span className="tabular-nums text-slate-600">
+                        {sidebarCountsLoading ? (
+                          <>
+                            {"  "}
+                            <span aria-hidden>…</span>
+                          </>
+                        ) : (
+                          <>
+                            {"  "}
+                            {topicTotal}
+                          </>
+                        )}
+                      </span>
+                    </button>
+                    {openTopics[topic] && (
+                      <div className="border-t border-slate-100 px-2 pb-2 pt-1">
+                        <button
+                          type="button"
+                          className={`mb-1 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                            activeTopic === topic && activeSubtopic === null
+                              ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                          onClick={() => {
+                            setOpenTopics((prev) => ({ ...prev, [topic]: true }));
+                            if (activeTopic === topic && activeSubtopic === null) {
+                              setActiveTopic(null);
+                            } else {
+                              setActiveTopic(topic);
+                              setActiveSubtopic(null);
+                            }
+                          }}
+                        >
+                          <span className="tabular-nums text-slate-800">
+                            All subtopics
+                            {sidebarCountsLoading ? (
+                              <>
+                                {"  "}
+                                <span aria-hidden>…</span>
+                              </>
+                            ) : (
+                              <>
+                                {"  "}
+                                {topicTotal}
+                              </>
+                            )}
+                          </span>
+                        </button>
+                        {previewSubs.map((sub) => {
+                          const n = subtopicCounts[topic]?.[sub] ?? 0;
+                          const isActive = activeTopic === topic && activeSubtopic === sub;
+                          return (
+                            <button
+                              type="button"
+                              key={`${topic}-${sub}`}
+                              className={`mb-0.5 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                                isActive
+                                  ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
+                                  : "text-slate-600 hover:bg-slate-50"
+                              }`}
+                              onClick={() => {
+                                setOpenTopics((prev) => ({ ...prev, [topic]: true }));
+                                setActiveTopic(topic);
+                                setActiveSubtopic((prevSub) => (prevSub === sub ? null : sub));
+                              }}
+                            >
+                              <span className="tabular-nums">
+                                <span className="text-slate-800">{sub}</span>
+                                {sidebarCountsLoading ? (
+                                  <>
+                                    {"  "}
+                                    <span className="text-slate-600" aria-hidden>
+                                      …
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {"  "}
+                                    <span className="text-slate-600">{n}</span>
+                                  </>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {subtopicListTotal > SIDEBAR_SUBTOPIC_PREVIEW ? (
                           <button
                             type="button"
-                            key={`${topic}-${sub}`}
-                            className={`mb-0.5 block w-full rounded px-2 py-1.5 text-left text-xs ${
-                              isActive
-                                ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
-                                : "text-slate-600 hover:bg-slate-50"
-                            }`}
-                            onClick={() => {
-                              setOpenTopics((prev) => ({ ...prev, [topic]: true }));
-                              setActiveTopic(topic);
-                              setActiveSubtopic((prevSub) =>
-                                prevSub === sub ? null : sub,
-                              );
-                            }}
+                            className="mt-1 block w-full px-2 py-1 text-left text-xs font-medium text-teal-700 hover:text-teal-900 hover:underline"
+                            onClick={() =>
+                              setSubtopicsExpandedByTopic((prev) => ({
+                                ...prev,
+                                [topic]: !prev[topic],
+                              }))
+                            }
                           >
-                            <span className="tabular-nums">
-                              <span className="text-slate-800">{sub}</span>
-                              {sidebarCountsLoading ? (
-                                <>
-                                  {"  "}
-                                  <span className="text-slate-600" aria-hidden>
-                                    …
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  {"  "}
-                                  <span className="text-slate-600">{n}</span>
-                                </>
-                              )}
-                            </span>
+                            {subtopicsExpanded
+                              ? "Show fewer subtopics"
+                              : `Show all ${subtopicListTotal} subtopics`}
                           </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </aside>
 
