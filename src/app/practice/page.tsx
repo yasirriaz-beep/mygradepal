@@ -212,7 +212,7 @@ function QuestionText({ text }: { text: string }) {
   if (current) blocks.push(current);
 
   return (
-    <div className="space-y-3 text-[18px] leading-[1.8] text-slate-700">
+    <div className="space-y-3 text-base leading-relaxed text-gray-800">
       {blocks.map((block, idx) => {
         const joined = block.lines.join("\n");
         if (block.kind === "table") return renderTableBlock(joined, `table-${idx}`);
@@ -434,7 +434,7 @@ export default function PracticePage() {
       : `${displayedMatchCount} question${displayedMatchCount === 1 ? "" : "s"}`;
 
   const filterSelectClass =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40";
+    "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   const attemptedCount = useMemo(
     () => filtered.filter((q) => Boolean(attemptsByQuestionId[q.question_id])).length,
@@ -465,10 +465,10 @@ export default function PracticePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="grid items-start gap-4 lg:grid-cols-[300px_1fr]">
-        <aside className="sticky top-0 max-h-screen self-start overflow-y-auto rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Topics</h2>
+        <aside className="sticky top-0 max-h-screen self-start overflow-y-auto rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-800">Topics</h2>
           <label htmlFor="sidebar-topic-search" className="sr-only">
             Search topics
           </label>
@@ -478,12 +478,12 @@ export default function PracticePage() {
             value={sidebarTopicSearch}
             onChange={(e) => setSidebarTopicSearch(e.target.value)}
             placeholder="Search topics..."
-            className="mb-3 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+            className="mb-3 w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
             autoComplete="off"
           />
-          <div className="space-y-2">
+          <div>
             {visibleSidebarTopics.length === 0 ? (
-              <p className="px-1 text-xs text-slate-500">No topics match your search.</p>
+              <p className="px-1 py-2 text-xs text-gray-500">No topics match your search.</p>
             ) : (
               visibleSidebarTopics.map((topic) => {
                 const sortedSubs = Object.keys(subtopicCounts[topic] ?? {}).sort((a, b) =>
@@ -504,35 +504,31 @@ export default function PracticePage() {
                   : filteredSubs.slice(0, SIDEBAR_SUBTOPIC_PREVIEW);
                 const subtopicListTotal = filteredSubs.length;
                 return (
-                  <div key={topic} className="rounded-lg border border-slate-100">
+                  <div key={topic} className="border-b border-gray-100 py-1 last:border-b-0">
                     <button
                       type="button"
-                      className={`w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50`}
+                      className="flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-3 text-left hover:bg-gray-50"
                       onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
                     >
-                      <span className="font-medium text-slate-800">{topic}</span>
-                      <span className="tabular-nums text-slate-600">
+                      <span className="min-w-0 flex-1 text-[15px] font-semibold text-gray-900">
+                        {topic}
+                      </span>
+                      <span className="ml-auto shrink-0 tabular-nums text-xs font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
                         {sidebarCountsLoading ? (
-                          <>
-                            {"  "}
-                            <span aria-hidden>…</span>
-                          </>
+                          <span aria-hidden>…</span>
                         ) : (
-                          <>
-                            {"  "}
-                            {topicTotal}
-                          </>
+                          topicTotal
                         )}
                       </span>
                     </button>
                     {openTopics[topic] && (
-                      <div className="border-t border-slate-100 px-2 pb-2 pt-1">
+                      <div className="px-2 pb-3 pt-0">
                         <button
                           type="button"
-                          className={`mb-1 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                          className={`mb-1 block w-full rounded-lg px-2 py-2 text-left text-sm transition-colors ${
                             activeTopic === topic && activeSubtopic === null
-                              ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
-                              : "text-slate-600 hover:bg-slate-50"
+                              ? "bg-teal-100 font-medium text-teal-800"
+                              : "text-gray-600 hover:bg-teal-50 hover:text-teal-700"
                           }`}
                           onClick={() => {
                             setOpenTopics((prev) => ({ ...prev, [topic]: true }));
@@ -544,7 +540,7 @@ export default function PracticePage() {
                             }
                           }}
                         >
-                          <span className="tabular-nums text-slate-800">
+                          <span className="tabular-nums text-gray-800">
                             All subtopics
                             {sidebarCountsLoading ? (
                               <>
@@ -566,10 +562,10 @@ export default function PracticePage() {
                             <button
                               type="button"
                               key={`${topic}-${sub}`}
-                              className={`mb-0.5 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                              className={`mb-0.5 block w-full rounded-lg px-2 py-2 text-left text-sm transition-colors ${
                                 isActive
-                                  ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
-                                  : "text-slate-600 hover:bg-slate-50"
+                                  ? "bg-teal-100 font-medium text-teal-800"
+                                  : "text-gray-600 hover:bg-teal-50 hover:text-teal-700"
                               }`}
                               onClick={() => {
                                 setOpenTopics((prev) => ({ ...prev, [topic]: true }));
@@ -578,18 +574,18 @@ export default function PracticePage() {
                               }}
                             >
                               <span className="tabular-nums">
-                                <span className="text-slate-800">{sub}</span>
+                                <span className="text-inherit">{sub}</span>
                                 {sidebarCountsLoading ? (
                                   <>
                                     {"  "}
-                                    <span className="text-slate-600" aria-hidden>
+                                    <span className="text-gray-500" aria-hidden>
                                       …
                                     </span>
                                   </>
                                 ) : (
                                   <>
                                     {"  "}
-                                    <span className="text-slate-600">{n}</span>
+                                    <span className="text-gray-500">{n}</span>
                                   </>
                                 )}
                               </span>
@@ -622,20 +618,20 @@ export default function PracticePage() {
         </aside>
 
         <section className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-700">Practice progress</p>
+              <p className="text-sm font-semibold text-gray-800">Practice progress</p>
               {loading && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-teal-600" />
                   <span>Loading...</span>
                 </div>
               )}
             </div>
-            <p className="mb-2 text-sm font-medium text-slate-700">
+            <p className="mb-2 text-sm font-medium text-gray-700">
               {attemptedCount} / {filtered.length} questions attempted
             </p>
-            <div className="h-2 w-full rounded-full bg-slate-200">
+            <div className="h-2 w-full rounded-full bg-gray-200">
               <div
                 className="h-2 rounded-full bg-teal-600 transition-all"
                 style={{ width: `${attemptedPct}%` }}
@@ -643,11 +639,14 @@ export default function PracticePage() {
             </div>
           </div>
 
-          <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
-            <p className="mb-3 text-sm font-semibold text-gray-700">Filter questions</p>
+          <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+            <p className="mb-4 text-sm font-semibold text-gray-700">Filter questions</p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <div className="space-y-1">
-                <label htmlFor="filter-year" className="block text-xs font-medium text-slate-600">
+                <label
+                  htmlFor="filter-year"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+                >
                   Year
                 </label>
                 <select
@@ -668,7 +667,10 @@ export default function PracticePage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="filter-difficulty" className="block text-xs font-medium text-slate-600">
+                <label
+                  htmlFor="filter-difficulty"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+                >
                   Difficulty
                 </label>
                 <select
@@ -684,7 +686,10 @@ export default function PracticePage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="filter-type" className="block text-xs font-medium text-slate-600">
+                <label
+                  htmlFor="filter-type"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+                >
                   Type
                 </label>
                 <select
@@ -702,7 +707,10 @@ export default function PracticePage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="filter-source" className="block text-xs font-medium text-slate-600">
+                <label
+                  htmlFor="filter-source"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+                >
                   Source
                 </label>
                 <select
@@ -719,7 +727,7 @@ export default function PracticePage() {
                 </select>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2 border-t border-gray-100 pt-4">
               <p className="text-sm font-medium text-teal-700 tabular-nums">
                 Showing {showingCountPhrase ?? "…"}
               </p>
@@ -736,7 +744,7 @@ export default function PracticePage() {
           </div>
 
           {!loading && filtered.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+            <div className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-gray-500 shadow-sm">
               No questions found for these filters - try adjusting your selection.
             </div>
           ) : (
@@ -753,26 +761,50 @@ export default function PracticePage() {
                       ? { label: "Close", cls: "bg-amber-100 text-amber-700" }
                       : attempt === "missed"
                         ? { label: "Missed it", cls: "bg-red-100 text-red-700" }
-                        : { label: "Not attempted", cls: "bg-slate-100 text-slate-600" };
+                        : { label: "Not attempted", cls: "bg-gray-100 text-gray-600" };
+                const difficultyBadge =
+                  q.difficulty === "easy"
+                    ? "bg-green-50 text-green-700"
+                    : q.difficulty === "medium"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-red-50 text-red-700";
                 return (
-                  <div key={q.id} className="rounded-xl border border-slate-200 bg-white p-6">
-                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded bg-slate-100 px-2 py-1">{q.topic}</span>
-                      <span className="rounded bg-slate-100 px-2 py-1">{q.subtopic}</span>
-                      <span className="rounded bg-amber-100 px-2 py-1">{q.marks} marks</span>
-                      <span className="rounded bg-emerald-100 px-2 py-1 capitalize">{q.difficulty}</span>
-                      <span className="rounded bg-indigo-100 px-2 py-1">{q.year}</span>
-                      <span className={`rounded px-2 py-1 ${chip.cls}`}>{chip.label}</span>
+                  <div
+                    key={q.id}
+                    className="mb-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700">
+                        {q.topic}
+                      </span>
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                        {q.subtopic}
+                      </span>
+                      <span className="rounded-full bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700">
+                        {q.marks} marks
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium capitalize ${difficultyBadge}`}
+                      >
+                        {q.difficulty}
+                      </span>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                        {q.year}
+                      </span>
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${chip.cls}`}>
+                        {chip.label}
+                      </span>
                     </div>
                     <button
-                      className="text-left text-sm font-medium text-slate-800 hover:text-teal-700"
+                      type="button"
+                      className="text-left font-mono text-xs text-gray-400 hover:text-teal-700"
                       onClick={() => setExpandedQuestion(isExpanded ? null : q.id)}
                     >
                       {q.question_id} {isExpanded ? "▲" : "▼"}
                     </button>
 
                     {isExpanded && (
-                      <div className="mt-3 space-y-3 text-sm text-slate-700">
+                      <div className="mt-3 space-y-3 text-sm text-gray-700">
                         <QuestionText text={q.question_text} />
                         {q.has_diagram && (
                           <>
@@ -823,10 +855,28 @@ export default function PracticePage() {
 
                         {showAns && <p className="rounded bg-slate-50 p-3">{q.mark_scheme ?? "No answer available."}</p>}
 
-                        <div className="flex gap-2">
-                          <button className="rounded bg-green-600 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "got_it")}>Got it</button>
-                          <button className="rounded bg-amber-500 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "close")}>Close</button>
-                          <button className="rounded bg-red-600 px-3 py-1 text-xs text-white" onClick={() => void saveAttempt(q.question_id, q.id, "missed")}>Missed it</button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-lg bg-green-500 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
+                            onClick={() => void saveAttempt(q.question_id, q.id, "got_it")}
+                          >
+                            Got it
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg bg-amber-500 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+                            onClick={() => void saveAttempt(q.question_id, q.id, "close")}
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg bg-red-500 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                            onClick={() => void saveAttempt(q.question_id, q.id, "missed")}
+                          >
+                            Missed it
+                          </button>
                         </div>
 
                         {feedback && (
@@ -891,13 +941,14 @@ export default function PracticePage() {
                 );
               })}
 
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+              <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
                 <span>
                   Loaded {allQuestions.length}
                   {totalAvailable !== null ? ` of ${totalAvailable}` : ""} questions
                 </span>
                 <button
-                  className="rounded border border-slate-300 px-3 py-1 disabled:opacity-50"
+                  type="button"
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
                   disabled={!hasMore || loadingMore}
                   onClick={() => void loadMoreQuestions()}
                 >
@@ -906,7 +957,7 @@ export default function PracticePage() {
               </div>
             </>
           )}
-          {saveStatus && <p className="text-xs text-emerald-700">{saveStatus}</p>}
+          {saveStatus && <p className="text-xs font-medium text-teal-700">{saveStatus}</p>}
         </section>
       </div>
     </div>
