@@ -48,8 +48,36 @@ const TOPICS = [
 ] as const;
 
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => 2016 + i);
-const PAPER_OPTIONS = ["P21", "P22", "P23", "P41", "P42", "P43"];
 const PAGE_SIZE = 50;
+const COUNT_PAGE = 1000;
+/** Sidebar label for blank subtopic rows; loadBatch treats this as null/empty subtopic in the DB. */
+const NO_SUBTOPIC_LABEL = "(No subtopic)";
+
+function applyPracticeBarFilters(
+  // Supabase builder chain typing is intricate; narrow at call sites.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  opts: {
+    sourceFilter: "all" | "past_paper" | "practice";
+    difficulty: string;
+    selectedYear: number | null;
+    qType: string;
+  },
+) {
+  let q = query;
+  if (opts.sourceFilter === "past_paper") q = q.eq("source", "past_paper");
+  else if (opts.sourceFilter === "practice") q = q.in("source", ["MGP_Generated", "Cambridge"]);
+  if (opts.difficulty !== "All") q = q.eq("difficulty", opts.difficulty.toLowerCase());
+  if (opts.selectedYear !== null) q = q.eq("year", opts.selectedYear);
+  if (opts.qType !== "All") {
+    if (opts.qType === "Calculation") q = q.ilike("question_type", "%calc%");
+    else if (opts.qType === "Equation") q = q.ilike("question_type", "%equation%");
+    else if (opts.qType === "Diagram") q = q.ilike("question_type", "%diagram%");
+    else if (opts.qType === "Explanation") q = q.ilike("question_type", "%explain%");
+    else q = q.or("question_type.is.null,question_type.eq.");
+  }
+  return q;
+}
 
 function renderChemicalSubscripts(text: string): React.ReactNode[] {
   const out: React.ReactNode[] = [];
@@ -197,22 +225,6 @@ function QuestionText({ text }: { text: string }) {
   );
 }
 
-function normalizePaperType(paperType: string): string {
-  const value = paperType.toUpperCase().replace(/\s+/g, "");
-  if (value.startsWith("P")) return value;
-  if (/^\d{2}$/.test(value)) return `P${value}`;
-  return value;
-}
-
-function normalizeQuestionType(value: string | null): string {
-  const v = String(value ?? "").toLowerCase();
-  if (v.includes("calc")) return "Calculation";
-  if (v.includes("equation")) return "Equation";
-  if (v.includes("diagram")) return "Diagram";
-  if (v.includes("explain")) return "Explanation";
-  return "Short";
-}
-
 function getPaperIdFromQuestionId(questionId: string): string | null {
   // Example: 0620_s25_p42_q1a -> 0620_s25_p42
   const parts = questionId.split("_q");
@@ -227,9 +239,10 @@ export default function PracticePage() {
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
   const [activeSubtopic, setActiveSubtopic] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState("All");
-  const [selectedYears, setSelectedYears] = useState<number[]>([]);
-  const [paper, setPaper] = useState("All");
-  const [aoLevel, setAoLevel] = useState("All");
+  /** all | past_paper | practice (MGP_Generated + Cambridge) */
+  const [sourceFilter, setSourceFilter] = useState<"all" | "past_paper" | "practice">("all");
+  /** null = all years */
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [qType, setQType] = useState("All");
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
@@ -243,6 +256,10 @@ export default function PracticePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalAvailable, setTotalAvailable] = useState<number | null>(null);
   const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
+  const [subtopicCounts, setSubtopicCounts] = useState<Record<string, Record<string, number>>>(
+    {},
+  );
+  const [sidebarCountsLoading, setSidebarCountsLoading] = useState(false);
   const [failedDiagramRefs, setFailedDiagramRefs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -271,26 +288,30 @@ export default function PracticePage() {
     void loadAttempts();
   }, [userId]);
 
+  const barFilterOpts = useMemo(
+    () => ({
+      sourceFilter,
+      difficulty,
+      selectedYear,
+      qType,
+    }),
+    [sourceFilter, difficulty, selectedYear, qType],
+  );
+
   const loadBatch = async (from: number, append: boolean) => {
     const to = from + PAGE_SIZE - 1;
-    let query = supabase
-      .from("questions")
-      .select("*", { count: "exact" })
-      .eq("source", "past_paper")
-      .order("question_id", { ascending: true });
+    let query = applyPracticeBarFilters(
+      supabase.from("questions").select("*", { count: "exact" }).order("question_id", { ascending: true }),
+      barFilterOpts,
+    );
 
     if (activeTopic) query = query.eq("topic", activeTopic);
-    if (activeSubtopic) query = query.eq("subtopic", activeSubtopic);
-    if (difficulty !== "All") query = query.eq("difficulty", difficulty.toLowerCase());
-    if (selectedYears.length > 0) query = query.in("year", selectedYears);
-    if (paper !== "All") query = query.eq("paper_type", paper.toLowerCase());
-    if (aoLevel !== "All") query = query.eq("ao_level", aoLevel);
-    if (qType !== "All") {
-      if (qType === "Calculation") query = query.ilike("question_type", "%calc%");
-      else if (qType === "Equation") query = query.ilike("question_type", "%equation%");
-      else if (qType === "Diagram") query = query.ilike("question_type", "%diagram%");
-      else if (qType === "Explanation") query = query.ilike("question_type", "%explain%");
-      else query = query.or("question_type.is.null,question_type.eq.");
+    if (activeSubtopic) {
+      if (activeSubtopic === NO_SUBTOPIC_LABEL) {
+        query = query.or("subtopic.is.null,subtopic.eq.");
+      } else {
+        query = query.eq("subtopic", activeSubtopic);
+      }
     }
 
     const { data, error, count } = await query.range(from, to);
@@ -330,39 +351,69 @@ export default function PracticePage() {
       setLoading(false);
     };
     void loadInitial();
-  }, [activeTopic, activeSubtopic, difficulty, selectedYears, paper, aoLevel, qType]);
+  }, [activeTopic, activeSubtopic, barFilterOpts]);
 
   useEffect(() => {
-    const loadTopicCounts = async () => {
-      const { data, error } = await supabase
-        .from("questions")
-        .select("topic")
-        .eq("source", "past_paper");
-      if (error) {
-        console.error("[practice] failed to load topic counts", error.message);
-        return;
+    const loadAggregatedSidebarCounts = async () => {
+      setSidebarCountsLoading(true);
+      const topicTotals: Record<string, number> = Object.fromEntries(TOPICS.map((t) => [t, 0]));
+      const subByTopic: Record<string, Record<string, number>> = {};
+      let from = 0;
+      for (;;) {
+        let q = applyPracticeBarFilters(
+          supabase.from("questions").select("topic, subtopic"),
+          barFilterOpts,
+        );
+        const { data, error } = await q.range(from, from + COUNT_PAGE - 1);
+        if (error) {
+          console.error("[practice] failed to load sidebar counts", error.message);
+          setSidebarCountsLoading(false);
+          return;
+        }
+        const rows = (data ?? []) as Array<{ topic?: string; subtopic?: string | null }>;
+        for (const row of rows) {
+          const topic = row.topic ?? "";
+          if (topicTotals[topic] === undefined) continue;
+          topicTotals[topic] += 1;
+          const subLabel = String(row.subtopic ?? "").trim() || NO_SUBTOPIC_LABEL;
+          if (!subByTopic[topic]) subByTopic[topic] = {};
+          subByTopic[topic][subLabel] = (subByTopic[topic][subLabel] ?? 0) + 1;
+        }
+        if (rows.length < COUNT_PAGE) break;
+        from += COUNT_PAGE;
       }
-      const counts: Record<string, number> = {};
-      for (const t of TOPICS) counts[t] = 0;
-      for (const row of (data ?? []) as Array<{ topic?: string }>) {
-        const topic = row.topic ?? "";
-        if (counts[topic] !== undefined) counts[topic] += 1;
-      }
-      setTopicCounts(counts);
+      setTopicCounts(topicTotals);
+      setSubtopicCounts(subByTopic);
+      setSidebarCountsLoading(false);
     };
-    void loadTopicCounts();
-  }, []);
+    void loadAggregatedSidebarCounts();
+  }, [barFilterOpts]);
 
-  const subtopicMap = useMemo(() => {
-    const map: Record<string, Set<string>> = {};
-    for (const q of allQuestions) {
-      if (!map[q.topic]) map[q.topic] = new Set();
-      if (q.subtopic) map[q.topic].add(q.subtopic);
-    }
-    return map;
-  }, [allQuestions]);
+  const hasActiveBarFilters =
+    selectedYear !== null ||
+    difficulty !== "All" ||
+    qType !== "All" ||
+    sourceFilter !== "all";
+
+  const clearBarFilters = () => {
+    setSelectedYear(null);
+    setDifficulty("All");
+    setQType("All");
+    setSourceFilter("all");
+  };
 
   const filtered = useMemo(() => allQuestions, [allQuestions]);
+
+  const displayedMatchCount =
+    totalAvailable ?? (!loading ? filtered.length : null);
+
+  const showingCountPhrase =
+    displayedMatchCount === null
+      ? null
+      : `${displayedMatchCount} question${displayedMatchCount === 1 ? "" : "s"}`;
+
+  const filterSelectClass =
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40";
 
   const attemptedCount = useMemo(
     () => filtered.filter((q) => Boolean(attemptsByQuestionId[q.question_id])).length,
@@ -398,51 +449,117 @@ export default function PracticePage() {
         <aside className="rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-slate-700">Topics</h2>
           <div className="space-y-2">
-            {TOPICS.map((topic) => (
-              <div key={topic} className="rounded-lg border border-slate-100">
-                <button
-                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${activeTopic === topic ? "bg-teal-50 text-teal-700" : "text-slate-700"}`}
-                  onClick={() => {
-                    setActiveTopic((prev) => (prev === topic ? null : topic));
-                    setActiveSubtopic(null);
-                  }}
-                >
-                  <span>{topic}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{topicCounts[topic] ?? 0}</span>
-                </button>
-                <button
-                  className="w-full border-t border-slate-100 px-3 py-1 text-left text-xs text-slate-500"
-                  onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
-                >
-                  {openTopics[topic] ? "Hide subtopics" : "Show subtopics"}
-                </button>
-                {openTopics[topic] && (
-                  <div className="px-3 pb-2">
-                    {Array.from(subtopicMap[topic] ?? []).map((sub) => (
+            {TOPICS.map((topic) => {
+              const sortedSubs = Object.keys(subtopicCounts[topic] ?? {}).sort((a, b) =>
+                a.localeCompare(b),
+              );
+              const topicTotal = topicCounts[topic] ?? 0;
+              return (
+                <div key={topic} className="rounded-lg border border-slate-100">
+                  <button
+                    type="button"
+                    className={`w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50`}
+                    onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
+                  >
+                    <span className="font-medium text-slate-800">{topic}</span>
+                    <span className="tabular-nums text-slate-600">
+                      {sidebarCountsLoading ? (
+                        <>
+                          {"  "}
+                          <span aria-hidden>…</span>
+                        </>
+                      ) : (
+                        <>{"  "}
+                          {topicTotal}
+                        </>
+                      )}
+                    </span>
+                  </button>
+                  {openTopics[topic] && (
+                    <div className="border-t border-slate-100 px-2 pb-2 pt-1">
                       <button
-                        key={sub}
-                        className={`block w-full rounded px-2 py-1 text-left text-xs ${activeSubtopic === sub ? "bg-teal-100 text-teal-800" : "text-slate-600 hover:bg-slate-100"}`}
+                        type="button"
+                        className={`mb-1 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                          activeTopic === topic && activeSubtopic === null
+                            ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
                         onClick={() => {
-                          setActiveTopic(topic);
-                          setActiveSubtopic((prev) => (prev === sub ? null : sub));
+                          setOpenTopics((prev) => ({ ...prev, [topic]: true }));
+                          if (activeTopic === topic && activeSubtopic === null) {
+                            setActiveTopic(null);
+                          } else {
+                            setActiveTopic(topic);
+                            setActiveSubtopic(null);
+                          }
                         }}
                       >
-                        {sub}
+                        <span className="tabular-nums text-slate-800">
+                          All subtopics
+                          {sidebarCountsLoading ? (
+                            <>
+                              {"  "}
+                              <span aria-hidden>…</span>
+                            </>
+                          ) : (
+                            <>
+                              {"  "}
+                              {topicTotal}
+                            </>
+                          )}
+                        </span>
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+                      {sortedSubs.map((sub) => {
+                        const n = subtopicCounts[topic]?.[sub] ?? 0;
+                        const isActive = activeTopic === topic && activeSubtopic === sub;
+                        return (
+                          <button
+                            type="button"
+                            key={`${topic}-${sub}`}
+                            className={`mb-0.5 block w-full rounded px-2 py-1.5 text-left text-xs ${
+                              isActive
+                                ? "bg-teal-100 font-medium text-teal-900 ring-1 ring-teal-200"
+                                : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                            onClick={() => {
+                              setOpenTopics((prev) => ({ ...prev, [topic]: true }));
+                              setActiveTopic(topic);
+                              setActiveSubtopic((prevSub) =>
+                                prevSub === sub ? null : sub,
+                              );
+                            }}
+                          >
+                            <span className="tabular-nums">
+                              <span className="text-slate-800">{sub}</span>
+                              {sidebarCountsLoading ? (
+                                <>
+                                  {"  "}
+                                  <span className="text-slate-600" aria-hidden>
+                                    …
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {"  "}
+                                  <span className="text-slate-600">{n}</span>
+                                </>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </aside>
 
         <section className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-700">
-                {totalAvailable ?? filtered.length} questions match your filters
-              </p>
+              <p className="text-sm font-semibold text-slate-700">Practice progress</p>
               {loading && (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
@@ -461,32 +578,95 @@ export default function PracticePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="grid gap-3 md:grid-cols-5">
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
-                <option>All</option><option>Easy</option><option>Medium</option><option>Hard</option>
-              </select>
-              <select
-                multiple
-                value={selectedYears.map(String)}
-                onChange={(e) => {
-                  const vals = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                  setSelectedYears(vals);
-                }}
-                className="h-28 rounded border border-slate-300 px-2 py-2 text-sm"
-              >
-                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={paper} onChange={(e) => setPaper(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
-                <option>All</option>
-                {PAPER_OPTIONS.map((p) => <option key={p}>{p}</option>)}
-              </select>
-              <select value={aoLevel} onChange={(e) => setAoLevel(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
-                <option>All</option><option>AO1</option><option>AO2</option><option>AO3</option>
-              </select>
-              <select value={qType} onChange={(e) => setQType(e.target.value)} className="rounded border border-slate-300 px-2 py-2 text-sm">
-                <option>All</option><option>Short</option><option>Calculation</option><option>Equation</option><option>Diagram</option><option>Explanation</option>
-              </select>
+          <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
+            <p className="mb-3 text-sm font-semibold text-gray-700">Filter questions</p>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="space-y-1">
+                <label htmlFor="filter-year" className="block text-xs font-medium text-slate-600">
+                  Year
+                </label>
+                <select
+                  id="filter-year"
+                  value={selectedYear === null ? "" : String(selectedYear)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSelectedYear(v === "" ? null : Number(v));
+                  }}
+                  className={filterSelectClass}
+                >
+                  <option value="">All Years</option>
+                  {YEAR_OPTIONS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="filter-difficulty" className="block text-xs font-medium text-slate-600">
+                  Difficulty
+                </label>
+                <select
+                  id="filter-difficulty"
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className={filterSelectClass}
+                >
+                  <option value="All">All</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="filter-type" className="block text-xs font-medium text-slate-600">
+                  Type
+                </label>
+                <select
+                  id="filter-type"
+                  value={qType}
+                  onChange={(e) => setQType(e.target.value)}
+                  className={filterSelectClass}
+                >
+                  <option value="All">All</option>
+                  <option value="Short">Short</option>
+                  <option value="Calculation">Calculation</option>
+                  <option value="Equation">Equation</option>
+                  <option value="Diagram">Diagram</option>
+                  <option value="Explanation">Explanation</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="filter-source" className="block text-xs font-medium text-slate-600">
+                  Source
+                </label>
+                <select
+                  id="filter-source"
+                  value={sourceFilter}
+                  onChange={(e) =>
+                    setSourceFilter(e.target.value as "all" | "past_paper" | "practice")
+                  }
+                  className={filterSelectClass}
+                >
+                  <option value="all">All Questions</option>
+                  <option value="past_paper">Past Papers Only</option>
+                  <option value="practice">Practice Questions</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+              <p className="text-sm font-medium text-teal-700 tabular-nums">
+                Showing {showingCountPhrase ?? "…"}
+              </p>
+              {hasActiveBarFilters ? (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-teal-600 underline underline-offset-2 hover:text-teal-800"
+                  onClick={clearBarFilters}
+                >
+                  Clear filters
+                </button>
+              ) : null}
             </div>
           </div>
 
