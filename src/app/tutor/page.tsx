@@ -542,6 +542,16 @@ No markdown, no extra text, just raw JSON.`,
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-3 pb-24 pt-4 sm:px-5">
+      <div className="flex items-center gap-3 border-b border-gray-100 p-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-teal-600"
+        >
+          ← Back to topics
+        </button>
+        <span className="text-gray-300">|</span>
+        <span className="text-sm font-medium text-gray-700">{topic}</span>
+      </div>
       <header className="relative rounded-2xl bg-white p-4 pr-36 shadow-card sm:pr-44">
         <Link
           href={`/practice?subject=${encodeURIComponent(subject)}&topic=${encodeURIComponent(topic)}`}
