@@ -1,32 +1,17 @@
 "use client";
 
+import clsx from "clsx";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
-import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
+import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
-function FlashcardStudyIntro() {
-  return (
-    <section className="shrink-0 border-b border-gray-200 bg-[#F9FAFB]">
-      <div className="mx-auto max-w-2xl px-4 py-6">
-        <Link href="/flashcards" className="text-sm font-semibold text-brand-teal hover:underline">
-          ← Back to Flashcards
-        </Link>
-        <PageIntro
-          subtitle="STUDY SESSION"
-          title="Flashcard Review"
-          description="Rate each card honestly — Know it, Unsure, or No idea. The platform uses spaced repetition to show you cards at the perfect time for long-term memory."
-          tip="Be honest with yourself. Marking 'Know it' when you are unsure defeats the purpose. The algorithm needs accurate ratings to help you."
-        />
-      </div>
-    </section>
-  );
-}
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-type Flashcard = {
+type DeckCard = {
   id: string;
   front: string;
   back: string;
@@ -43,22 +28,23 @@ type ProgressPeek = {
 
 function StudyInner() {
   const router = useRouter();
-  const params = useSearchParams();
-  const source = params.get("source");
-
   const [userId, setUserId] = useState<string | null>(null);
-  const [deck, setDeck] = useState<Flashcard[]>([]);
+  const [deck, setDeck] = useState<DeckCard[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, ProgressPeek>>({});
   const [loading, setLoading] = useState(true);
+  const [deckSource, setDeckSource] = useState<"session" | "bank">("bank");
+
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [complete, setComplete] = useState(false);
-  const [sessionKnown, setSessionKnown] = useState(0);
-  const [sessionReview, setSessionReview] = useState(0);
   const [busy, setBusy] = useState(false);
 
+  const [sessionKnow, setSessionKnow] = useState(0);
+  const [sessionUnsure, setSessionUnsure] = useState(0);
+  const [sessionNoIdea, setSessionNoIdea] = useState(0);
+
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null);
       if (!user) router.replace("/login");
     });
@@ -67,9 +53,36 @@ function StudyInner() {
   const loadDeck = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    const nowIso = new Date().toISOString();
 
-    if (source === "bank") {
+    let source: "session" | "bank" = "bank";
+    let idOrder: string[] = [];
+
+    try {
+      const raw = typeof window !== "undefined" ? sessionStorage.getItem(FLASHCARD_STUDY_SESSION_IDS_KEY) : null;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            idOrder = [...new Set(parsed.map(String).filter(Boolean))];
+          }
+        } catch {
+          idOrder = [];
+        }
+        sessionStorage.removeItem(FLASHCARD_STUDY_SESSION_IDS_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (idOrder.length > 0) {
+      source = "session";
+      const { data: rows } = await supabase.from("flashcards").select("id, front, back, hint, command_word").in("id", idOrder);
+      const list = rows as DeckCard[] | null;
+      const map = new Map((list ?? []).map((r) => [r.id, r]));
+      const ordered = idOrder.map((id) => map.get(id)).filter(Boolean) as DeckCard[];
+      setDeck(ordered);
+    } else {
+      source = "bank";
       const [{ data: saves }, { data: custom }] = await Promise.all([
         supabase.from("flashcard_saves").select("flashcard_id").eq("user_id", userId),
         supabase.from("flashcards").select("id").eq("created_by", userId).eq("is_platform", false),
@@ -78,72 +91,51 @@ function StudyInner() {
       (saves ?? []).forEach((r: { flashcard_id: string }) => ids.add(r.flashcard_id));
       (custom ?? []).forEach((r: { id: string }) => ids.add(r.id));
       const idList = [...ids];
-      if (!idList.length) {
+      if (idList.length === 0) {
         setDeck([]);
+        setDeckSource(source);
         setLoading(false);
+        setIdx(0);
+        setFlipped(false);
+        setComplete(false);
+        setSessionKnow(0);
+        setSessionUnsure(0);
+        setSessionNoIdea(0);
         return;
       }
       const { data: rows } = await supabase
         .from("flashcards")
         .select("id, front, back, hint, command_word")
         .in("id", idList)
-        .order("chapter");
-      setDeck((rows ?? []) as Flashcard[]);
-    } else {
-      const { data: due } = await supabase
-        .from("flashcard_progress")
-        .select("flashcard_id, times_seen, times_correct, status, next_review_at")
-        .eq("student_id", userId)
-        .lte("next_review_at", nowIso);
-
-      const idList = (due ?? []).map((r: { flashcard_id: string }) => r.flashcard_id);
-      const prog: Record<string, ProgressPeek> = {};
-      for (const r of due ?? []) {
-        const row = r as ProgressPeek & { flashcard_id: string };
-        prog[row.flashcard_id] = {
-          times_seen: row.times_seen,
-          times_correct: row.times_correct,
-          status: row.status,
-          next_review_at: row.next_review_at,
-        };
-      }
-      setProgressMap(prog);
-
-      if (!idList.length) {
-        setDeck([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data: rows } = await supabase
-        .from("flashcards")
-        .select("id, front, back, hint, command_word")
-        .in("id", idList);
-      setDeck((rows ?? []) as Flashcard[]);
+        .order("chapter", { ascending: true });
+      setDeck((rows ?? []) as DeckCard[]);
     }
 
+    setDeckSource(source);
     setLoading(false);
     setIdx(0);
     setFlipped(false);
     setComplete(false);
-    setSessionKnown(0);
-    setSessionReview(0);
-  }, [userId, source]);
+    setSessionKnow(0);
+    setSessionUnsure(0);
+    setSessionNoIdea(0);
+  }, [userId]);
 
   useEffect(() => {
     void loadDeck();
   }, [loadDeck]);
 
+  /** Progress rows for graded cards only (helps existing progress merge). */
   useEffect(() => {
-    const hydrateProgress = async () => {
-      if (!userId || deck.length === 0 || source === "bank") return;
+    const sync = async () => {
+      if (!userId || deck.length === 0) return;
       const { data } = await supabase
         .from("flashcard_progress")
         .select("flashcard_id, times_seen, times_correct, status, next_review_at")
         .eq("student_id", userId)
         .in(
           "flashcard_id",
-          deck.map((c) => c.id)
+          deck.map((c) => c.id),
         );
       const map: Record<string, ProgressPeek> = {};
       for (const r of data ?? []) {
@@ -157,8 +149,8 @@ function StudyInner() {
       }
       setProgressMap(map);
     };
-    void hydrateProgress();
-  }, [userId, deck, source]);
+    void sync();
+  }, [userId, deck]);
 
   const card = deck[idx];
 
@@ -195,162 +187,222 @@ function StudyInner() {
         }),
       });
 
-      if (res.ok) {
-        setProgressMap((m) => ({
-          ...m,
-          [card.id]: { times_seen: seen, times_correct: correct, status, next_review_at: next.toISOString() },
-        }));
-        if (rating === "know_it") setSessionKnown((n) => n + 1);
-        else setSessionReview((n) => n + 1);
+      if (!res.ok) return;
 
-        if (idx + 1 >= deck.length) {
-          setComplete(true);
-        } else {
-          setIdx((i) => i + 1);
-          setFlipped(false);
-        }
+      setProgressMap((m) => ({
+        ...m,
+        [card.id]: { times_seen: seen, times_correct: correct, status, next_review_at: next.toISOString() },
+      }));
+
+      if (rating === "know_it") setSessionKnow((n) => n + 1);
+      else if (rating === "unsure") setSessionUnsure((n) => n + 1);
+      else setSessionNoIdea((n) => n + 1);
+
+      await delay(500);
+
+      if (idx + 1 >= deck.length) {
+        setComplete(true);
+      } else {
+        setIdx((i) => i + 1);
+        setFlipped(false);
       }
     } finally {
       setBusy(false);
     }
   };
 
+  const restartSession = () => {
+    setIdx(0);
+    setFlipped(false);
+    setComplete(false);
+    setSessionKnow(0);
+    setSessionUnsure(0);
+    setSessionNoIdea(0);
+  };
+
   if (!userId) return null;
+
+  const progressPct =
+    deck.length > 0 ? Math.min(100, Math.round(((idx + (flipped ? 0.5 : 0)) / deck.length) * 100)) : 0;
+
+  const summary = (
+    <div className="body-font mx-auto mt-8 max-w-md space-y-2 rounded-2xl border border-teal-100 bg-white px-6 py-5 text-left text-[15px] text-slate-700 shadow-card">
+      <p>
+        <span className="font-semibold text-emerald-700">Know:</span> {sessionKnow}
+      </p>
+      <p>
+        <span className="font-semibold text-amber-700">Unsure:</span> {sessionUnsure}
+      </p>
+      <p>
+        <span className="font-semibold text-red-700">No idea:</span> {sessionNoIdea}
+      </p>
+      <p className="pt-2 text-sm text-slate-500">{deckSource === "session" ? "Session deck (due or hub)." : "Your full bank deck."}</p>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <FlashcardStudyIntro />
-        <div className="body-font flex flex-1 items-center justify-center bg-slate-900 px-4 py-16 text-white">
-          Loading…
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#E8F4F2] text-slate-700">
+        <p className="body-font font-medium">Loading your session…</p>
       </div>
     );
   }
 
   if (deck.length === 0 && !complete) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <FlashcardStudyIntro />
-        <div className="body-font flex flex-1 flex-col items-center justify-center bg-slate-900 px-4 py-16 text-center text-white">
-          <p className="text-lg">No cards in this session.</p>
-          <p className="mt-2 text-sm text-slate-300">
-            {source === "bank"
-              ? "Save cards to your bank or create your own."
-              : "Nothing is due right now. Check back later or study from your bank."}
-          </p>
-          <Link href="/flashcards" className="mt-6 font-semibold text-brand-teal hover:underline">
-            ← Back to Flashcards
-          </Link>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#E8F4F2] px-4 py-16 text-center">
+        <p className="heading-font text-xl font-bold text-slate-900">No cards here yet</p>
+        <p className="body-font mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-slate-600">
+          Nothing in this deck. Save platform cards from Browse, create your own from My bank, or come back when cards are due.
+        </p>
+        <Link
+          href="/flashcards"
+          className="mt-8 rounded-xl bg-brand-teal px-8 py-3 text-sm font-bold text-white hover:bg-brand-teal-dark"
+        >
+          Back to hub
+        </Link>
       </div>
     );
   }
 
   if (complete) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <FlashcardStudyIntro />
-        <div className="body-font flex flex-1 flex-col items-center justify-center bg-slate-900 px-4 py-16 text-center text-white">
-          <h1 className="heading-font text-2xl font-bold text-white">Session complete!</h1>
-          <p className="mt-4 text-lg text-slate-200">
-            {sessionKnown} known, {sessionReview} to review
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/flashcards"
-              className="rounded-xl bg-brand-teal px-6 py-3 text-sm font-bold text-white hover:bg-brand-teal-dark"
-            >
-              Flashcards home
-            </Link>
-            {source === "bank" ? (
-              <Link href="/flashcards/my-bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
-                My bank
-              </Link>
-            ) : (
-              <Link href="/flashcards/study?source=bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
-                Study my bank
-              </Link>
-            )}
-          </div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#E8F4F2] px-4 py-16 text-center">
+        <h1 className="heading-font text-2xl font-bold text-[#111827]">Nice work!</h1>
+        <p className="body-font mx-auto mt-2 max-w-md text-[15px] text-slate-600">Here’s how you rated this session:</p>
+        {summary}
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={restartSession}
+            className="rounded-xl bg-brand-teal px-8 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-teal-dark"
+          >
+            Study again
+          </button>
+          <Link
+            href="/flashcards"
+            className="inline-flex rounded-xl border-2 border-brand-teal bg-white px-8 py-3 text-sm font-bold text-brand-teal hover:bg-teal-50"
+          >
+            Back to hub
+          </Link>
         </div>
       </div>
     );
   }
 
-  const progressPct = deck.length ? Math.round(((idx + (flipped ? 0.5 : 0)) / deck.length) * 100) : 0;
-
   return (
-    <div className="body-font flex min-h-screen flex-col bg-slate-900 text-slate-100">
-      <FlashcardStudyIntro />
-      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <Link href="/flashcards" className="text-sm font-semibold text-teal-300 hover:text-white">
-          ← Flashcards
-        </Link>
-        <div className="h-2 w-40 max-w-[50vw] overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-brand-teal transition-all" style={{ width: `${progressPct}%` }} />
+    <div className="flex min-h-screen flex-col bg-[#E8F4F2] pb-28">
+      <header className="sticky top-0 z-10 border-b border-teal-100 bg-white/90 px-4 py-4 shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
+          <Link href="/flashcards" className="body-font shrink-0 text-sm font-semibold text-brand-teal hover:underline">
+            Exit
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="body-font text-center text-sm font-semibold text-slate-700">
+              Card {idx + 1} of {deck.length}
+            </p>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-teal-100">
+              <div
+                className="h-full rounded-full bg-brand-teal transition-[width] duration-300"
+                style={{ width: `${Math.min(100, progressPct)}%` }}
+              />
+            </div>
+          </div>
+          <span className="heading-font shrink-0 text-sm tabular-nums text-brand-teal">
+            {Math.round(progressPct)}%
+          </span>
         </div>
-        <span className="text-xs font-semibold text-slate-400">
-          {idx + 1} / {deck.length}
-        </span>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center px-4 pb-24 pt-6">
-        <p className="mb-4 text-sm text-slate-400">
-          Card {idx + 1} of {deck.length}
-        </p>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pt-8">
+        <div className="mx-auto w-full" style={{ perspective: "1400px" }}>
+          <div
+            role="presentation"
+            onClick={() => {
+              if (!flipped && !busy) setFlipped(true);
+            }}
+            className={clsx(
+              "relative mx-auto mb-10 min-h-64 w-full max-w-xl cursor-pointer transition-transform duration-700 ease-out",
+              flipped && "cursor-default pointer-events-none",
+              busy && "pointer-events-none opacity-80",
+            )}
+            style={{
+              transformStyle: "preserve-3d",
+              transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            }}
+          >
+            <div
+              className="absolute inset-0 flex min-h-[16rem] flex-col rounded-2xl bg-white p-6 shadow-lg"
+              style={{
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                transform: "rotateY(0deg)",
+              }}
+            >
+              <div className="flex shrink-0 justify-start">
+                {card?.command_word && (
+                  <span className="inline-block rounded-full border border-brand-orange/40 bg-orange-50 px-3 py-1 text-xs font-bold text-brand-orange">
+                    {card.command_word}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+                <p className="heading-font text-xl font-bold leading-snug text-[#111827]">{card?.front}</p>
+              </div>
+              <p className="body-font shrink-0 text-center text-sm text-slate-500">Tap to reveal answer</p>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => card && setFlipped((f) => !f)}
-          className="relative min-h-[280px] w-full max-w-lg cursor-pointer rounded-3xl border-2 border-teal-500/40 bg-slate-800/80 p-8 text-center shadow-2xl transition hover:border-brand-teal"
-        >
-          {!flipped ? (
+            <div
+              className="absolute inset-0 flex min-h-[16rem] flex-col rounded-2xl bg-white p-6 shadow-lg"
+              style={{
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                transform: "rotateY(180deg)",
+              }}
+            >
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-brand-teal">ANSWER</p>
+              <div className="body-font flex-1 overflow-auto text-[16px] leading-relaxed text-slate-800">
+                <p className="whitespace-pre-wrap text-left">{card?.back}</p>
+                {card?.hint ? (
+                  <p className="body-font mt-4 border-t border-slate-100 pt-4 text-left text-sm italic text-slate-500">
+                    {card.hint}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto w-full max-w-xl space-y-3">
+          {flipped && (
             <>
-              {card?.command_word && (
-                <span className="mb-4 inline-block rounded-full border border-brand-orange/50 bg-brand-orange/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-orange">
-                  {card.command_word}
-                </span>
-              )}
-              <p className="text-lg font-medium leading-relaxed text-white">{card?.front}</p>
-              <p className="mt-6 text-sm italic text-slate-500">Tap to flip</p>
-            </>
-          ) : (
-            <>
-              <p className="text-base leading-relaxed text-slate-100 whitespace-pre-line">{card?.back}</p>
-              {card?.hint && <p className="mt-6 text-sm italic text-slate-500">{card.hint}</p>}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void submitRating("no_idea")}
+                className="body-font flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-4 text-[15px] font-bold text-red-800 hover:bg-red-100 disabled:opacity-50"
+              >
+                🔴 No idea
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void submitRating("unsure")}
+                className="body-font flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 py-4 text-[15px] font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                🟡 Unsure
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void submitRating("know_it")}
+                className="body-font flex w-full items-center justify-center gap-2 rounded-xl bg-brand-teal py-4 text-[15px] font-bold text-white hover:bg-brand-teal-dark disabled:opacity-50"
+              >
+                🟢 Know it!
+              </button>
             </>
           )}
-        </button>
-
-        {flipped && (
-          <div className="mt-8 grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void submitRating("no_idea")}
-              className="rounded-xl bg-red-950/80 py-3 text-sm font-bold text-red-200 ring-1 ring-red-500/40 hover:bg-red-900/80 disabled:opacity-50"
-            >
-              🔴 No idea (10 min)
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void submitRating("unsure")}
-              className="rounded-xl bg-amber-950/80 py-3 text-sm font-bold text-amber-100 ring-1 ring-amber-500/40 hover:bg-amber-900/80 disabled:opacity-50"
-            >
-              🟡 Unsure (tomorrow)
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void submitRating("know_it")}
-              className="rounded-xl bg-emerald-950/80 py-3 text-sm font-bold text-emerald-100 ring-1 ring-emerald-500/40 hover:bg-emerald-900/80 disabled:opacity-50"
-            >
-              🟢 Know it! (7 days)
-            </button>
-          </div>
-        )}
+        </div>
       </main>
     </div>
   );
@@ -360,7 +412,7 @@ export default function FlashcardsStudyPage() {
   return (
     <Suspense
       fallback={
-        <div className="body-font flex min-h-screen items-center justify-center bg-slate-900 text-white">Loading…</div>
+        <div className="flex min-h-screen items-center justify-center bg-[#E8F4F2] text-slate-700">Loading…</div>
       }
     >
       <StudyInner />

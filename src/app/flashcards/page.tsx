@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import FlashcardTile, { type FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
 import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
 function shufflePick<T>(arr: T[], n: number): T[] {
@@ -19,6 +21,7 @@ function shufflePick<T>(arr: T[], n: number): T[] {
 }
 
 export default function FlashcardsPage() {
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [hydratedUser, setHydratedUser] = useState(false);
   const [dueCount, setDueCount] = useState<number | null>(null);
@@ -103,6 +106,26 @@ export default function FlashcardsPage() {
     void loadPreviewAndTotal();
   }, [loadPreviewAndTotal]);
 
+  const handleStudyDue = async () => {
+    if (!userId) {
+      router.push("/login");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const { data: due } = await supabase
+      .from("flashcard_progress")
+      .select("flashcard_id")
+      .eq("student_id", userId)
+      .lte("next_review_at", nowIso);
+    const ids = (due ?? []).map((r: { flashcard_id: string }) => r.flashcard_id);
+    try {
+      sessionStorage.setItem(FLASHCARD_STUDY_SESSION_IDS_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore quota / SSR */
+    }
+    router.push("/flashcards/study");
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-8">
       <PageIntro
@@ -138,12 +161,13 @@ export default function FlashcardsPage() {
                   <p className="mt-2 text-sm text-slate-600">No cards due — check back tomorrow.</p>
                 )}
               </div>
-              <Link
-                href="/flashcards/study"
+              <button
+                type="button"
+                onClick={() => void handleStudyDue()}
                 className="inline-flex items-center justify-center rounded-2xl bg-brand-orange px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
               >
                 Study due cards →
-              </Link>
+              </button>
             </div>
           </div>
         )}
