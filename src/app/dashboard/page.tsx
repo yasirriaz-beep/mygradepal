@@ -24,8 +24,15 @@ type WeakArea = {
 };
 
 const TOPIC_GOAL = 12;
+
+/** Text gray on white ≥ ~7:1 (small body) */
+const TEXT_BODY = "#374151";
+/** Readable gray accent, avoids “washed” look on white */
+const TEXT_MUTED = "#4B5563";
+const TEXT_TITLE = "#111827";
 const BRAND_TEAL = "#189080";
 const BRAND_ORANGE = "#f5731e";
+const ENCOURAGE_BG = "#F0FAFA";
 
 function getDayPeriod(): "morning" | "afternoon" | "evening" {
   const hour = new Date().getHours();
@@ -171,97 +178,175 @@ export default function DashboardPage() {
     return messages[dayOfYear % 10].replace("{streak}", String(streak));
   }, [streak]);
 
+  const examLine =
+    daysUntilExam === null
+      ? "Set your exam date to start the countdown."
+      : `Your Cambridge exam is in ${daysUntilExam} days`;
+
+  const shellClasses = "min-h-screen bg-[#F9FAFB]";
+  /** Body: DM Sans 15px, leading 1.6 */
+  const bodyText = `body-font text-[15px] leading-[1.6]`;
+
   if (loading) {
     return (
-      <main className="mx-auto min-h-screen max-w-5xl px-4 py-6 sm:px-6">
-        <p className="text-sm text-slate-600">Loading Mission Control...</p>
+      <main className={shellClasses}>
+        <div className={`mx-auto max-w-2xl px-4 py-6 ${bodyText}`} style={{ color: TEXT_BODY }}>
+          <p>Loading Mission Control...</p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl space-y-5 px-4 py-5 sm:px-6">
-      {isGuest && (
-        <section className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-          <p className="text-sm font-medium text-orange-900">
-            You&apos;re in guest mode. Save your progress permanently by creating your account.
+    <main className={shellClasses}>
+      <div className={`mx-auto max-w-2xl px-4 pb-12 pt-6 ${bodyText}`} style={{ color: TEXT_BODY }}>
+        {isGuest && (
+          <section
+            className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 p-6 shadow-sm"
+            style={{ color: "#7c2d12" }}
+          >
+            <p className="body-font font-medium leading-[1.6]">
+              You&apos;re in guest mode. Save your progress permanently by creating your account.
+            </p>
+            <Link
+              href="/login?tab=signup"
+              className="body-font mt-3 inline-block text-[15px] font-semibold leading-[1.6]"
+              style={{ color: BRAND_ORANGE }}
+            >
+              Sign up now →
+            </Link>
+          </section>
+        )}
+
+        {/* Greeting */}
+        <section className="mb-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <p className="body-font text-base leading-[1.6]" style={{ color: TEXT_MUTED }}>
+            Good {getDayPeriod()},
           </p>
-          <Link href="/login?tab=signup" className="mt-2 inline-block text-sm font-semibold" style={{ color: BRAND_ORANGE }}>
-            Sign up now →
-          </Link>
-        </section>
-      )}
-
-      <section className="rounded-3xl bg-white p-5 shadow-card sm:p-6">
-        <h1 className="heading-font text-2xl font-bold text-slate-900">
-          Good {getDayPeriod()}, {name}
-        </h1>
-        <p className="mt-3 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
-          {daysUntilExam === null ? "Set your exam date to start the countdown." : `Your Cambridge exam is in ${daysUntilExam} days`}
-        </p>
-        <div className="mt-4 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: BRAND_ORANGE }}>
-          🔥 {streak} day streak
-        </div>
-      </section>
-
-      <section className="rounded-3xl p-5 text-white shadow-card sm:p-6" style={{ background: BRAND_TEAL }}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-100">Today&apos;s mission</p>
-        <h2 className="mt-1 text-2xl font-bold">Pass 1 — Week {weekNumber}</h2>
-        <p className="mt-2 text-lg text-teal-50">{todayTopic}</p>
-        <p className="mt-1 text-sm text-teal-100">35 min session</p>
-        <Link
-          href="/learn/chemistry"
-          className="mt-4 inline-flex rounded-xl bg-white px-4 py-2 text-sm font-bold"
-          style={{ color: BRAND_TEAL }}
-        >
-          Start today&apos;s session →
-        </Link>
-      </section>
-
-      <section className="rounded-3xl bg-white p-5 shadow-card sm:p-6">
-        <h3 className="text-lg font-bold text-slate-900">Progress</h3>
-        <p className="mt-3 text-sm font-semibold text-slate-700">Overall mastery: {masteryPercent}%</p>
-        <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full transition-all" style={{ width: `${masteryBarWidth}%`, background: BRAND_TEAL }} />
-        </div>
-        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-          <p>
-            {topicsCovered} of {TOPIC_GOAL} topics covered
+          <h1 className="heading-font mt-0.5 text-[28px] font-bold leading-tight tracking-tight" style={{ color: TEXT_TITLE }}>
+            {name}
+          </h1>
+          <p className="heading-font mt-3 text-[18px] font-bold leading-snug" style={{ color: BRAND_TEAL }}>
+            {examLine}
           </p>
-          <p>{questionsAttempted} questions attempted</p>
-          <p>{flashcardsMastered} flashcards mastered</p>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-teal-100 bg-teal-50 p-5 sm:p-6">
-        <p className="text-sm leading-relaxed text-teal-900">{motivation}</p>
-      </section>
-
-      {weakAreas.length > 0 && (
-        <section className="rounded-3xl bg-white p-5 shadow-card sm:p-6">
-          <h3 className="text-lg font-bold text-slate-900">Weak areas to strengthen</h3>
-          <div className="mt-4 space-y-3">
-            {weakAreas.map((area) => {
-              const label = area.subtopic || area.topic || "Untitled subtopic";
-              return (
-                <div key={`${area.topic}-${area.subtopic}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{label}</p>
-                    <p className="text-sm text-slate-600">Score: {Math.round(Number(area.score_percent ?? 0))}%</p>
-                  </div>
-                  <Link
-                    href={`/practice?subtopic=${encodeURIComponent(label)}`}
-                    className="text-sm font-semibold"
-                    style={{ color: BRAND_TEAL }}
-                  >
-                    Practice now →
-                  </Link>
-                </div>
-              );
-            })}
+          <div
+            className="heading-font mt-4 inline-flex items-center rounded-full px-4 py-2 text-sm font-bold text-white"
+            style={{ background: BRAND_ORANGE }}
+          >
+            🔥 {streak} day streak
           </div>
         </section>
-      )}
+
+        {/* TODAY'S MISSION */}
+        <section
+          className="mb-4 rounded-2xl p-6 text-white shadow-sm"
+          style={{ backgroundColor: BRAND_TEAL }}
+        >
+          <p className="body-font text-[11px] font-semibold uppercase tracking-[0.2em] leading-normal text-white/80">
+            Today&apos;s mission
+          </p>
+          <h2 className="heading-font mt-2 text-[22px] font-bold leading-tight">Pass 1 — Week {weekNumber}</h2>
+          <p className="body-font mt-3 text-[18px] font-medium leading-snug">{todayTopic}</p>
+          <p className="body-font mt-2 text-[14px] leading-normal text-white/75">35 min session</p>
+          <Link
+            href="/learn/chemistry"
+            className="body-font mt-5 inline-flex rounded-lg bg-white px-5 py-2.5 text-[15px] font-semibold leading-none shadow-sm transition hover:bg-gray-50"
+            style={{ color: BRAND_TEAL }}
+          >
+            Start today&apos;s session →
+          </Link>
+        </section>
+
+        {/* Progress */}
+        <section className="mb-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="heading-font text-[18px] font-bold leading-tight" style={{ color: TEXT_TITLE }}>
+            Your Progress
+          </h2>
+          <p className="body-font mt-4 text-[15px] font-medium leading-[1.6]" style={{ color: TEXT_BODY }}>
+            Overall mastery: {masteryPercent}%
+          </p>
+          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-3 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${masteryBarWidth}%`, backgroundColor: BRAND_TEAL }}
+            />
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl bg-gray-100 px-4 py-4 text-center">
+              <p className="heading-font text-2xl font-bold leading-none" style={{ color: BRAND_TEAL }}>
+                {topicsCovered}
+              </p>
+              <p className="body-font mt-2 text-[13px] leading-tight" style={{ color: TEXT_BODY }}>
+                of {TOPIC_GOAL} topics covered
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-100 px-4 py-4 text-center">
+              <p className="heading-font text-2xl font-bold leading-none" style={{ color: BRAND_TEAL }}>
+                {questionsAttempted}
+              </p>
+              <p className="body-font mt-2 text-[13px] leading-tight" style={{ color: TEXT_BODY }}>
+                questions attempted
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-100 px-4 py-4 text-center">
+              <p className="heading-font text-2xl font-bold leading-none" style={{ color: BRAND_TEAL }}>
+                {flashcardsMastered}
+              </p>
+              <p className="body-font mt-2 text-[13px] leading-tight" style={{ color: TEXT_BODY }}>
+                flashcards mastered
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Encouraging message */}
+        <section
+          className="body-font mb-4 rounded-r-2xl border-l-[3px] py-4 pl-4 pr-5 text-[15px] italic leading-[1.6] shadow-sm"
+          style={{
+            borderLeftColor: BRAND_TEAL,
+            backgroundColor: ENCOURAGE_BG,
+            color: TEXT_MUTED,
+          }}
+        >
+          {motivation}
+        </section>
+
+        {weakAreas.length > 0 && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="heading-font text-[18px] font-bold leading-tight" style={{ color: TEXT_TITLE }}>
+              Weak areas to strengthen
+            </h2>
+            <div className="mt-6 space-y-4">
+              {weakAreas.map((area) => {
+                const label = area.subtopic || area.topic || "Untitled subtopic";
+                return (
+                  <div
+                    key={`${area.topic}-${area.subtopic}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-[#FAFAFA] px-4 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="heading-font text-[15px] font-bold leading-snug" style={{ color: TEXT_TITLE }}>
+                        {label}
+                      </p>
+                      <p className="body-font mt-1 text-[13px] leading-snug" style={{ color: TEXT_BODY }}>
+                        Score: {Math.round(Number(area.score_percent ?? 0))}%
+                      </p>
+                    </div>
+                    <Link
+                      href={`/practice?subtopic=${encodeURIComponent(label)}`}
+                      className="body-font shrink-0 text-[15px] font-semibold leading-snug hover:underline"
+                      style={{ color: BRAND_TEAL }}
+                    >
+                      Practice now →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
     </main>
   );
 }
