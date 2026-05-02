@@ -116,6 +116,8 @@ function TutorPageContent() {
       audioRef.current.currentTime = 0;
       audioRef.current = null;
     }
+    speechSynthRef.current?.cancel();
+    utteranceRef.current = null;
     setAudioState("idle");
   };
 
@@ -148,14 +150,56 @@ function TutorPageContent() {
     audioRef.current = audio;
   };
 
+  const buildExplainSpeechText = (content: StaticTopicContent) => {
+    const def = content.definition?.trim() ?? "";
+    const points = (content.key_points ?? []).filter(Boolean);
+    const parts: string[] = [];
+    if (def) parts.push(`Definition. ${def}`);
+    if (points.length) parts.push(`Key points. ${points.join(". ")}`);
+    return parts.join(". ");
+  };
+
   const handlePlay = () => {
-    initAudio();
-    void audioRef.current?.play();
+    if (!staticContent) return;
+    if (staticContent.audio_url_en) {
+      initAudio();
+      void audioRef.current?.play();
+      setAudioState("playing");
+      return;
+    }
+    const synth = speechSynthRef.current;
+    if (!synth) return;
+    if (audioState === "paused") {
+      synth.resume();
+      setAudioState("playing");
+      return;
+    }
+    stopSpeaking();
+    const text = buildExplainSpeechText(staticContent);
+    if (!text.trim()) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = audioSpeed;
+    utterance.lang = "en-US";
+    utterance.onend = () => {
+      utteranceRef.current = null;
+      setAudioState("idle");
+    };
+    utterance.onerror = () => {
+      utteranceRef.current = null;
+      setAudioState("idle");
+    };
+    utteranceRef.current = utterance;
+    synth.speak(utterance);
     setAudioState("playing");
   };
 
   const handlePause = () => {
-    audioRef.current?.pause();
+    if (staticContent?.audio_url_en) {
+      audioRef.current?.pause();
+      setAudioState("paused");
+      return;
+    }
+    speechSynthRef.current?.pause();
     setAudioState("paused");
   };
 
@@ -622,7 +666,7 @@ No markdown, no extra text, just raw JSON.`,
       <section className="relative z-0 mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
         {isLoadingContent && <p className="text-sm text-slate-600">Loading topic content...</p>}
         <div className="rounded-2xl bg-teal-50 p-4">
-            {currentStep === "explain" && staticContent?.audio_url_en && (
+            {currentStep === "explain" && staticContent && (
               <>
                 <div
                   style={{
@@ -700,7 +744,9 @@ No markdown, no extra text, just raw JSON.`,
                     fontSize: 11, color: "#888", textAlign: "center", marginTop: 4, marginBottom: 12
                   }}
                 >
-                  Use the play controls above to listen to this topic in English
+                  {staticContent.audio_url_en
+                    ? "Use the play controls above to listen to this topic in English"
+                    : "Use the play controls above to hear this topic read aloud in your browser"}
                 </p>
               </>
             )}
