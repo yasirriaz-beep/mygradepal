@@ -2,10 +2,13 @@ export const FLASHCARD_COMMAND_WORDS = [
   "State",
   "Define",
   "Explain",
-  "Calculate",
   "Describe",
+  "Calculate",
   "Name",
   "Give",
+  "Compare",
+  "Suggest",
+  "Predict",
 ] as const;
 
 export type FlashcardCommandWord = (typeof FLASHCARD_COMMAND_WORDS)[number];
