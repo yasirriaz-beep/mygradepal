@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Bookmark, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ExamQuestionRow, ExamQuestionState, ExamResultsPayload, ExamSetupPayload, SelfMark } from "@/lib/examTypes";
+import { fetchFullPaperExamQuestions } from "@/lib/fullPaperExamBootstrap";
 import {
   BRAND_ORANGE,
   BRAND_TEAL,
@@ -41,7 +42,22 @@ function awardedForSelfMark(marks: number, sm: SelfMark): number {
 }
 
 export default function ExamSessionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center bg-slate-50 text-sm text-slate-600">
+          Loading exam session…
+        </div>
+      }
+    >
+      <ExamSessionInner />
+    </Suspense>
+  );
+}
+
+function ExamSessionInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<ExamSetupPayload | null>(null);
   const [questions, setQuestions] = useState<ExamQuestionRow[]>([]);
@@ -53,27 +69,77 @@ export default function ExamSessionPage() {
   const examTimerStarted = useRef(false);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(EXAM_SESSION_KEY);
-    if (!raw) {
-      router.replace("/exam");
-      return;
-    }
-    try {
-      const data = JSON.parse(raw) as SessionStored;
-      if (!data?.questions?.length || !data.setup) {
-        router.replace("/exam");
+    let cancelled = false;
+
+    async function init() {
+      const raw = sessionStorage.getItem(EXAM_SESSION_KEY);
+
+      if (raw) {
+        try {
+          const data = JSON.parse(raw) as SessionStored;
+          if (!data?.questions?.length || !data.setup) {
+            router.replace("/exam");
+            return;
+          }
+          if (cancelled) return;
+          setSetup(data.setup);
+          setQuestions(data.questions);
+          setStates(data.questions.map(() => emptyState()));
+          setStartedAt(Date.now());
+        } catch {
+          router.replace("/exam");
+          return;
+        }
+        if (!cancelled) setHydrated(true);
         return;
       }
-      setSetup(data.setup);
-      setQuestions(data.questions);
-      setStates(data.questions.map(() => emptyState()));
-      setStartedAt(Date.now());
-    } catch {
+
+      const yearStr = searchParams.get("year");
+      const paper = searchParams.get("paper");
+      const modeRaw = searchParams.get("mode");
+      const modeTimed = modeRaw === "timed";
+
+      if (yearStr && paper) {
+        const year = Number(yearStr);
+        if (Number.isNaN(year)) {
+          router.replace("/exam");
+          return;
+        }
+        const paperLabel = decodeURIComponent(paper.trim());
+        const qs = await fetchFullPaperExamQuestions(year, paperLabel);
+        if (cancelled) return;
+        if (qs.length === 0) {
+          router.replace("/exam");
+          return;
+        }
+        const setup: ExamSetupPayload = {
+          topic: `${paperLabel} (${year})`,
+          topicValue: "all",
+          countChoice: "all",
+          mode: modeTimed ? "exam" : "practice",
+          difficulty: "all",
+          yearFilter: "all",
+        };
+        const payload: SessionStored = { setup, questions: qs, preparedAt: Date.now() };
+        sessionStorage.setItem(EXAM_SESSION_KEY, JSON.stringify(payload));
+        if (typeof window !== "undefined") window.history.replaceState(null, "", "/exam/session");
+
+        setSetup(setup);
+        setQuestions(qs);
+        setStates(qs.map(() => emptyState()));
+        setStartedAt(Date.now());
+        setHydrated(true);
+        return;
+      }
+
       router.replace("/exam");
-      return;
     }
-    setHydrated(true);
-  }, [router]);
+
+    void init();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (!hydrated || !setup || setup.mode !== "exam" || questions.length === 0) return;

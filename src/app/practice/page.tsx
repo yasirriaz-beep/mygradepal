@@ -1,7 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
+import BottomNav from "@/components/BottomNav";
 import PageIntro from "@/components/PageIntro";
 import { supabase } from "@/lib/supabase";
 
@@ -235,7 +238,327 @@ function getPaperIdFromQuestionId(questionId: string): string | null {
   return parts[0];
 }
 
-export default function PracticePage() {
+type PracticeTabKey = "topical" | "predict" | "fullpaper";
+
+function normalizePracticeTab(tab: string | null): PracticeTabKey {
+  if (tab === "predict" || tab === "fullpaper") return tab;
+  return "topical";
+}
+
+function buildPracticeUrl(nextTab: PracticeTabKey, search: URLSearchParams): string {
+  const p = new URLSearchParams(search.toString());
+  if (nextTab === "topical") p.delete("tab");
+  else p.set("tab", nextTab);
+  const qs = p.toString();
+  return qs ? `/practice?${qs}` : "/practice";
+}
+
+type PredictTopicRow = {
+  subject: string;
+  topic: string;
+  frequency_score: number;
+  prediction_tier: string | null;
+};
+
+const predictSubjects = ["Chemistry", "Physics", "Mathematics"];
+
+function getPredictBadge(score: number) {
+  if (score >= 90) return { label: "🔥 Certain", className: "bg-red-100 text-red-700" };
+  if (score >= 70) return { label: "⚡ Likely", className: "bg-amber-100 text-amber-700" };
+  if (score >= 50) return { label: "✓ Possible", className: "bg-emerald-100 text-emerald-700" };
+  return { label: "Low", className: "bg-slate-100 text-slate-600" };
+}
+
+function PracticePredictTab() {
+  const router = useRouter();
+  const [selectedSubject, setSelectedSubject] = useState("Chemistry");
+  const [topics, setTopics] = useState<PredictTopicRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPredictions = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      const { data, error: queryError } = await supabase
+        .from("questions")
+        .select("subject, topic, frequency_score, prediction_tier")
+        .order("frequency_score", { ascending: false });
+
+      if (queryError) {
+        setError(queryError.message);
+        setTopics([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const unique = new Map<string, PredictTopicRow>();
+      for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+        const subject = String(row.subject ?? "");
+        const topic = String(row.topic ?? "");
+        if (!subject || !topic) continue;
+
+        const score = Number(row.frequency_score ?? 0);
+        const key = `${subject}::${topic}`;
+        const existing = unique.get(key);
+        if (!existing || score > existing.frequency_score) {
+          unique.set(key, {
+            subject,
+            topic,
+            frequency_score: score,
+            prediction_tier: (row.prediction_tier as string) ?? null,
+          });
+        }
+      }
+
+      setTopics(
+        Array.from(unique.values()).sort((a, b) => b.frequency_score - a.frequency_score),
+      );
+      setIsLoading(false);
+    };
+
+    void loadPredictions();
+  }, []);
+
+  const bySubject = useMemo(() => {
+    return predictSubjects.reduce<Record<string, PredictTopicRow[]>>((acc, subject) => {
+      acc[subject] = topics.filter((topic) => topic.subject === subject);
+      return acc;
+    }, {});
+  }, [topics]);
+
+  const handleGeneratePaper = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/generate-paper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: selectedSubject }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to generate mock paper.");
+      }
+
+      sessionStorage.setItem("generatedMockPaper", JSON.stringify(data));
+      router.push(`/mock-paper?subject=${encodeURIComponent(selectedSubject)}`);
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : "Failed to generate predicted paper.";
+      setError(message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="heading-font text-2xl font-bold text-slate-900">
+        SmartPredict - What&apos;s coming in your exam
+      </h2>
+      <p className="text-sm text-slate-600">Based on 15 years of Cambridge past paper analysis</p>
+
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <label className="text-sm font-medium text-slate-700" htmlFor="subjectSelectPractice">
+          Subject for predicted paper
+        </label>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <select
+            id="subjectSelectPractice"
+            value={selectedSubject}
+            onChange={(event) => setSelectedSubject(event.target.value)}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          >
+            {predictSubjects.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => void handleGeneratePaper()}
+            disabled={isGenerating}
+            className="rounded-xl bg-brand-teal px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70"
+          >
+            {isGenerating ? "Generating..." : "Generate Predicted Paper"}
+          </button>
+        </div>
+      </div>
+
+      {isLoading && <p className="text-sm text-slate-600">Loading predictions...</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <section className="space-y-5">
+        {predictSubjects.map((subject) => (
+          <article key={subject} className="rounded-2xl bg-white p-4 shadow-card">
+            <h3 className="heading-font text-xl font-semibold text-slate-900">{subject}</h3>
+            <div className="mt-3 space-y-2">
+              {bySubject[subject]?.length ? (
+                bySubject[subject].map((topic, index) => {
+                  const badge = getPredictBadge(topic.frequency_score);
+                  const isLocked = index >= 3;
+                  return (
+                    <div
+                      key={`${topic.subject}-${topic.topic}`}
+                      className="relative flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">{topic.topic}</p>
+                        <div className={isLocked ? "select-none blur-[4px]" : ""}>
+                          <p className="text-xs text-slate-500">Frequency score: {topic.frequency_score}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                        {isLocked ? (
+                          <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                            Locked
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/practice?tab=topical&topic=${encodeURIComponent(topic.topic)}&subject=${encodeURIComponent(topic.subject)}`}
+                            className="rounded-lg bg-brand-teal px-3 py-1.5 text-xs font-semibold text-white"
+                          >
+                            Practice this topic
+                          </Link>
+                        )}
+                      </div>
+                      {isLocked && (
+                        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-xl bg-white/25">
+                          <div className="rounded-lg bg-white/95 px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow">
+                            🔒 Upgrade to unlock all predictions
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-500">No prediction data yet.</p>
+              )}
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <BottomNav />
+    </div>
+  );
+}
+
+const fullPaperYears = Array.from({ length: 10 }, (_, i) => 2016 + i);
+const fullPaperOptions = ["Paper 2", "Paper 4", "Paper 6"] as const;
+
+function PracticeFullPaperTab() {
+  const [year, setYear] = useState(2025);
+  const [paper, setPaper] = useState<(typeof fullPaperOptions)[number]>("Paper 2");
+  const [mode, setMode] = useState<"timed" | "untimed">("untimed");
+
+  const sessionHref = `/exam/session?year=${year}&paper=${encodeURIComponent(paper)}&mode=${mode}`;
+
+  return (
+    <div className="max-w-xl space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">Practice with full Cambridge papers</h2>
+      <p className="text-sm text-gray-600">Choose a year and paper to practice under exam conditions</p>
+
+      <div className="space-y-2">
+        <label htmlFor="fullpaper-year" className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Year
+        </label>
+        <select
+          id="fullpaper-year"
+          value={year}
+          onChange={(e) => setYear(Number(e.target.value))}
+          className="w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          {fullPaperYears.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Paper</span>
+        <div className="flex flex-wrap gap-2">
+          {fullPaperOptions.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPaper(p)}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                paper === p
+                  ? "border-teal-600 bg-teal-50 text-teal-800"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:text-teal-700"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mode</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setMode("timed")}
+            className={`rounded-xl border-2 px-4 py-4 text-left text-sm transition-colors ${
+              mode === "timed"
+                ? "border-teal-600 bg-teal-50 text-teal-900"
+                : "border-gray-200 bg-white text-gray-700 hover:border-teal-200 hover:text-teal-700"
+            }`}
+          >
+            <span className="font-semibold">Timed</span>
+            <p className="mt-1 text-xs text-gray-600">Exam-style countdown</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("untimed")}
+            className={`rounded-xl border-2 px-4 py-4 text-left text-sm transition-colors ${
+              mode === "untimed"
+                ? "border-teal-600 bg-teal-50 text-teal-900"
+                : "border-gray-200 bg-white text-gray-700 hover:border-teal-200 hover:text-teal-700"
+            }`}
+          >
+            <span className="font-semibold">Untimed</span>
+            <p className="mt-1 text-xs text-gray-600">Practice at your own pace</p>
+          </button>
+        </div>
+      </div>
+
+      <Link
+        href={sessionHref}
+        className="inline-flex items-center rounded-xl px-6 py-3 text-sm font-semibold text-white transition hover:opacity-95"
+        style={{ backgroundColor: "#189080" }}
+      >
+        Start paper →
+      </Link>
+    </div>
+  );
+}
+
+function PracticePageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const practiceTab = normalizePracticeTab(searchParams.get("tab"));
+
+  const tabButtonClass = (key: PracticeTabKey) =>
+    [
+      "px-6 py-3 font-medium text-sm border-b-2 transition-colors",
+      key === practiceTab
+        ? "border-teal-600 text-teal-600"
+        : "border-transparent text-gray-500 hover:text-teal-600",
+    ].join(" ");
+
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
@@ -359,6 +682,7 @@ export default function PracticePage() {
   };
 
   useEffect(() => {
+    if (practiceTab !== "topical") return;
     const loadInitial = async () => {
       setLoading(true);
       setAllQuestions([]);
@@ -369,9 +693,10 @@ export default function PracticePage() {
       setLoading(false);
     };
     void loadInitial();
-  }, [activeTopic, activeSubtopic, barFilterOpts]);
+  }, [practiceTab, activeTopic, activeSubtopic, barFilterOpts]);
 
   useEffect(() => {
+    if (practiceTab !== "topical") return;
     const loadAggregatedSidebarCounts = async () => {
       setSidebarCountsLoading(true);
       const topicTotals: Record<string, number> = Object.fromEntries(TOPICS.map((t) => [t, 0]));
@@ -405,7 +730,7 @@ export default function PracticePage() {
       setSidebarCountsLoading(false);
     };
     void loadAggregatedSidebarCounts();
-  }, [barFilterOpts]);
+  }, [practiceTab, barFilterOpts]);
 
   const hasActiveBarFilters =
     selectedYear !== null ||
@@ -484,6 +809,32 @@ export default function PracticePage() {
         description="6,815 real Cambridge past paper questions from 10 years of O Level / IGCSE Chemistry papers. Filter by topic, difficulty, year and type. Practice at your own pace."
         tip="Start with topics from your study plan. Filter by your current week's topic for maximum benefit."
       />
+
+      <div className="mb-6 flex border-b border-gray-200">
+        <button
+          type="button"
+          className={tabButtonClass("topical")}
+          onClick={() => router.replace(buildPracticeUrl("topical", searchParams), { scroll: false })}
+        >
+          Topical
+        </button>
+        <button
+          type="button"
+          className={tabButtonClass("predict")}
+          onClick={() => router.replace(buildPracticeUrl("predict", searchParams), { scroll: false })}
+        >
+          Smart Predict
+        </button>
+        <button
+          type="button"
+          className={tabButtonClass("fullpaper")}
+          onClick={() => router.replace(buildPracticeUrl("fullpaper", searchParams), { scroll: false })}
+        >
+          Full Paper
+        </button>
+      </div>
+
+      {practiceTab === "topical" && (
       <div className="grid items-start gap-4 lg:grid-cols-[300px_1fr]">
         <aside className="sticky top-0 max-h-screen self-start overflow-y-auto rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-gray-800">Topics</h2>
@@ -987,6 +1338,23 @@ export default function PracticePage() {
           {saveStatus && <p className="text-xs font-medium text-teal-700">{saveStatus}</p>}
         </section>
       </div>
+      )}
+      {practiceTab === "predict" && <PracticePredictTab />}
+      {practiceTab === "fullpaper" && <PracticeFullPaperTab />}
     </div>
+  );
+}
+
+export default function PracticePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-600">
+          Loading practice…
+        </div>
+      }
+    >
+      <PracticePageInner />
+    </Suspense>
   );
 }
