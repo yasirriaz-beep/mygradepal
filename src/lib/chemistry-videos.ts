@@ -3,7 +3,28 @@
 // Complete video library with all parts and subtopic timestamps
 // ============================================================
 
-export const CHEMISTRY_VIDEOS = [
+export type SubtopicTimestamp = {
+  subtopic: string;
+  seconds: number;
+  end_seconds: number;
+};
+
+export type ChemistryVideoEntry = {
+  part: number;
+  youtube_id: string;
+  title: string;
+  channel: string;
+  summary: string;
+  timestamps: { time: string; label: string; seconds: number }[];
+  subtopic_timestamps: SubtopicTimestamp[];
+};
+
+export type ChemistryChapter = {
+  topic: string;
+  videos: ChemistryVideoEntry[];
+};
+
+export const CHEMISTRY_VIDEOS: ChemistryChapter[] = [
 
   {
     topic: "States of Matter",
@@ -587,27 +608,6 @@ export const CHEMISTRY_VIDEOS = [
   },
 
 ];
-
-export type SubtopicTimestamp = {
-  subtopic: string;
-  seconds: number;
-  end_seconds: number;
-};
-
-export type ChemistryVideoEntry = {
-  part: number;
-  youtube_id: string;
-  title: string;
-  channel: string;
-  summary: string;
-  timestamps: { time: string; label: string; seconds: number }[];
-   SubtopicTimestamp[];
-};
-
-export type ChemistryChapter = {
-  topic: string;
-  videos: ChemistryVideoEntry[];
-};
 
 export const getEmbedUrl = (
   youtube_id: string,
