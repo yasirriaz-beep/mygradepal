@@ -824,12 +824,22 @@ No markdown, no extra text, just raw JSON.`,
                   </button>
                 </div>
                 {showUrdu && (
-                  <div style={{
-                    background: "#FFF8F0", border: "1px solid rgba(245,115,30,0.3)",
-                    borderRadius: 12, padding: "16px", marginTop: 10,
-                    fontFamily: "serif", fontSize: 16, lineHeight: 1.8,
-                    direction: "rtl", textAlign: "right"
-                  }}>
+                  <div
+                    className="protected-content"
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{
+                      background: "#FFF8F0",
+                      border: "1px solid rgba(245,115,30,0.3)",
+                      borderRadius: 12,
+                      padding: "16px",
+                      marginTop: 10,
+                      fontFamily: "serif",
+                      fontSize: 16,
+                      lineHeight: 1.8,
+                      direction: "rtl",
+                      textAlign: "right",
+                    }}
+                  >
                     <p>{staticContent.urdu_summary}</p>
                   </div>
                 )}
@@ -839,6 +849,7 @@ No markdown, no extra text, just raw JSON.`,
             {currentStep === "explain" && (
               <LearnContent
                 topic={topic}
+                contentProtection
                 text={`DEFINITION: ${staticContent?.definition ?? ""}
 KEY POINTS:
 ${(staticContent?.key_points ?? []).map((point) => `- ${point}`).join("\n")}
@@ -952,6 +963,7 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                 {staticContent?.formulas && staticContent.formulas.length > 0 ? (
                   <LearnContent
                     topic={topic}
+                    contentProtection
                     text={staticContent.formulas
                       .map((formula) => `FORMULA: ${formula.formula}\nVARIABLES: ${formula.variables ?? ""}`)
                       .join("\n")}
@@ -981,6 +993,7 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                 {staticContent?.worked_example ? (
                   <LearnContent
                     topic={topic}
+                    contentProtection
                     text={`WORKED EXAMPLE:
 QUESTION: ${staticContent.worked_example.question ?? ""}
 ${(staticContent.worked_example.steps ?? []).map((step, i) => `STEP ${i + 1}: ${step}`).join("\n")}
@@ -1008,7 +1021,11 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
               </>
             )}
             {currentStep === "test" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div
+                className="protected-content"
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#189080" }}>
                   {testScore.correct} out of {testScore.total} correct
                 </div>

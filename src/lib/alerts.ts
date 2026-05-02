@@ -7,7 +7,7 @@ type DeliveryMethod = "email" | "whatsapp";
 const FROM_EMAIL = "MyGradePal Alerts <alerts@mygradepal.com>";
 
 let resendClient: Resend | null = null;
-function getResendClient(): Resend | null {
+export function getResendClient(): Resend | null {
   if (resendClient) return resendClient;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return null;

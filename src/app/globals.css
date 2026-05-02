@@ -10,6 +10,27 @@ body {
   @apply bg-teal-50 text-slate-900;
 }
 
+.protected-content {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.protected-content textarea,
+.protected-content input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+.protected-content [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+@media print {
+  body {
+    display: none !important;
+  }
+}
+
 .heading-font {
   font-family: var(--font-sora), sans-serif;
 }

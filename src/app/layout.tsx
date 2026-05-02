@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+
+import ContentProtectionShell from "@/components/ContentProtectionShell";
+import SessionDeviceSync from "@/components/SessionDeviceSync";
 import { DM_Sans, Sora } from "next/font/google";
+
 import "./globals.css";
 
 const sora = Sora({
@@ -29,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${sora.variable} ${dmSans.variable} body-font antialiased`}>
-        {children}
+        <ContentProtectionShell>
+          <SessionDeviceSync />
+          {children}
+        </ContentProtectionShell>
       </body>
     </html>
   );

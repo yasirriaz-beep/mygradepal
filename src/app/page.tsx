@@ -517,6 +517,27 @@ export default function Home() {
           <div style={{ fontSize: '12px', color: 'var(--ink-300)' }}>© 2025 MyGradePal. All rights reserved.</div>
           <div style={{ fontSize: '12px', color: 'var(--teal-500)', fontStyle: 'italic' }}>&quot;Your child&apos;s smartest study companion&quot;</div>
         </div>
+        <div
+          style={{
+            marginTop: "20px",
+            paddingTop: "16px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            textAlign: "center",
+            fontSize: "12px",
+            color: "var(--ink-300)",
+          }}
+        >
+          <Link href="/terms" style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+            Terms of Service
+          </Link>
+          <span style={{ margin: "0 8px", opacity: 0.6 }}>|</span>
+          <Link
+            href="/terms#privacy-summary"
+            style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: "2px" }}
+          >
+            Privacy Policy
+          </Link>
+        </div>
       </footer>
     </main>
   )

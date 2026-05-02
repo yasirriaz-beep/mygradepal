@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import PageIntro from "@/components/PageIntro";
 import { FLASHCARD_COMMAND_WORDS } from "@/lib/flashcards";
-import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import { flashcardsFetch } from "@/lib/flashcardApi";
 import { supabase } from "@/lib/supabase";
 
@@ -36,8 +36,8 @@ export default function FlashcardsCreatePage() {
 
   useEffect(() => {
     if (justSaved) return;
-    if (!checkingAuth && userId && !form.chapter && FLASHCARD_BROWSE_TOPICS[0]) {
-      setForm((f) => ({ ...f, chapter: String(FLASHCARD_BROWSE_TOPICS[0]) }));
+    if (!checkingAuth && userId && !form.chapter && CHEMISTRY_TOPICS[0]) {
+      setForm((f) => ({ ...f, chapter: String(CHEMISTRY_TOPICS[0]) }));
     }
   }, [checkingAuth, userId, form.chapter, justSaved]);
 
@@ -150,7 +150,7 @@ export default function FlashcardsCreatePage() {
                 setJustSaved(false);
                 setForm({
                   ...initialForm,
-                  chapter: String(FLASHCARD_BROWSE_TOPICS[0]),
+                  chapter: String(CHEMISTRY_TOPICS[0]),
                   command_word: "State",
                 });
                 setSubmitError(null);
@@ -253,9 +253,9 @@ export default function FlashcardsCreatePage() {
               <option value="" disabled>
                 Select a topic…
               </option>
-              {FLASHCARD_BROWSE_TOPICS.map((t) => (
+              {CHEMISTRY_TOPICS.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {topicDisplayName(t)}
                 </option>
               ))}
             </select>

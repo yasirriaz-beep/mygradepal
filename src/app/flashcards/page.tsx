@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import FlashcardTile, { type FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
-import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
@@ -227,13 +227,13 @@ export default function FlashcardsPage() {
           Browse by topic
         </h2>
         <div className="flex flex-wrap gap-2">
-          {FLASHCARD_BROWSE_TOPICS.map((topic) => (
+          {CHEMISTRY_TOPICS.map((topic) => (
             <Link
               key={topic}
               href={`/flashcards/browse?topic=${encodeURIComponent(topic)}`}
               className="rounded-full border border-brand-teal/35 bg-teal-50 px-4 py-2 text-sm font-semibold text-brand-teal transition hover:bg-brand-teal hover:text-white"
             >
-              {topic}
+              {topicDisplayName(topic)}
             </Link>
           ))}
         </div>

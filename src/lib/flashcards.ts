@@ -1,3 +1,5 @@
+export { CHEMISTRY_TOPICS, topicDisplayName, topicDbName, type ChemistryTopic } from "./topics";
+
 export const FLASHCARD_COMMAND_WORDS = [
   "State",
   "Define",

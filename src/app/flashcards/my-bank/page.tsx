@@ -8,7 +8,8 @@ import FlashcardLibraryTile from "@/components/flashcards/FlashcardLibraryTile";
 import type { FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
-import { cardChapterMatchesTopicChip, FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { cardChapterMatchesTopicChip } from "@/lib/flashcardBrowseTopics";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
@@ -237,7 +238,7 @@ export default function FlashcardsMyBankPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        {FLASHCARD_BROWSE_TOPICS.map((topic) => {
+        {CHEMISTRY_TOPICS.map((topic) => {
           const active = topicFilter === topic;
           return (
             <button
@@ -250,7 +251,7 @@ export default function FlashcardsMyBankPage() {
                   : "border-brand-teal/35 bg-teal-50 text-brand-teal hover:bg-brand-teal hover:text-white"
               }`}
             >
-              {topic}
+              {topicDisplayName(topic)}
             </button>
           );
         })}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { CHEMISTRY_EXAM_TOPICS } from "@/lib/chemistryTopics";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import type { DifficultyFilter, ExamModeType, ExamSetupPayload, QuestionCountChoice, YearFilter } from "@/lib/examTypes";
 import { fetchExamQuestionPool, pickQuestionsForExam } from "@/lib/fetchExamQuestions";
 import { BRAND_TEAL, EXAM_SESSION_KEY } from "@/lib/examUtils";
@@ -95,9 +95,9 @@ export default function ExamSetupPage() {
             className="body-font w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-[#189080] focus:outline-none focus:ring-2 focus:ring-[#189080]/30"
           >
             <option value="all">All topics</option>
-            {CHEMISTRY_EXAM_TOPICS.map((t) => (
+            {CHEMISTRY_TOPICS.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {topicDisplayName(t)}
               </option>
             ))}
           </select>

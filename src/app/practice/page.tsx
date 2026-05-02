@@ -6,6 +6,7 @@ import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react"
 
 import BottomNav from "@/components/BottomNav";
 import PageIntro from "@/components/PageIntro";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import { supabase } from "@/lib/supabase";
 
 type ResultType = "got_it" | "close" | "missed";
@@ -36,21 +37,6 @@ type AttemptRow = {
   result: ResultType;
   attempted_at: string;
 };
-
-const TOPICS = [
-  "Acids Bases and Salts",
-  "Air and Water",
-  "Atoms Elements and Compounds",
-  "Chemical Energetics",
-  "Chemical Reactions",
-  "Electrochemistry",
-  "Experimental Techniques",
-  "Metals",
-  "Organic Chemistry",
-  "States of Matter",
-  "Stoichiometry",
-  "The Periodic Table",
-] as const;
 
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => 2016 + i);
 const PAGE_SIZE = 50;
@@ -603,7 +589,7 @@ function PracticePageInner() {
     if (typeof window === "undefined") return;
     const t = new URLSearchParams(window.location.search).get("topic");
     if (!t) return;
-    if ((TOPICS as readonly string[]).includes(t)) {
+    if ((CHEMISTRY_TOPICS as readonly string[]).includes(t)) {
       setActiveTopic(t);
       setOpenTopics((o) => ({ ...o, [t]: true }));
     }
@@ -699,7 +685,7 @@ function PracticePageInner() {
     if (practiceTab !== "topical") return;
     const loadAggregatedSidebarCounts = async () => {
       setSidebarCountsLoading(true);
-      const topicTotals: Record<string, number> = Object.fromEntries(TOPICS.map((t) => [t, 0]));
+      const topicTotals: Record<string, number> = Object.fromEntries(CHEMISTRY_TOPICS.map((t) => [t, 0]));
       const subByTopic: Record<string, Record<string, number>> = {};
       let from = 0;
       for (;;) {
@@ -750,9 +736,10 @@ function PracticePageInner() {
   const sidebarSearchLower = sidebarTopicSearch.trim().toLowerCase();
 
   const visibleSidebarTopics = useMemo(() => {
-    if (!sidebarSearchLower) return [...TOPICS];
-    return TOPICS.filter((topic) => {
+    if (!sidebarSearchLower) return [...CHEMISTRY_TOPICS];
+    return CHEMISTRY_TOPICS.filter((topic) => {
       if (topic.toLowerCase().includes(sidebarSearchLower)) return true;
+      if (topicDisplayName(topic).toLowerCase().includes(sidebarSearchLower)) return true;
       const subs = Object.keys(subtopicCounts[topic] ?? {});
       return subs.some((sub) => sub.toLowerCase().includes(sidebarSearchLower));
     });
@@ -880,7 +867,7 @@ function PracticePageInner() {
                       onClick={() => setOpenTopics((prev) => ({ ...prev, [topic]: !prev[topic] }))}
                     >
                       <span className="min-w-0 flex-1 text-[15px] font-semibold text-gray-900">
-                        {topic}
+                        {topicDisplayName(topic)}
                       </span>
                       <span className="ml-auto shrink-0 tabular-nums text-xs font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
                         {sidebarCountsLoading ? (
@@ -1153,7 +1140,7 @@ function PracticePageInner() {
                   >
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700">
-                        {q.topic}
+                        {topicDisplayName(q.topic)}
                       </span>
                       <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
                         {q.subtopic}
@@ -1182,7 +1169,10 @@ function PracticePageInner() {
                     </button>
 
                     {isExpanded && (
-                      <div className="mt-3 space-y-3 text-sm text-gray-700">
+                      <div
+                        className="protected-content mt-3 space-y-3 text-sm text-gray-700"
+                        onContextMenu={(e) => e.preventDefault()}
+                      >
                         <QuestionText text={q.question_text} />
                         {q.has_diagram && (
                           <>

@@ -1,11 +1,21 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/Logo";
 import { supabase } from "@/lib/supabase";
+import { syncUserSessionDevice } from "@/lib/syncUserSession";
 
 type AuthTab = "login" | "signup";
+
+function readSafeNext(searchParams: URLSearchParams): string | null {
+  const raw = searchParams.get("next");
+  if (!raw || raw.length > 512) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://")) return null;
+  if (raw.startsWith("/login")) return null;
+  return raw;
+}
 
 function LoginPageContent() {
   const router = useRouter();
@@ -28,6 +38,11 @@ function LoginPageContent() {
     if (searchParams.get("tab") === "signup") {
       setTab("signup");
     }
+    if (searchParams.get("reason") === "max_devices") {
+      setError(
+        "Maximum devices reached. Please log out from another device first, then sign in again.",
+      );
+    }
   }, [searchParams]);
 
   const handleLogin = async (event: FormEvent) => {
@@ -48,8 +63,17 @@ function LoginPageContent() {
 
     const user = data.user ?? (await supabase.auth.getUser()).data.user;
     if (!user) {
+      setIsSubmitting(false);
       router.push("/login");
       router.refresh();
+      return;
+    }
+
+    const sessionSync = await syncUserSessionDevice();
+    if (!sessionSync.ok && sessionSync.maxDevices) {
+      setError(sessionSync.error);
+      await supabase.auth.signOut();
+      setIsSubmitting(false);
       return;
     }
 
@@ -68,7 +92,7 @@ function LoginPageContent() {
     if (studentError || !student?.onboarding_complete) {
       router.push("/subjects");
     } else {
-      router.push("/dashboard");
+      router.push(readSafeNext(searchParams) ?? "/dashboard");
     }
     router.refresh();
   };
@@ -355,6 +379,12 @@ function LoginPageContent() {
             >
               {isSubmitting ? "Creating..." : "Create account"}
             </button>
+            <p className="text-center text-xs leading-relaxed text-slate-500">
+              By signing up you agree to our{" "}
+              <Link href="/terms" className="font-semibold text-brand-teal underline underline-offset-2 hover:text-brand-teal-dark">
+                Terms of Service
+              </Link>
+            </p>
           </form>
         )}
 

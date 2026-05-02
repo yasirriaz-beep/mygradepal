@@ -8,7 +8,7 @@ import FlashcardLibraryTile from "@/components/flashcards/FlashcardLibraryTile";
 import type { FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
-import { chapterDbValuesForTopicChip, FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { CHEMISTRY_TOPICS, topicDisplayName } from "@/lib/topics";
 import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
@@ -64,13 +64,12 @@ export default function FlashcardsBrowsePage() {
     }
     let cancelled = false;
     void (async () => {
-      const chs = chapterDbValuesForTopicChip(topicFilter);
       let qc = supabase
         .from("flashcards")
         .select("*", { count: "exact", head: true })
         .eq("is_platform", true)
-        .eq("subject", SUBJECT);
-      qc = chs.length === 1 ? qc.eq("chapter", chs[0]!) : qc.in("chapter", chs);
+        .eq("subject", SUBJECT)
+        .eq("chapter", topicFilter);
 
       const { count, error } = await qc;
       if (cancelled) return;
@@ -96,8 +95,7 @@ export default function FlashcardsBrowsePage() {
       .order("id", { ascending: true });
 
     if (topicFilter) {
-      const chs = chapterDbValuesForTopicChip(topicFilter);
-      q = chs.length === 1 ? q.eq("chapter", chs[0]!) : q.in("chapter", chs);
+      q = q.eq("chapter", topicFilter);
     }
 
     const term = debouncedSearch.trim();
@@ -192,16 +190,13 @@ export default function FlashcardsBrowsePage() {
     if (!topicFilter) return;
     setTopicStudyBusy(true);
     try {
-      const chs = chapterDbValuesForTopicChip(topicFilter);
-      let q = supabase
+      const { data, error } = await supabase
         .from("flashcards")
         .select("id")
         .eq("is_platform", true)
         .eq("subject", SUBJECT)
+        .eq("chapter", topicFilter)
         .order("id", { ascending: true });
-      q = chs.length === 1 ? q.eq("chapter", chs[0]!) : q.in("chapter", chs);
-
-      const { data, error } = await q;
       if (error) return;
 
       const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
@@ -242,7 +237,7 @@ export default function FlashcardsBrowsePage() {
         </label>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          {FLASHCARD_BROWSE_TOPICS.map((topic) => {
+          {CHEMISTRY_TOPICS.map((topic) => {
             const active = topicFilter === topic;
             return (
               <button
@@ -255,7 +250,7 @@ export default function FlashcardsBrowsePage() {
                     : "border-brand-teal/35 bg-teal-50 text-brand-teal hover:bg-brand-teal hover:text-white"
                 }`}
               >
-                {topic}
+                {topicDisplayName(topic)}
               </button>
             );
           })}
@@ -271,7 +266,7 @@ export default function FlashcardsBrowsePage() {
             >
               {topicStudyBusy
                 ? "Preparing deck…"
-                : `Study all ${topicStudyCount ?? "…"} cards from ${topicFilter} →`}
+                : `Study all ${topicStudyCount ?? "…"} cards from ${topicDisplayName(topicFilter)} →`}
             </button>
           </div>
         ) : null}
@@ -301,6 +296,7 @@ export default function FlashcardsBrowsePage() {
                   key={card.id}
                   card={card}
                   mode="browse"
+                  contentProtection
                   expandablePreview
                   isSaved={savedIds.has(card.id)}
                   saveLoading={saveBusyId === card.id}

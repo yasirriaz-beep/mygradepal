@@ -1,32 +1,15 @@
-/** Platform browse/hub chips — UI labels for topic filters & links. */
-export const FLASHCARD_BROWSE_TOPICS = [
-  "States of Matter",
-  "Atoms, Elements and Compounds",
-  "Stoichiometry",
-  "Electrochemistry",
-  "Chemical Energetics",
-  "Chemical Reactions",
-  "Acids, Bases and Salts",
-  "The Periodic Table",
-  "Metals",
-  "Air and Water",
-  "Organic Chemistry",
-  "Experimental Techniques",
-] as const;
+import type { ChemistryTopic } from "./topics";
+import { CHEMISTRY_TOPICS } from "./topics";
 
-export type FlashcardBrowseTopic = (typeof FLASHCARD_BROWSE_TOPICS)[number];
+/** Platform browse/hub chips — same canonical list as `CHEMISTRY_TOPICS`. */
+export const FLASHCARD_BROWSE_TOPICS = CHEMISTRY_TOPICS;
 
-/**
- * Maps a UI chip to one or more `flashcards.chapter` values (legacy DB names differ).
- */
-export function chapterDbValuesForTopicChip(chip: string): string[] {
-  if (chip === "Experimental Techniques") {
-    return ["Experimental Techniques", "Experimental Techniques and Analysis"];
-  }
-  return [chip];
-}
+export type FlashcardBrowseTopic = ChemistryTopic;
+
+/** Alias for callers that prefer `TOPICS` naming. */
+export const TOPICS = CHEMISTRY_TOPICS;
 
 export function cardChapterMatchesTopicChip(cardChapter: string, topicChip: string | null): boolean {
   if (!topicChip) return true;
-  return chapterDbValuesForTopicChip(topicChip).includes(cardChapter);
+  return cardChapter === topicChip;
 }

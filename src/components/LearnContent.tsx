@@ -12,15 +12,18 @@ interface Section {
 interface LearnContentProps {
   text: string;
   topic: string;
+  /** Subtle discouragement of copy/right-click on lesson prose. */
+  contentProtection?: boolean;
 }
 
-export default function LearnContent({ text, topic }: LearnContentProps) {
+export default function LearnContent({ text, topic, contentProtection }: LearnContentProps) {
   const s = parse(text);
 
   return (
     <div
       style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, lineHeight: 1.7, color: "#1a1a1a" }}
-      className="mx-auto max-w-2xl space-y-4"
+      className={`mx-auto max-w-2xl space-y-4${contentProtection ? " protected-content" : ""}`}
+      onContextMenu={contentProtection ? (e) => e.preventDefault() : undefined}
     >
       <div className="mb-2 flex items-center gap-2">
         <span

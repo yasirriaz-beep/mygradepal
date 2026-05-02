@@ -9,6 +9,8 @@ import type { FlashcardRow } from "@/components/flashcards/FlashcardTile";
 type Props = {
   card: FlashcardRow;
   mode: "browse" | "bank";
+  /** Reduce copy/paste / context menu on card text (front/back/hint). */
+  contentProtection?: boolean;
   /** Browse: tap card to reveal answer (heart still only saves). */
   expandablePreview?: boolean;
   isSaved?: boolean;
@@ -21,6 +23,7 @@ type Props = {
 export default function FlashcardLibraryTile({
   card,
   mode,
+  contentProtection = false,
   expandablePreview = false,
   isSaved,
   saveLoading,
@@ -56,8 +59,10 @@ export default function FlashcardLibraryTile({
             }
           : undefined
       }
+      onContextMenu={contentProtection ? (e) => e.preventDefault() : undefined}
       className={clsx(
         "relative flex min-h-[160px] flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm",
+        contentProtection && "protected-content",
         browseExpandable && !answerOpen && "cursor-pointer transition hover:border-brand-teal/30 hover:shadow-md",
       )}
     >
