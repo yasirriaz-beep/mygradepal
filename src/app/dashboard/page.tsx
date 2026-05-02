@@ -234,6 +234,13 @@ export default function DashboardPage() {
             <Link href="/predict" className="rounded-lg border border-slate-200 px-3 py-1.5">Predict</Link>
             <Link href="/progress" className="rounded-lg border border-slate-200 px-3 py-1.5">Progress</Link>
           </nav>
+          <Link
+            href="/exam"
+            className="mt-4 block rounded-xl px-4 py-4 text-center font-semibold text-white shadow-card transition hover:opacity-95"
+            style={{ backgroundColor: "#189080" }}
+          >
+            Take a practice exam
+          </Link>
         </header>
 
         {tier === 1 && (

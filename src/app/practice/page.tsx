@@ -275,6 +275,16 @@ export default function PracticePage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = new URLSearchParams(window.location.search).get("topic");
+    if (!t) return;
+    if ((TOPICS as readonly string[]).includes(t)) {
+      setActiveTopic(t);
+      setOpenTopics((o) => ({ ...o, [t]: true }));
+    }
+  }, []);
+
+  useEffect(() => {
     if (!userId) return;
     const loadAttempts = async () => {
       const { data, error } = await supabase
@@ -640,7 +650,16 @@ export default function PracticePage() {
           </div>
 
           <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-            <p className="mb-4 text-sm font-semibold text-gray-700">Filter questions</p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-gray-700">Filter questions</p>
+              <a
+                href="/exam"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+                style={{ backgroundColor: "#189080" }}
+              >
+                Start Exam Mode
+              </a>
+            </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <div className="space-y-1">
                 <label
