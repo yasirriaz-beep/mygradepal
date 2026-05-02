@@ -218,7 +218,7 @@ export default function StudyTrackPage() {
         </div>
 
         <div
-          onClick={() => router.push(`/flashcards?subject=${encodeURIComponent(label)}`)}
+          onClick={() => router.push(`/flashcards`)}
           style={{
             background: "white",
             border: "2px solid #F59E0B",

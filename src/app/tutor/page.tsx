@@ -40,6 +40,9 @@ type StaticTopicContent = {
   quick_check: string;
   urdu_summary: string;
   audio_url_en: string | null;
+  /** From topic_content API when present */
+  chapter_title?: string;
+  subtopic?: string | null;
 };
 
 function TutorPageContent() {
@@ -320,6 +323,12 @@ function TutorPageContent() {
   }, [studentId, topic]);
 
   useEffect(() => {
+    setTestAnswer("");
+    setTestResult(null);
+    setTestScore({ correct: 0, total: 0 });
+  }, [topic]);
+
+  useEffect(() => {
     if (!subject || !topic) return;
     setIsLoadingContent(true);
     const subtopicKey = topicContentSubtopicKey(topic);
@@ -522,6 +531,37 @@ Student question: ${trimmed}`
     }
   };
 
+  const postMasteryProgress = async (nextCorrect: number, nextTotal: number) => {
+    if (nextTotal <= 0 || studentId === "demo-student" || !staticContent) return;
+    const pct = (nextCorrect / nextTotal) * 100;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const topicLabel = (staticContent.chapter_title ?? topic).trim();
+      const dbSubtopic = (staticContent.subtopic ?? topicContentSubtopicKey(topic)).trim();
+
+      await fetch("/api/mastery", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          user_id: studentId,
+          subject: subject.trim(),
+          topic: topicLabel,
+          subtopic: dbSubtopic,
+          score_percent: pct,
+        }),
+      });
+    } catch {
+      /* non-blocking */
+    }
+  };
+
   const submitTestAnswer = async () => {
     if (!testAnswer.trim() || !staticContent?.quick_check) return;
     setIsMarking(true);
@@ -564,20 +604,24 @@ No markdown, no extra text, just raw JSON.`,
           feedback: string;
         };
         setTestResult(result);
-        setTestScore((prev) => ({
-          correct: prev.correct + (result.correct ? 1 : 0),
-          total: prev.total + 1,
-        }));
+        setTestScore((prev) => {
+          const nc = prev.correct + (result.correct ? 1 : 0);
+          const nt = prev.total + 1;
+          void postMasteryProgress(nc, nt);
+          return { correct: nc, total: nt };
+        });
       } catch {
         setTestResult({
           correct: false,
           correct_answer: "",
           feedback: rawMessage || "Could not parse the marking response. Please try again.",
         });
-        setTestScore((prev) => ({
-          correct: prev.correct,
-          total: prev.total + 1,
-        }));
+        setTestScore((prev) => {
+          const nc = prev.correct;
+          const nt = prev.total + 1;
+          void postMasteryProgress(nc, nt);
+          return { correct: nc, total: nt };
+        });
       }
     } catch {
       setTestResult({
@@ -615,7 +659,7 @@ No markdown, no extra text, just raw JSON.`,
           Already know this? Skip to practice →
         </Link>
         <Link
-          href={`/flashcards?subject=${encodeURIComponent("Chemistry")}&chapter=${encodeURIComponent(topic)}`}
+          href={`/flashcards/browse?chapter=${encodeURIComponent(topic)}`}
           className="absolute right-3 top-12 max-w-[11rem] text-right text-[11px] leading-snug text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 sm:right-4 sm:top-12 sm:max-w-none sm:text-xs"
         >
           Study with flashcards →
@@ -813,8 +857,8 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                     onClick={() => {
                       const chapterName = topicEntry?.topic?.trim() ?? "";
                       const url = chapterName
-                        ? `/flashcards?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapterName)}`
-                        : `/flashcards?subject=${encodeURIComponent(subject)}`;
+                        ? `/flashcards/browse?chapter=${encodeURIComponent(chapterName)}`
+                        : `/flashcards/browse`;
                       window.open(url, "_blank");
                     }}
                     className="flex shrink-0 items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
@@ -969,6 +1013,44 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
                   {testScore.correct} out of {testScore.total} correct
                 </div>
 
+                {testResult && testScore.total > 0 ? (
+                  (() => {
+                    const pct = (testScore.correct / testScore.total) * 100;
+                    if (pct >= 80) {
+                      return (
+                        <div
+                          style={{
+                            borderRadius: 12,
+                            padding: "14px 18px",
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "#0a5c4a",
+                            background: "#DCFCE7",
+                            border: "1px solid #22c55e",
+                          }}
+                        >
+                          Subtopic mastered! 🎉
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        style={{
+                          borderRadius: 12,
+                          padding: "14px 18px",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#92400e",
+                          background: "#FEF9C3",
+                          border: "1px solid #facc15",
+                        }}
+                      >
+                        Keep practicing — you need 80% to master this subtopic
+                      </div>
+                    );
+                  })()
+                ) : null}
+
                 <div
                   style={{
                     background: "white",
@@ -1114,21 +1196,23 @@ TAKEAWAY: ${staticContent.worked_example.takeaway ?? ""}`}
                       💬 {testResult.feedback}
                     </p>
 
-                    <button
-                      onClick={resetTest}
-                      style={{
-                        background: "#189080",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        padding: "8px 20px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Try again
-                    </button>
+                    {testScore.total > 0 && (testScore.correct / testScore.total) * 100 < 80 ? (
+                      <button
+                        onClick={resetTest}
+                        style={{
+                          background: "#189080",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 20px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Try again
+                      </button>
+                    ) : null}
                   </div>
                 )}
               </div>
