@@ -745,117 +745,72 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
               />
             )}
             {currentStep === "explain" && (
-              <div
-                style={{
-                  background: "#FFFBEB",
-                  border: "1.5px solid #F59E0B",
-                  borderRadius: 12,
-                  padding: "14px 16px",
-                  marginTop: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#92400E",
-                      margin: "0 0 2px",
+              <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="mb-1 font-semibold text-gray-900">Reinforce what you learned</p>
+                    <p className="text-sm text-gray-600">Practice with flashcards for this topic</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chapterName = topicEntry?.topic?.trim() ?? "";
+                      const url = chapterName
+                        ? `/flashcards?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapterName)}`
+                        : `/flashcards?subject=${encodeURIComponent(subject)}`;
+                      window.open(url, "_blank");
                     }}
+                    className="flex shrink-0 items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
                   >
-                    Reinforce what you just learned
-                  </p>
-                  <p style={{ fontSize: 12, color: "#B45309", margin: 0 }}>
-                    Review flashcards for this chapter
-                  </p>
+                    🃏 Flashcards →
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const chapterName = topicEntry?.topic?.trim() ?? "";
-                    const url = chapterName
-                      ? `/flashcards?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapterName)}`
-                      : `/flashcards?subject=${encodeURIComponent(subject)}`;
-                    window.open(url, "_blank");
-                  }}
-                  style={{
-                    background: "#F59E0B",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "8px 14px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  🃏 Flashcards →
-                </button>
               </div>
             )}
             {currentStep === "explain" && hasVideo && currentVideo && (
-              <div style={{ marginBottom: 20 }}>
-                <button
-                  onClick={() => setVideoExpanded(!videoExpanded)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: "#f0fdf9",
-                    border: "1px solid #a7f3d0",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    width: "100%",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    marginBottom: videoExpanded ? 12 : 0,
-                  }}
-                >
-                  <span style={{ fontSize: 16 }}>▶</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#189080", flex: 1, textAlign: "left" }}>
-                    Watch: {currentVideo.title}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#189080" }}>
-                    {videoExpanded ? "▲ hide" : "▼ show"}
-                  </span>
-                </button>
+              <div className="mb-4 mt-8 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                      <span className="text-lg text-blue-600">▶</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Still confused?</p>
+                      <p className="text-sm font-medium text-gray-800">Watch detailed video explanation</p>
+                      <p className="truncate text-xs text-gray-600">{currentVideo.title}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVideoExpanded(!videoExpanded)}
+                    className="shrink-0 text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    {videoExpanded ? "Hide ▴" : "Show ▾"}
+                  </button>
+                </div>
 
                 {videoExpanded && (
-                  <div>
-                    <div style={{
-                      position: "relative",
-                      paddingBottom: "56.25%",
-                      height: 0,
-                      borderRadius: 10,
-                      overflow: "hidden",
-                      border: "1px solid #e5e7eb",
-                      marginBottom: 10
-                    }}>
+                  <div className="mt-4">
+                    <div
+                      className="relative mb-2.5 overflow-hidden rounded-lg border border-gray-200"
+                      style={{ paddingBottom: "56.25%", height: 0 }}
+                    >
                       <iframe
                         key={embedStart}
                         src={`https://www.youtube.com/embed/${currentVideo.youtube_id}?start=${embedStart}&rel=0&modestbranding=1`}
-                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                        className="absolute left-0 top-0 h-full w-full border-0"
                         allowFullScreen
                         title={currentVideo.title}
                       />
                     </div>
 
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                      {currentVideo.timestamps.map(ts => (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {currentVideo.timestamps.map((ts) => (
                         <button
                           key={ts.time}
+                          type="button"
                           onClick={() => setEmbedStart(ts.seconds)}
-                          style={{
-                            fontSize: 11, color: "#189080", background: "white",
-                            border: "1px solid #a7f3d0", borderRadius: 20,
-                            padding: "3px 10px", cursor: "pointer", fontFamily: "inherit"
-                          }}
+                          className="cursor-pointer rounded-full border border-teal-200 bg-white px-2.5 py-1 font-[inherit] text-[11px] text-teal-700 hover:bg-teal-50"
                         >
                           {ts.time} {ts.label}
                         </button>
@@ -863,21 +818,20 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                     </div>
 
                     {topicEntry && topicEntry.videos.length > 1 && (
-                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <div className="mb-2 flex flex-wrap gap-2">
                         {topicEntry.videos.map((v, i) => (
                           <button
                             key={i}
-                            onClick={() => { setActiveVideoIndex(i); setEmbedStart(0); }}
-                            style={{
-                              padding: "6px 14px",
-                              borderRadius: 20,
-                              fontSize: 12,
-                              fontWeight: 600,
-                              background: activeVideoIndex === i ? "#189080" : "white",
-                              color: activeVideoIndex === i ? "white" : "#189080",
-                              border: "1.5px solid #189080",
-                              cursor: "pointer"
+                            type="button"
+                            onClick={() => {
+                              setActiveVideoIndex(i);
+                              setEmbedStart(0);
                             }}
+                            className={`rounded-full border-[1.5px] border-brand-teal px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                              activeVideoIndex === i
+                                ? "bg-brand-teal text-white"
+                                : "bg-white text-brand-teal hover:bg-teal-50"
+                            }`}
                           >
                             Part {v.part}
                           </button>
@@ -885,9 +839,7 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                       </div>
                     )}
 
-                    <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>
-                      IGCSE Study Buddy · Cambridge 0620
-                    </p>
+                    <p className="m-0 text-[11px] text-gray-400">IGCSE Study Buddy · Cambridge 0620</p>
                   </div>
                 )}
               </div>

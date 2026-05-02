@@ -1,25 +1,53 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
+/** Stored in topic_content.subject — must match generate_topic_content / DB constraint */
+const CHEMISTRY_SUBJECT = "Chemistry 0620";
+
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+
+/** Live tutor loads: cheap / fast (batch scripts may use Sonnet separately). */
+const LIVE_MODEL = "claude-haiku-4-5-20251001";
+
+function stripMarkdownFences(raw: string): string {
+  let text = raw.trim();
+  text = text.replace(/^```json\s*/i, "");
+  text = text.replace(/^```\s*/, "");
+  text = text.replace(/\s*```$/, "");
+  return text.trim();
+}
+
+function parseGeneratedJson(text: string): Record<string, unknown> | null {
+  const stripped = stripMarkdownFences(text);
+  const start = stripped.indexOf("{");
+  const end = stripped.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(stripped.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const subject = searchParams.get("subject");
   const subtopic = searchParams.get("subtopic");
 
-  if (!subject || !subtopic) {
-    return NextResponse.json({ error: "Missing subject or subtopic" }, { status: 400 });
+  if (!subtopic) {
+    return NextResponse.json({ error: "Missing subtopic" }, { status: 400 });
   }
 
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
+
+  const { data: existing } = await supabase
     .from("topic_content")
     .select("*")
-    .eq("subject", subject)
+    .eq("subject", CHEMISTRY_SUBJECT)
     .eq("subtopic", subtopic)
-    .single();
+    .maybeSingle();
 
-  if (data) {
-    return NextResponse.json(data);
+  if (existing) {
+    return NextResponse.json(existing);
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -27,7 +55,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Content not found" }, { status: 404 });
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const { data: qmeta } = await supabase
+    .from("questions")
+    .select("topic")
+    .eq("subtopic", subtopic)
+    .limit(1)
+    .maybeSingle();
+
+  const chapterTitle = typeof qmeta?.topic === "string" && qmeta.topic.trim() ? qmeta.topic.trim() : subtopic;
+
+  const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -35,14 +72,14 @@ export async function GET(request: Request) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 900,
+      model: LIVE_MODEL,
+      max_tokens: 4000,
       system:
-        "Return ONLY valid JSON with these fields: definition (string), key_points (string[]), formulas (array of {formula:string,variables:string}), worked_example ({question:string,steps:string[],answer:string,takeaway:string}), exam_tip (string), quick_check (string), urdu_summary (string), audio_url_en (null).",
+        "Return ONLY valid JSON with these fields: definition (string), key_points (string[]), formulas (array of {formula:string,variables:string}), worked_example ({question:string,steps:string[],answer:string,takeaway:string}), exam_tip (string), quick_check (string), urdu_summary (string). Use audio_url_en as null in your mental model — omit it or set null. No markdown outside the JSON object.",
       messages: [
         {
           role: "user",
-          content: `Generate concise IGCSE ${subject} learning content for subtopic: ${subtopic}`,
+          content: `Generate concise IGCSE Chemistry 0620 learning content for subtopic: ${subtopic}`,
         },
       ],
     }),
@@ -58,16 +95,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Content not found" }, { status: 404 });
   }
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(String(text).replace(/```json|```/g, "").trim()) as Record<string, unknown>;
-  } catch {
+  const parsed = parseGeneratedJson(String(text));
+  if (!parsed) {
     return NextResponse.json({ error: "Generated content parse failed" }, { status: 500 });
   }
 
   const payload = {
-    subject,
+    subject: CHEMISTRY_SUBJECT,
+    chapter_title: chapterTitle,
     subtopic,
+    chapter_number: 1,
+    section: chapterTitle,
     definition: String(parsed.definition ?? ""),
     key_points: Array.isArray(parsed.key_points) ? parsed.key_points : [],
     formulas: Array.isArray(parsed.formulas) ? parsed.formulas : [],
@@ -75,9 +113,19 @@ export async function GET(request: Request) {
     exam_tip: String(parsed.exam_tip ?? ""),
     quick_check: String(parsed.quick_check ?? ""),
     urdu_summary: String(parsed.urdu_summary ?? ""),
-    audio_url_en: null,
+    audio_url_en: null as string | null,
   };
 
-  const { data: saved } = await supabase.from("topic_content").upsert(payload).select("*").single();
+  const { data: saved, error: upsertError } = await supabase
+    .from("topic_content")
+    .upsert(payload, { onConflict: "subject,subtopic" })
+    .select("*")
+    .single();
+
+  if (upsertError) {
+    console.error("[topic-content] upsert", upsertError.message);
+    return NextResponse.json({ error: "Failed to save content" }, { status: 500 });
+  }
+
   return NextResponse.json(saved ?? payload);
 }

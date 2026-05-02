@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const CHEMISTRY_SUBJECT = "Chemistry 0620";
 
 type TutorStartRequest = {
   subject: string;
@@ -55,9 +56,9 @@ export async function POST(request: Request) {
     const existing = await supabase
       .from("topic_content")
       .select("*")
-      .eq("subject", subject)
+      .eq("subject", CHEMISTRY_SUBJECT)
       .eq("subtopic", topic)
-      .single();
+      .maybeSingle();
     if (existing.data) {
       const cachedMessage = buildCachedLessonMessage(topic, existing.data as Record<string, unknown>);
       if (cachedMessage) {
@@ -135,13 +136,7 @@ Keep it concise and student-friendly.`,
       .replace(/`{1,3}/g, "")
       .trim();
 
-    await supabase
-      .from("topic_content")
-      .upsert({
-        subject,
-        subtopic: topic,
-        content: cleanedMessage,
-      });
+    // Opening narration is generated fresh; structured syllabus rows come from GET /api/topic-content.
 
     return NextResponse.json({ message: cleanedMessage, mastery });
   } catch (error) {

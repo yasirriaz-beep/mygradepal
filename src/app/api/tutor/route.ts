@@ -16,6 +16,9 @@ import { getSupabaseServiceClient } from "@/lib/supabase";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
+/** topic_content rows use this subject key (see /api/topic-content) */
+const CHEMISTRY_SUBJECT = "Chemistry 0620";
+
 type TutorRequest = {
   subject: string;
   topic: string;
@@ -75,9 +78,9 @@ export async function POST(request: Request) {
     const existing = await supabase
       .from("topic_content")
       .select("*")
-      .eq("subject", subject)
+      .eq("subject", CHEMISTRY_SUBJECT)
       .eq("subtopic", topic)
-      .single();
+      .maybeSingle();
     if (existing.data && mode !== "chat") {
       const cached = buildModeContentFromCache(existing.data as Record<string, unknown>, mode);
       if (cached) {
@@ -204,13 +207,8 @@ The student is targeting Grade ${resolvedTargetGrade}. ${gradeInstruction}`;
       .replace(/`{1,3}/g, "")
       .trim();
 
-    if (mode !== "chat" && cleanedText) {
-      await supabase.from("topic_content").upsert({
-        subject,
-        subtopic: topic,
-        content: cleanedText,
-      });
-    }
+    // Structured topic_content is created by GET /api/topic-content (Haiku + upsert).
+    // Chat replies stay ephemeral — do not write plain-text blobs into topic_content here.
 
     return NextResponse.json({ message: cleanedText });
   } catch (error) {
