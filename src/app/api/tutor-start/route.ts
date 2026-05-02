@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import { topicContentSubtopicKey } from "@/lib/topicContentSubtopic";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const CHEMISTRY_SUBJECT = "Chemistry 0620";
@@ -53,11 +54,12 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseServiceClient();
+    const contentSubtopicKey = topicContentSubtopicKey(topic);
     const existing = await supabase
       .from("topic_content")
       .select("*")
       .eq("subject", CHEMISTRY_SUBJECT)
-      .eq("subtopic", topic)
+      .eq("subtopic", contentSubtopicKey)
       .maybeSingle();
     if (existing.data) {
       const cachedMessage = buildCachedLessonMessage(topic, existing.data as Record<string, unknown>);

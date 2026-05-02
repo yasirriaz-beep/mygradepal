@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 
+/**
+ * Paid Google Cloud TTS — intended only for tutor **chat** replies (`sendMessage` in tutor page).
+ * Explain-step Listen uses `topic_content.audio_url_en` or browser `speechSynthesis`, not this route.
+ */
 export async function POST(request: Request) {
+  console.log("[tts] CALLED - costs money - caller should only be chat");
+
+  const source = request.headers.get("X-TTS-Source");
+  if (source !== "tutor-chat") {
+    console.warn("[tts] Rejected: expected X-TTS-Source: tutor-chat (paid route — tutor chat only)");
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { text } = await request.json();
   if (!text) return NextResponse.json({ error: "No text" }, { status: 400 });
 

@@ -11,6 +11,7 @@ import { findVideoForTopic } from "@/lib/chemistry-videos";
 import { completeStudySession, type NextPlanSession } from "@/lib/completeStudySession";
 import { supabase } from "@/lib/supabase";
 import { startSession as startStudySession, updateSession } from "@/lib/studySessionClient";
+import { topicContentSubtopicKey } from "@/lib/topicContentSubtopic";
 import { getTrialUsage, TRIAL_LIMITS } from "@/lib/trialLimits";
 
 type ChatMessage = {
@@ -139,6 +140,7 @@ function TutorPageContent() {
     speechSynthRef.current.speak(utterance);
   };
 
+  /** Explain-step Listen: pre-generated MP3 via HTML Audio, or free speechSynthesis — never `/api/tts`. */
   const initAudio = () => {
     if (!staticContent?.audio_url_en) return;
     if (audioRef.current) {
@@ -159,6 +161,7 @@ function TutorPageContent() {
     return parts.join(". ");
   };
 
+  /** Listen (Explain): if `audio_url_en` → HTML Audio only; else browser TTS. Chat uses `/api/tts` in `sendMessage` only. */
   const handlePlay = () => {
     if (!staticContent) return;
     if (staticContent.audio_url_en) {
@@ -319,7 +322,8 @@ function TutorPageContent() {
   useEffect(() => {
     if (!subject || !topic) return;
     setIsLoadingContent(true);
-    fetch(`/api/topic-content?subject=${encodeURIComponent(subject)}&subtopic=${encodeURIComponent(topic)}`)
+    const subtopicKey = topicContentSubtopicKey(topic);
+    fetch(`/api/topic-content?subject=${encodeURIComponent(subject)}&subtopic=${encodeURIComponent(subtopicKey)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         setStaticContent(data);
@@ -486,9 +490,10 @@ Student question: ${trimmed}`
         throw new Error(data?.error ?? "Tutor request failed.");
       }
       const claudeResponse = String(data.message ?? "");
+      // Paid TTS only for chat replies — never use /api/tts for Explain "Listen" (that uses audio_url_en or speechSynthesis).
       const ttsRes = await fetch("/api/tts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-TTS-Source": "tutor-chat" },
         body: JSON.stringify({ text: claudeResponse }),
       });
       const ttsData = ttsRes.ok ? await ttsRes.json() : null;

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+
 import { getSupabaseServiceClient } from "@/lib/supabase";
+import { topicContentSubtopicKey } from "@/lib/topicContentSubtopic";
 
 /** Stored in topic_content.subject — must match generate_topic_content / DB constraint */
 const CHEMISTRY_SUBJECT = "Chemistry 0620";
@@ -31,11 +33,14 @@ function parseGeneratedJson(text: string): Record<string, unknown> | null {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const subtopic = searchParams.get("subtopic");
+  const rawSubtopic = searchParams.get("subtopic")?.trim() ?? "";
+  const subtopic = topicContentSubtopicKey(rawSubtopic);
 
   if (!subtopic) {
     return NextResponse.json({ error: "Missing subtopic" }, { status: 400 });
   }
+
+  console.log("[topic-content] subtopic:", subtopic);
 
   const supabase = getSupabaseServiceClient();
 
@@ -46,6 +51,8 @@ export async function GET(request: Request) {
     .eq("subtopic", subtopic)
     .maybeSingle();
 
+  console.log("[topic-content] cache hit:", !!existing);
+
   if (existing) {
     return NextResponse.json(existing);
   }
@@ -55,14 +62,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Content not found" }, { status: 404 });
   }
 
-  const { data: qmeta } = await supabase
-    .from("questions")
-    .select("topic")
-    .eq("subtopic", subtopic)
-    .limit(1)
-    .maybeSingle();
+  let qmeta = (
+    await supabase.from("questions").select("topic").eq("subtopic", subtopic).limit(1).maybeSingle()
+  ).data;
+  if (!qmeta && rawSubtopic && rawSubtopic !== subtopic) {
+    qmeta = (
+      await supabase.from("questions").select("topic").eq("subtopic", rawSubtopic).limit(1).maybeSingle()
+    ).data;
+  }
 
   const chapterTitle = typeof qmeta?.topic === "string" && qmeta.topic.trim() ? qmeta.topic.trim() : subtopic;
+
+  console.log("[topic-content] CALLING CLAUDE - costs money");
 
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
