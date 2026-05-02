@@ -1,21 +1,18 @@
+import { getDbSubtopic } from "./subtopicMapping";
+
 /**
- * Maps UI / syllabus display labels (learn page, URLs) to `topic_content.subtopic`
- * keys in Supabase. Display names often add an em-dash suffix, e.g.
- * "Isotopes — Definition and Properties" → "Isotopes".
+ * Maps learn-page / URL labels to `topic_content.subtopic` keys:
+ * uses `getDbSubtopic` first, then strips trailing ` — …` if unmapped.
  */
-export function topicContentSubtopicKey(displaySubtopic: string): string {
-  const t = displaySubtopic.trim();
+export function topicContentSubtopicKey(topic: string): string {
+  const t = topic.trim();
   if (!t) return t;
 
-  const emDash = t.indexOf(" \u2014 ");
-  if (emDash !== -1) {
-    return t.slice(0, emDash).trim();
-  }
+  const mapped = getDbSubtopic(t);
+  if (mapped !== t) return mapped;
 
-  const enDash = t.indexOf(" \u2013 ");
-  if (enDash !== -1) {
-    return t.slice(0, enDash).trim();
-  }
+  const dashIdx = t.indexOf(" — ");
+  if (dashIdx > -1) return t.substring(0, dashIdx).trim();
 
   return t;
 }
