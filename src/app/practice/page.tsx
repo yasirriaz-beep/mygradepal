@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+
+import PageIntro from "@/components/PageIntro";
 import { supabase } from "@/lib/supabase";
 
 type ResultType = "got_it" | "close" | "missed";
@@ -476,6 +478,12 @@ export default function PracticePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <PageIntro
+        subtitle="TRACK 2 — PAST PAPERS"
+        title="Practice with Real Cambridge Questions"
+        description="6,815 real Cambridge past paper questions from 10 years of O Level / IGCSE Chemistry papers. Filter by topic, difficulty, year and type. Practice at your own pace."
+        tip="Start with topics from your study plan. Filter by your current week's topic for maximum benefit."
+      />
       <div className="grid items-start gap-4 lg:grid-cols-[300px_1fr]">
         <aside className="sticky top-0 max-h-screen self-start overflow-y-auto rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-gray-800">Topics</h2>

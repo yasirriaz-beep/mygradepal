@@ -3,8 +3,28 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+
+import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
 import { supabase } from "@/lib/supabase";
+
+function FlashcardStudyIntro() {
+  return (
+    <section className="shrink-0 border-b border-gray-200 bg-[#F9FAFB]">
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        <Link href="/flashcards" className="text-sm font-semibold text-brand-teal hover:underline">
+          ← Back to Flashcards
+        </Link>
+        <PageIntro
+          subtitle="STUDY SESSION"
+          title="Flashcard Review"
+          description="Rate each card honestly — Know it, Unsure, or No idea. The platform uses spaced repetition to show you cards at the perfect time for long-term memory."
+          tip="Be honest with yourself. Marking 'Know it' when you are unsure defeats the purpose. The algorithm needs accurate ratings to help you."
+        />
+      </div>
+    </section>
+  );
+}
 
 type Flashcard = {
   id: string;
@@ -199,49 +219,60 @@ function StudyInner() {
 
   if (loading) {
     return (
-      <div className="body-font flex min-h-screen items-center justify-center bg-slate-900 text-white">
-        Loading…
+      <div className="flex min-h-screen flex-col">
+        <FlashcardStudyIntro />
+        <div className="body-font flex flex-1 items-center justify-center bg-slate-900 px-4 py-16 text-white">
+          Loading…
+        </div>
       </div>
     );
   }
 
   if (deck.length === 0 && !complete) {
     return (
-      <div className="body-font flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4 text-center text-white">
-        <p className="text-lg">No cards in this session.</p>
-        <p className="mt-2 text-sm text-slate-300">
-          {source === "bank" ? "Save cards to your bank or create your own." : "Nothing is due right now. Check back later or study from your bank."}
-        </p>
-        <Link href="/flashcards" className="mt-6 font-semibold text-brand-teal hover:underline">
-          ← Back to Flashcards
-        </Link>
+      <div className="flex min-h-screen flex-col">
+        <FlashcardStudyIntro />
+        <div className="body-font flex flex-1 flex-col items-center justify-center bg-slate-900 px-4 py-16 text-center text-white">
+          <p className="text-lg">No cards in this session.</p>
+          <p className="mt-2 text-sm text-slate-300">
+            {source === "bank"
+              ? "Save cards to your bank or create your own."
+              : "Nothing is due right now. Check back later or study from your bank."}
+          </p>
+          <Link href="/flashcards" className="mt-6 font-semibold text-brand-teal hover:underline">
+            ← Back to Flashcards
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (complete) {
     return (
-      <div className="body-font flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4 text-center text-white">
-        <h1 className="heading-font text-2xl font-bold text-white">Session complete!</h1>
-        <p className="mt-4 text-lg text-slate-200">
-          {sessionKnown} known, {sessionReview} to review
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link
-            href="/flashcards"
-            className="rounded-xl bg-brand-teal px-6 py-3 text-sm font-bold text-white hover:bg-brand-teal-dark"
-          >
-            Flashcards home
-          </Link>
-          {source === "bank" ? (
-            <Link href="/flashcards/my-bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
-              My bank
+      <div className="flex min-h-screen flex-col">
+        <FlashcardStudyIntro />
+        <div className="body-font flex flex-1 flex-col items-center justify-center bg-slate-900 px-4 py-16 text-center text-white">
+          <h1 className="heading-font text-2xl font-bold text-white">Session complete!</h1>
+          <p className="mt-4 text-lg text-slate-200">
+            {sessionKnown} known, {sessionReview} to review
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/flashcards"
+              className="rounded-xl bg-brand-teal px-6 py-3 text-sm font-bold text-white hover:bg-brand-teal-dark"
+            >
+              Flashcards home
             </Link>
-          ) : (
-            <Link href="/flashcards/study?source=bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
-              Study my bank
-            </Link>
-          )}
+            {source === "bank" ? (
+              <Link href="/flashcards/my-bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
+                My bank
+              </Link>
+            ) : (
+              <Link href="/flashcards/study?source=bank" className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold hover:bg-white/10">
+                Study my bank
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -251,9 +282,10 @@ function StudyInner() {
 
   return (
     <div className="body-font flex min-h-screen flex-col bg-slate-900 text-slate-100">
+      <FlashcardStudyIntro />
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <Link href="/flashcards" className="text-sm font-semibold text-teal-300 hover:text-white">
-          ← Exit
+          ← Flashcards
         </Link>
         <div className="h-2 w-40 max-w-[50vw] overflow-hidden rounded-full bg-white/10">
           <div className="h-full rounded-full bg-brand-teal transition-all" style={{ width: `${progressPct}%` }} />

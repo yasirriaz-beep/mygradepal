@@ -3,13 +3,19 @@
 import Link from "next/link";
 
 import BottomNav from "@/components/BottomNav";
+import PageIntro from "@/components/PageIntro";
 
 export default function LearnPage() {
   return (
     <main className="mx-auto min-h-screen max-w-5xl bg-[#F7F8FA] px-4 pb-24 pt-6 sm:px-6">
-      <h1 className="heading-font text-3xl font-bold text-slate-900">Choose a subject to start learning</h1>
+      <PageIntro
+        subtitle="TRACK 1 — LEARN"
+        title="Study Chemistry Topic by Topic"
+        description="Work through all 12 Chemistry topics subtopic by subtopic with your expert tutoring system. Each subtopic includes an explanation, video, formulas, worked example, flashcards, and practice questions."
+        tip="Follow your study plan order. Do not skip ahead — each topic builds on the last."
+      />
 
-      <section className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article className="rounded-2xl bg-white p-6 shadow-card">
           <div className="flex items-center justify-between gap-2">
             <p className="heading-font text-xl font-semibold text-slate-900">Chemistry</p>

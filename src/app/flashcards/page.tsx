@@ -5,23 +5,9 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import FlashcardTile, { type FlashcardRow } from "@/components/flashcards/FlashcardTile";
+import PageIntro from "@/components/PageIntro";
+import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
 import { supabase } from "@/lib/supabase";
-
-/** Chemistry platform chapters — matches `FLASHCARD_SEED` chapter labels (browse topic chips). */
-const FLASHCARD_HUB_TOPICS = [
-  "States of Matter",
-  "Atoms, Elements and Compounds",
-  "Stoichiometry",
-  "Electrochemistry",
-  "Chemical Energetics",
-  "Chemical Reactions",
-  "Acids, Bases and Salts",
-  "The Periodic Table",
-  "Metals",
-  "Chemistry of the Environment",
-  "Organic Chemistry",
-  "Experimental Techniques and Analysis",
-] as const;
 
 function shufflePick<T>(arr: T[], n: number): T[] {
   const copy = [...arr];
@@ -39,7 +25,6 @@ export default function FlashcardsPage() {
   const [savedCount, setSavedCount] = useState<number | null>(null);
   const [customCount, setCustomCount] = useState<number | null>(null);
   const [masteredCount, setMasteredCount] = useState<number | null>(null);
-  const [platformTotal, setPlatformTotal] = useState<number | null>(null);
   const [previewCards, setPreviewCards] = useState<FlashcardRow[]>([]);
 
   const isGuest = hydratedUser && !userId;
@@ -79,21 +64,14 @@ export default function FlashcardsPage() {
   }, []);
 
   const loadPreviewAndTotal = useCallback(async () => {
-    const totalQ = supabase
-      .from("flashcards")
-      .select("*", { count: "exact", head: true })
-      .eq("is_platform", true);
-
     const sampleQ = supabase
       .from("flashcards")
       .select("id, chapter, subtopic, front, back, hint, command_word, tier, created_by, is_platform")
       .eq("is_platform", true)
       .limit(96);
 
-    const [totalRes, sampleRes] = await Promise.all([totalQ, sampleQ]);
-    setPlatformTotal(totalRes.count ?? 829);
-
-    const rows = (sampleRes.data ?? []) as FlashcardRow[];
+    const { data } = await sampleQ;
+    const rows = (data ?? []) as FlashcardRow[];
     setPreviewCards(shufflePick(rows, Math.min(4, rows.length)));
   }, []);
 
@@ -127,13 +105,12 @@ export default function FlashcardsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-8">
-      <header className="mb-10">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-teal">Flashcards</p>
-        <h1 className="heading-font mt-1 text-3xl font-bold text-slate-900">Your chemistry hub</h1>
-        <p className="mt-2 max-w-xl text-sm text-slate-600">
-          Work through spaced reviews, save cards to your bank, and browse the full syllabus deck.
-        </p>
-      </header>
+      <PageIntro
+        subtitle="QUICK REVISION"
+        title="Your Flashcard Hub"
+        description="829 Cambridge-focused flashcards built from the real syllabus. Study cards due for review, save cards to your personal bank, or browse the full deck by topic."
+        tip="Flashcards work best in short daily sessions. Even 10 minutes before bed builds long-term memory."
+      />
 
       {/* SECTION 1 — Due today */}
       <section aria-labelledby="due-heading" className="mb-12">
@@ -226,7 +203,7 @@ export default function FlashcardsPage() {
           Browse by topic
         </h2>
         <div className="flex flex-wrap gap-2">
-          {FLASHCARD_HUB_TOPICS.map((topic) => (
+          {FLASHCARD_BROWSE_TOPICS.map((topic) => (
             <Link
               key={topic}
               href={`/flashcards/browse?topic=${encodeURIComponent(topic)}`}
@@ -245,11 +222,8 @@ export default function FlashcardsPage() {
         </div>
 
         <div className="mt-6">
-          <Link
-            href="/flashcards/browse"
-            className="inline-flex items-center gap-2 text-sm font-bold text-brand-teal underline underline-offset-2 hover:text-brand-teal-dark"
-          >
-            Browse all {platformTotal === null ? "829" : platformTotal} cards →
+          <Link href="/flashcards/browse" className="text-sm font-bold text-brand-teal underline underline-offset-2 hover:text-brand-teal-dark">
+            Browse all 829 cards →
           </Link>
         </div>
       </section>

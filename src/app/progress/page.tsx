@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import PageIntro from "@/components/PageIntro";
 
 const masteryData = [
   { subject: "Chemistry", total: 34, topics: [{ name: "Stoichiometry", value: 40 }, { name: "Organic", value: 28 }] },
@@ -15,12 +16,15 @@ const attempts = [
 export default function ProgressPage() {
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-6 sm:px-6">
-      <header className="rounded-2xl bg-white p-5 shadow-card">
-        <h1 className="heading-font text-3xl font-bold text-slate-900">Your progress</h1>
-        <p className="mt-2 inline-flex rounded-full bg-brand-orange px-3 py-1 text-sm font-semibold text-white">
-          5-day streak
-        </p>
-      </header>
+      <PageIntro
+        subtitle="YOUR JOURNEY"
+        title="Track Your Progress"
+        description="See your mastery level across all 12 Chemistry topics, your study streak, exam readiness score, and weak areas to focus on. Updated after every practice session."
+        tip="Check your progress weekly, not daily. Focus on the trend — are you improving over time? That is what matters."
+      />
+      <p className="mb-5 inline-flex rounded-full bg-brand-orange px-3 py-1 text-sm font-semibold text-white">
+        5-day streak
+      </p>
 
       <section className="mt-5 rounded-2xl bg-white p-5 shadow-card">
         <h2 className="heading-font text-xl font-semibold text-slate-900">Mastery by subject</h2>

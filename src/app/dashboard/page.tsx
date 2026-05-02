@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import PageIntro from "@/components/PageIntro";
 import { supabase } from "@/lib/supabase";
 
 type GuestProfile = {
@@ -217,6 +218,13 @@ export default function DashboardPage() {
             </Link>
           </section>
         )}
+
+        <PageIntro
+          subtitle="YOUR COMMAND CENTER"
+          title="Mission Control"
+          description="Everything you need to stay on track for your Cambridge O Level / IGCSE exam. Your daily task, progress, and study plan — all in one place."
+          tip="Complete today's mission every day to build your streak. Consistency beats cramming every time."
+        />
 
         {/* Greeting */}
         <section className="mb-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
