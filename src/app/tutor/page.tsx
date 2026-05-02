@@ -352,6 +352,11 @@ function TutorPageContent() {
   const currentVideo = topicEntry?.videos?.[activeVideoIndex] ?? result?.video ?? null;
   const subtopicMatch = result?.subtopicMatch ?? null;
   const hasVideo = !!currentVideo;
+  /** Chapter timestamps with a real start time (hide 0:00 / missing). */
+  const videoTimestampChips = useMemo(
+    () => (currentVideo?.timestamps ?? []).filter((ts) => ts.seconds > 0),
+    [currentVideo],
+  );
   const visibleLessonSteps = lessonSteps;
 
   const activeStepIndex = visibleLessonSteps.findIndex((s) => s.key === currentStep);
@@ -368,8 +373,9 @@ function TutorPageContent() {
   }, [topic]);
 
   useEffect(() => {
-    setEmbedStart(subtopicMatch?.seconds ?? 0);
-  }, [subtopicMatch?.seconds, topic]);
+    const s = subtopicMatch?.seconds;
+    setEmbedStart(typeof s === "number" && s > 0 ? s : 0);
+  }, [subtopicMatch, topic]);
 
   const fmtLessonCompleteDate = (d: string) =>
     new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
@@ -804,18 +810,20 @@ EXAM TIP: ${staticContent?.exam_tip ?? ""}`}
                       />
                     </div>
 
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {currentVideo.timestamps.map((ts) => (
-                        <button
-                          key={ts.time}
-                          type="button"
-                          onClick={() => setEmbedStart(ts.seconds)}
-                          className="cursor-pointer rounded-full border border-teal-200 bg-white px-2.5 py-1 font-[inherit] text-[11px] text-teal-700 hover:bg-teal-50"
-                        >
-                          {ts.time} {ts.label}
-                        </button>
-                      ))}
-                    </div>
+                    {videoTimestampChips.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {videoTimestampChips.map((ts) => (
+                          <button
+                            key={ts.time}
+                            type="button"
+                            onClick={() => setEmbedStart(ts.seconds)}
+                            className="cursor-pointer rounded-full border border-teal-200 bg-white px-2.5 py-1 font-[inherit] text-[11px] text-teal-700 hover:bg-teal-50"
+                          >
+                            {ts.time} {ts.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {topicEntry && topicEntry.videos.length > 1 && (
                       <div className="mb-2 flex flex-wrap gap-2">

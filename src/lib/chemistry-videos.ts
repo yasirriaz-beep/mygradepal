@@ -22,22 +22,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "10:18", label: "Gas volume and pressure",        seconds: 618 },
           { time: "12:03", label: "Diffusion",                      seconds: 723 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Solids Liquids and Gases", seconds: 45, end_seconds: 103 },
-          { subtopic: "Properties and Particle Theory", seconds: 104, end_seconds: 104 },
-          { subtopic: "Kinetic Particle Theory", seconds: 104, end_seconds: 231 },
-          { subtopic: "Changes of State", seconds: 232, end_seconds: 232 },
-          { subtopic: "Melting", seconds: 232, end_seconds: 232 },
-          { subtopic: "Boiling", seconds: 232, end_seconds: 232 },
-          { subtopic: "Evaporation", seconds: 232, end_seconds: 232 },
-          { subtopic: "Freezing", seconds: 232, end_seconds: 232 },
-          { subtopic: "Condensing", seconds: 232, end_seconds: 488 },
-          { subtopic: "Heating and Cooling Curves", seconds: 489, end_seconds: 618 },
-          { subtopic: "Effect of Temperature", seconds: 619, end_seconds: 619 },
-          { subtopic: "Effect of Pressure", seconds: 619, end_seconds: 619 },
-          { subtopic: "Gas Volume", seconds: 619, end_seconds: 723 },
-          { subtopic: "Diffusion", seconds: 724, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       }
     ]
   },
@@ -59,22 +44,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Electron configuration",    seconds: 480 },
           { time: "11:00", label: "Isotopes",                  seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Elements Compounds Mixtures", seconds: 32, end_seconds: 342 },
-          { subtopic: "Elements", seconds: 343, end_seconds: 343 },
-          { subtopic: "Compounds", seconds: 343, end_seconds: 343 },
-          { subtopic: "Mixtures", seconds: 343, end_seconds: 417 },
-          { subtopic: "Atomic Structure", seconds: 418, end_seconds: 418 },
-          { subtopic: "Protons Neutrons Electrons", seconds: 557, end_seconds: 632 },
-          { subtopic: "Nucleus", seconds: 418, end_seconds: 418 },
-          { subtopic: "Proton Number", seconds: 633, end_seconds: 633 },
-          { subtopic: "Mass Number", seconds: 705, end_seconds: 705 },
-          { subtopic: "Atomic Number", seconds: 633, end_seconds: 704 },
-          { subtopic: "Electron Configuration", seconds: 418, end_seconds: 418 },
-          { subtopic: "Electronic Configuration", seconds: 418, end_seconds: 418 },
-          { subtopic: "Electron Shells", seconds: 418, end_seconds: 556 },
-          { subtopic: "Isotopes", seconds: 705, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -87,14 +57,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "2:00", label: "Ionic bonding",                seconds: 120 },
           { time: "6:00", label: "Ionic lattice and properties", seconds: 360 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Ionic Bonding", seconds: 180, end_seconds: 180 },
-          { subtopic: "Ionic Bonds", seconds: 180, end_seconds: 180 },
-          { subtopic: "Ions", seconds: 180, end_seconds: 180 },
-          { subtopic: "Ions and Ionic Bonds", seconds: 180, end_seconds: 180 },
-          { subtopic: "Ionic Lattice", seconds: 180, end_seconds: 180 },
-          { subtopic: "Properties of Ionic Compounds", seconds: 180, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -108,16 +71,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Giant covalent structures",    seconds: 360 },
           { time: "9:00", label: "Diamond and graphite",         seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Covalent Bonding", seconds: 0, end_seconds: 0 },
-          { subtopic: "Covalent Bonds", seconds: 0, end_seconds: 0 },
-          { subtopic: "Simple Molecules", seconds: 0, end_seconds: 0 },
-          { subtopic: "Simple Covalent", seconds: 0, end_seconds: 0 },
-          { subtopic: "Giant Covalent", seconds: 0, end_seconds: 0 },
-          { subtopic: "Giant Covalent Structures", seconds: 0, end_seconds: 0 },
-          { subtopic: "Diamond", seconds: 0, end_seconds: 0 },
-          { subtopic: "Graphite", seconds: 0, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 4,
@@ -130,11 +84,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "3:00", label: "Properties of metals",         seconds: 180 },
           { time: "6:00", label: "Comparing bond types",         seconds: 360 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Metallic Bonding", seconds: 655, end_seconds: 655 },
-          { subtopic: "Metallic Bond", seconds: 655, end_seconds: 720 },
-          { subtopic: "Structure and Properties of Metals", seconds: 721, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -155,14 +105,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Balancing equations",    seconds: 480 },
           { time: "11:00", label: "State symbols",          seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Chemical Formulae", seconds: 30, end_seconds: 30 },
-          { subtopic: "Word Equations", seconds: 30, end_seconds: 30 },
-          { subtopic: "Word Equations and Symbol Equations", seconds: 30, end_seconds: 30 },
-          { subtopic: "Symbol Equations", seconds: 30, end_seconds: 30 },
-          { subtopic: "Balancing Equations", seconds: 30, end_seconds: 30 },
-          { subtopic: "State Symbols", seconds: 30, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -177,16 +120,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "The mole",                   seconds: 480 },
           { time: "11:00", label: "Moles = mass ÷ Mr",          seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Relative Atomic Mass", seconds: 0, end_seconds: 0 },
-          { subtopic: "Relative Molecular Mass", seconds: 0, end_seconds: 0 },
-          { subtopic: "Relative Atomic Mass and Relative Molecular Mass", seconds: 0, end_seconds: 0 },
-          { subtopic: "The Mole", seconds: 0, end_seconds: 0 },
-          { subtopic: "Mole", seconds: 0, end_seconds: 0 },
-          { subtopic: "Avogadro", seconds: 0, end_seconds: 0 },
-          { subtopic: "Avogadro Constant", seconds: 0, end_seconds: 0 },
-          { subtopic: "Mole Calculations", seconds: 0, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -200,13 +134,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "5:00", label: "Reacting masses",               seconds: 300 },
           { time: "8:00", label: "Limiting reactants",            seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Reacting Masses", seconds: 31, end_seconds: 240 },
-          { subtopic: "Stoichiometric Calculations", seconds: 241, end_seconds: 241 },
-          { subtopic: "Stoichiometric Calculations and Limiting Reactants", seconds: 241, end_seconds: 241 },
-          { subtopic: "Limiting Reactants", seconds: 241, end_seconds: 241 },
-          { subtopic: "Limiting Reagent", seconds: 241, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 4,
@@ -220,10 +148,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "5:00", label: "mol/dm³ calculations",          seconds: 300 },
           { time: "8:00", label: "Worked examples",               seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Concentration", seconds: 31, end_seconds: 31 },
-          { subtopic: "Mole Calculations Mass Volume Concentration", seconds: 31, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 5,
@@ -237,13 +162,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Molecular formula",             seconds: 360 },
           { time: "9:00", label: "Percentage composition",        seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Empirical Formula", seconds: 31, end_seconds: 31 },
-          { subtopic: "Molecular Formula", seconds: 31, end_seconds: 192 },
-          { subtopic: "Percentage Composition", seconds: 193, end_seconds: 193 },
-          { subtopic: "Percentage Yield", seconds: 193, end_seconds: 193 },
-          { subtopic: "Percentage Yield Percentage Composition Percentage Purity", seconds: 193, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 6,
@@ -257,11 +176,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "5:00", label: "Gas volume calculations",       seconds: 300 },
           { time: "8:00", label: "Percentage purity",             seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Gas Volumes", seconds: 31, end_seconds: 31 },
-          { subtopic: "Molar Volume", seconds: 31, end_seconds: 31 },
-          { subtopic: "Gas Volume Calculations", seconds: 31, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -282,15 +197,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Molten electrolytes",    seconds: 360 },
           { time: "9:00", label: "Electrode equations",    seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Electrolysis", seconds: 31, end_seconds: 31 },
-          { subtopic: "Electrolysis Basics", seconds: 31, end_seconds: 99 },
-          { subtopic: "Anode", seconds: 100, end_seconds: 100 },
-          { subtopic: "Cathode", seconds: 100, end_seconds: 314 },
-          { subtopic: "Electrode Reactions", seconds: 315, end_seconds: 391 },
-          { subtopic: "Electrode Equations", seconds: 392, end_seconds: 392 },
-          { subtopic: "Half Equations", seconds: 392, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -305,13 +212,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Copper sulfate electrolysis",     seconds: 480 },
           { time: "11:00", label: "Industrial uses",                 seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Electrolysis of Water", seconds: 580, end_seconds: 9999 },
-          { subtopic: "Electrolysis of Brine", seconds: 393, end_seconds: 393 },
-          { subtopic: "Brine", seconds: 393, end_seconds: 393 },
-          { subtopic: "Copper Sulfate Electrolysis", seconds: 164, end_seconds: 392 },
-          { subtopic: "Aqueous Solutions Electrolysis", seconds: 393, end_seconds: 579 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -325,11 +226,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Fuel cells",                       seconds: 360 },
           { time: "9:00", label: "Advantages of fuel cells",         seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Electroplating", seconds: 279, end_seconds: 479 },
-          { subtopic: "Fuel Cells", seconds: 480, end_seconds: 480 },
-          { subtopic: "Hydrogen Fuel Cell", seconds: 480, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -352,19 +249,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "9:30",  label: "Bond energies",                seconds: 570 },
           { time: "12:00", label: "Bond energy calculations",     seconds: 720 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Exothermic", seconds: 30, end_seconds: 30 },
-          { subtopic: "Exothermic Reactions", seconds: 30, end_seconds: 30 },
-          { subtopic: "Endothermic", seconds: 30, end_seconds: 30 },
-          { subtopic: "Endothermic Reactions", seconds: 30, end_seconds: 30 },
-          { subtopic: "Exothermic and Endothermic", seconds: 30, end_seconds: 80 },
-          { subtopic: "Energy Profile", seconds: 81, end_seconds: 81 },
-          { subtopic: "Energy Profile Diagrams", seconds: 81, end_seconds: 81 },
-          { subtopic: "Activation Energy", seconds: 81, end_seconds: 329 },
-          { subtopic: "Bond Energy", seconds: 330, end_seconds: 330 },
-          { subtopic: "Bond Energies", seconds: 330, end_seconds: 429 },
-          { subtopic: "Bond Energy Calculations", seconds: 430, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       }
     ]
   },
@@ -388,19 +273,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "11:00", label: "Reversible reactions",           seconds: 660 },
           { time: "13:00", label: "Dynamic equilibrium",            seconds: 780 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Rate of Reaction", seconds: 31, end_seconds: 31 },
-          { subtopic: "Collision Theory", seconds: 198, end_seconds: 198 },
-          { subtopic: "Concentration", seconds: 198, end_seconds: 198 },
-          { subtopic: "Temperature Effect on Rate", seconds: 198, end_seconds: 198 },
-          { subtopic: "Surface Area", seconds: 198, end_seconds: 198 },
-          { subtopic: "Catalysts", seconds: 198, end_seconds: 198 },
-          { subtopic: "Catalyst", seconds: 198, end_seconds: 198 },
-          { subtopic: "Rate Graphs", seconds: 198, end_seconds: 9999 },
-          { subtopic: "Reversible Reactions", seconds: 31, end_seconds: 31 },
-          { subtopic: "Equilibrium", seconds: 31, end_seconds: 31 },
-          { subtopic: "Dynamic Equilibrium", seconds: 31, end_seconds: 197 },
-        ]
+        subtopic_timestamps: []
       }
     ]
   },
@@ -422,20 +295,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "7:30",  label: "Bases and alkalis",              seconds: 450 },
           { time: "10:00", label: "Strong and weak acids",          seconds: 600 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "pH Scale", seconds: 525, end_seconds: 525 },
-          { subtopic: "pH", seconds: 525, end_seconds: 525 },
-          { subtopic: "Indicators", seconds: 198, end_seconds: 198 },
-          { subtopic: "Litmus", seconds: 198, end_seconds: 263 },
-          { subtopic: "Universal Indicator", seconds: 525, end_seconds: 9999 },
-          { subtopic: "Characteristic Properties of Acids", seconds: 108, end_seconds: 108 },
-          { subtopic: "Characteristic Properties of Acids and Bases", seconds: 108, end_seconds: 197 },
-          { subtopic: "Bases", seconds: 264, end_seconds: 264 },
-          { subtopic: "Alkalis", seconds: 264, end_seconds: 461 },
-          { subtopic: "Strong Acids", seconds: 462, end_seconds: 462 },
-          { subtopic: "Weak Acids", seconds: 462, end_seconds: 462 },
-          { subtopic: "Strong and Weak Acids", seconds: 462, end_seconds: 524 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -449,15 +309,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "4:00", label: "Salt preparation methods",        seconds: 240 },
           { time: "8:00", label: "Titration",                       seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Neutralisation", seconds: 270, end_seconds: 270 },
-          { subtopic: "Neutralization", seconds: 270, end_seconds: 270 },
-          { subtopic: "Salt Preparation", seconds: 218, end_seconds: 218 },
-          { subtopic: "Salts", seconds: 218, end_seconds: 218 },
-          { subtopic: "Preparation of Salts", seconds: 218, end_seconds: 269 },
-          { subtopic: "Titration", seconds: 270, end_seconds: 270 },
-          { subtopic: "Titration Calculations", seconds: 270, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -471,15 +323,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "5:00", label: "Solubility rules",                seconds: 300 },
           { time: "8:00", label: "Types of oxides",                 seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Insoluble Salts", seconds: 30, end_seconds: 30 },
-          { subtopic: "Precipitation", seconds: 30, end_seconds: 30 },
-          { subtopic: "Solubility Rules", seconds: 182, end_seconds: 9999 },
-          { subtopic: "Types of Oxides", seconds: 30, end_seconds: 30 },
-          { subtopic: "Acidic Oxides", seconds: 30, end_seconds: 30 },
-          { subtopic: "Basic Oxides", seconds: 30, end_seconds: 30 },
-          { subtopic: "Amphoteric Oxides", seconds: 30, end_seconds: 181 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -500,15 +344,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Group 7 halogens",               seconds: 480 },
           { time: "11:00", label: "Halogen displacement reactions", seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Group 1", seconds: 281, end_seconds: 281 },
-          { subtopic: "Alkali Metals", seconds: 281, end_seconds: 281 },
-          { subtopic: "Group 1 Alkali Metals", seconds: 281, end_seconds: 281 },
-          { subtopic: "Group 7", seconds: 281, end_seconds: 281 },
-          { subtopic: "Halogens", seconds: 281, end_seconds: 281 },
-          { subtopic: "Group 7 Halogens", seconds: 281, end_seconds: 498 },
-          { subtopic: "Displacement Reactions Halogens", seconds: 499, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -522,13 +358,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Transition metals",               seconds: 360 },
           { time: "9:00", label: "Properties of transition metals", seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Period 3", seconds: 0, end_seconds: 0 },
-          { subtopic: "Period 3 Trends", seconds: 0, end_seconds: 577 },
-          { subtopic: "Transition Metals", seconds: 578, end_seconds: 578 },
-          { subtopic: "Properties of Transition Metals", seconds: 578, end_seconds: 578 },
-          { subtopic: "Variable Oxidation States", seconds: 578, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -549,12 +379,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Reactions with acids",            seconds: 360 },
           { time: "8:00", label: "Displacement reactions",          seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Reactivity Series", seconds: 132, end_seconds: 132 },
-          { subtopic: "Reactions with Water", seconds: 132, end_seconds: 132 },
-          { subtopic: "Reactions with Acids", seconds: 132, end_seconds: 132 },
-          { subtopic: "Displacement Reactions Metals", seconds: 132, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -569,13 +394,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Aluminium extraction",           seconds: 480 },
           { time: "11:00", label: "Recycling metals",               seconds: 660 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Extraction of Metals", seconds: 106, end_seconds: 458 },
-          { subtopic: "Blast Furnace", seconds: 459, end_seconds: 459 },
-          { subtopic: "Iron Extraction", seconds: 459, end_seconds: 487 },
-          { subtopic: "Aluminium Extraction", seconds: 488, end_seconds: 526 },
-          { subtopic: "Recycling Metals", seconds: 527, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -590,14 +409,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "8:00",  label: "Sacrificial protection",         seconds: 480 },
           { time: "10:00", label: "Alloys",                         seconds: 600 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Rusting", seconds: 29, end_seconds: 29 },
-          { subtopic: "Corrosion", seconds: 29, end_seconds: 102 },
-          { subtopic: "Rust Prevention", seconds: 103, end_seconds: 147 },
-          { subtopic: "Sacrificial Protection", seconds: 148, end_seconds: 148 },
-          { subtopic: "Galvanising", seconds: 148, end_seconds: 284 },
-          { subtopic: "Alloys", seconds: 285, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -621,18 +433,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "11:00", label: "Fertilisers",           seconds: 660 },
           { time: "13:00", label: "Eutrophication",        seconds: 780 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Water Treatment", seconds: 0, end_seconds: 0 },
-          { subtopic: "Hard Water", seconds: 0, end_seconds: 0 },
-          { subtopic: "Temporary Hardness", seconds: 0, end_seconds: 0 },
-          { subtopic: "Permanent Hardness", seconds: 0, end_seconds: 0 },
-          { subtopic: "Air Pollution", seconds: 64, end_seconds: 187 },
-          { subtopic: "Acid Rain", seconds: 414, end_seconds: 9999 },
-          { subtopic: "Greenhouse Effect", seconds: 188, end_seconds: 188 },
-          { subtopic: "Global Warming", seconds: 188, end_seconds: 413 },
-          { subtopic: "Fertilisers", seconds: 0, end_seconds: 0 },
-          { subtopic: "Eutrophication", seconds: 0, end_seconds: 63 },
-        ]
+        subtopic_timestamps: []
       }
     ]
   },
@@ -653,13 +454,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Alkanes structure",      seconds: 360 },
           { time: "9:00", label: "Combustion and cracking",seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Homologous Series", seconds: 415, end_seconds: 525 },
-          { subtopic: "Alkanes", seconds: 526, end_seconds: 9999 },
-          { subtopic: "Combustion", seconds: 29, end_seconds: 29 },
-          { subtopic: "Cracking", seconds: 29, end_seconds: 29 },
-          { subtopic: "Crude Oil", seconds: 29, end_seconds: 414 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 2,
@@ -674,14 +469,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Addition reactions",     seconds: 360 },
           { time: "9:00", label: "Addition polymerisation",seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Alkenes", seconds: 27, end_seconds: 27 },
-          { subtopic: "Bromine Water Test", seconds: 27, end_seconds: 27 },
-          { subtopic: "Addition Reactions", seconds: 27, end_seconds: 27 },
-          { subtopic: "Hydrogenation", seconds: 27, end_seconds: 27 },
-          { subtopic: "Addition Polymerisation", seconds: 27, end_seconds: 27 },
-          { subtopic: "Polymers", seconds: 27, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 3,
@@ -696,12 +484,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "7:00", label: "Oxidation of alcohols",  seconds: 420 },
           { time: "9:00", label: "Uses of ethanol",        seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Alcohols", seconds: 0, end_seconds: 0 },
-          { subtopic: "Ethanol", seconds: 0, end_seconds: 0 },
-          { subtopic: "Fermentation", seconds: 0, end_seconds: 0 },
-          { subtopic: "Oxidation of Alcohols", seconds: 0, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 4,
@@ -715,10 +498,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "4:00", label: "Properties and reactions",seconds: 240 },
           { time: "7:00", label: "Weak acid behaviour",    seconds: 420 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Carboxylic Acids", seconds: 691, end_seconds: 691 },
-          { subtopic: "Ethanoic Acid", seconds: 691, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 5,
@@ -732,10 +512,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "5:00", label: "Naming esters",          seconds: 300 },
           { time: "7:00", label: "Uses of esters",         seconds: 420 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Esters", seconds: 0, end_seconds: 0 },
-          { subtopic: "Esterification", seconds: 0, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 6,
@@ -750,12 +527,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "7:00", label: "Polyesters",               seconds: 420 },
           { time: "9:00", label: "Environmental issues",     seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Condensation Polymerisation", seconds: 28, end_seconds: 28 },
-          { subtopic: "Condensation Polymers", seconds: 28, end_seconds: 86 },
-          { subtopic: "Nylon", seconds: 87, end_seconds: 219 },
-          { subtopic: "Polyesters", seconds: 220, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 7,
@@ -770,13 +542,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "6:00", label: "Hydrogenation of oils",    seconds: 360 },
           { time: "8:00", label: "Soap making",              seconds: 480 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Fats and Oils", seconds: 393, end_seconds: 393 },
-          { subtopic: "Saturated Fats", seconds: 393, end_seconds: 393 },
-          { subtopic: "Unsaturated Fats", seconds: 393, end_seconds: 393 },
-          { subtopic: "Hydrogenation of Oils", seconds: 393, end_seconds: 393 },
-          { subtopic: "Saponification", seconds: 393, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
       {
         part: 8,
@@ -791,12 +557,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "7:00", label: "Proteins",                 seconds: 420 },
           { time: "9:00", label: "Hydrolysis",               seconds: 540 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Amino Acids", seconds: 501, end_seconds: 501 },
-          { subtopic: "Peptide Bonds", seconds: 501, end_seconds: 501 },
-          { subtopic: "Proteins", seconds: 501, end_seconds: 501 },
-          { subtopic: "Hydrolysis of Proteins", seconds: 501, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       },
     ]
   },
@@ -820,26 +581,7 @@ export const CHEMISTRY_VIDEOS = [
           { time: "11:00", label: "Ion tests",                      seconds: 660 },
           { time: "13:00", label: "Gas tests",                      seconds: 780 },
         ],
-        subtopic_timestamps: [
-          { subtopic: "Filtration", seconds: 31, end_seconds: 31 },
-          { subtopic: "Evaporation", seconds: 31, end_seconds: 31 },
-          { subtopic: "Crystallisation", seconds: 31, end_seconds: 31 },
-          { subtopic: "Simple Distillation", seconds: 31, end_seconds: 31 },
-          { subtopic: "Fractional Distillation", seconds: 31, end_seconds: 31 },
-          { subtopic: "Distillation", seconds: 31, end_seconds: 31 },
-          { subtopic: "Chromatography", seconds: 31, end_seconds: 31 },
-          { subtopic: "Paper Chromatography", seconds: 31, end_seconds: 31 },
-          { subtopic: "Rf Values", seconds: 31, end_seconds: 31 },
-          { subtopic: "Rf Value", seconds: 31, end_seconds: 31 },
-          { subtopic: "Flame Tests", seconds: 31, end_seconds: 31 },
-          { subtopic: "Flame Test", seconds: 31, end_seconds: 31 },
-          { subtopic: "Ion Tests", seconds: 31, end_seconds: 31 },
-          { subtopic: "Precipitation Tests", seconds: 31, end_seconds: 31 },
-          { subtopic: "Qualitative Analysis", seconds: 31, end_seconds: 31 },
-          { subtopic: "Gas Tests", seconds: 31, end_seconds: 31 },
-          { subtopic: "Testing for Gases", seconds: 31, end_seconds: 31 },
-          { subtopic: "Experimental Techniques", seconds: 31, end_seconds: 9999 },
-        ]
+        subtopic_timestamps: []
       }
     ]
   },
@@ -859,7 +601,7 @@ export type ChemistryVideoEntry = {
   channel: string;
   summary: string;
   timestamps: { time: string; label: string; seconds: number }[];
-  subtopic_timestamps: SubtopicTimestamp[];
+   SubtopicTimestamp[];
 };
 
 export type ChemistryChapter = {
