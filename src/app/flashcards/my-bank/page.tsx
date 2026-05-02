@@ -8,7 +8,7 @@ import FlashcardLibraryTile from "@/components/flashcards/FlashcardLibraryTile";
 import type { FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
-import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { cardChapterMatchesTopicChip, FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
 import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
@@ -98,7 +98,7 @@ export default function FlashcardsMyBankPage() {
 
   const filteredList = useMemo(() => {
     if (!topicFilter) return activeList;
-    return activeList.filter((c) => c.chapter === topicFilter);
+    return activeList.filter((c) => cardChapterMatchesTopicChip(c.chapter, topicFilter));
   }, [activeList, topicFilter]);
 
   const toggleTopic = (t: string) => {

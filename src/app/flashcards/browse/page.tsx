@@ -8,7 +8,8 @@ import FlashcardLibraryTile from "@/components/flashcards/FlashcardLibraryTile";
 import type { FlashcardRow } from "@/components/flashcards/FlashcardTile";
 import PageIntro from "@/components/PageIntro";
 import { flashcardsFetch } from "@/lib/flashcardApi";
-import { FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { chapterDbValuesForTopicChip, FLASHCARD_BROWSE_TOPICS } from "@/lib/flashcardBrowseTopics";
+import { FLASHCARD_STUDY_SESSION_IDS_KEY } from "@/lib/flashcardStudySession";
 import { supabase } from "@/lib/supabase";
 
 const PAGE_SIZE = 20;
@@ -33,6 +34,8 @@ export default function FlashcardsBrowsePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [saveBusyId, setSaveBusyId] = useState<string | null>(null);
+  const [topicStudyCount, setTopicStudyCount] = useState<number | null>(null);
+  const [topicStudyBusy, setTopicStudyBusy] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(sanitizeSearchIlike(searchInput)), 300);
@@ -54,6 +57,35 @@ export default function FlashcardsBrowsePage() {
     else setSavedIds(new Set());
   }, [userId, reloadSavedIds]);
 
+  useEffect(() => {
+    if (!topicFilter) {
+      setTopicStudyCount(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const chs = chapterDbValuesForTopicChip(topicFilter);
+      let qc = supabase
+        .from("flashcards")
+        .select("*", { count: "exact", head: true })
+        .eq("is_platform", true)
+        .eq("subject", SUBJECT);
+      qc = chs.length === 1 ? qc.eq("chapter", chs[0]!) : qc.in("chapter", chs);
+
+      const { count, error } = await qc;
+      if (cancelled) return;
+      if (error) {
+        setTopicStudyCount(null);
+        return;
+      }
+      setTopicStudyCount(count ?? 0);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topicFilter]);
+
   const buildBaseQuery = useCallback(() => {
     let q = supabase
       .from("flashcards")
@@ -63,7 +95,10 @@ export default function FlashcardsBrowsePage() {
       .order("chapter", { ascending: true })
       .order("id", { ascending: true });
 
-    if (topicFilter) q = q.eq("chapter", topicFilter);
+    if (topicFilter) {
+      const chs = chapterDbValuesForTopicChip(topicFilter);
+      q = chs.length === 1 ? q.eq("chapter", chs[0]!) : q.in("chapter", chs);
+    }
 
     const term = debouncedSearch.trim();
     if (term.length > 0) {
@@ -153,6 +188,34 @@ export default function FlashcardsBrowsePage() {
     [router, savedIds, userId],
   );
 
+  const studyThisTopic = useCallback(async () => {
+    if (!topicFilter) return;
+    setTopicStudyBusy(true);
+    try {
+      const chs = chapterDbValuesForTopicChip(topicFilter);
+      let q = supabase
+        .from("flashcards")
+        .select("id")
+        .eq("is_platform", true)
+        .eq("subject", SUBJECT)
+        .order("id", { ascending: true });
+      q = chs.length === 1 ? q.eq("chapter", chs[0]!) : q.in("chapter", chs);
+
+      const { data, error } = await q;
+      if (error) return;
+
+      const ids = (data ?? []).map((r: { id: string }) => r.id).filter(Boolean);
+      try {
+        sessionStorage.setItem(FLASHCARD_STUDY_SESSION_IDS_KEY, JSON.stringify(ids));
+      } catch {
+        /* ignore */
+      }
+      router.push("/flashcards/study");
+    } finally {
+      setTopicStudyBusy(false);
+    }
+  }, [router, topicFilter]);
+
   return (
     <div className="min-h-screen bg-slate-50 pb-16 pt-8">
       <div className="mx-auto max-w-5xl px-4">
@@ -198,6 +261,21 @@ export default function FlashcardsBrowsePage() {
           })}
         </div>
 
+        {topicFilter ? (
+          <div className="mb-8">
+            <button
+              type="button"
+              disabled={topicStudyBusy || topicStudyCount === null || topicStudyCount === 0}
+              onClick={() => void studyThisTopic()}
+              className="inline-flex rounded-xl bg-brand-orange px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
+            >
+              {topicStudyBusy
+                ? "Preparing deck…"
+                : `Study all ${topicStudyCount ?? "…"} cards from ${topicFilter} →`}
+            </button>
+          </div>
+        ) : null}
+
         {!userId && (
           <p className="body-font mb-4 text-sm text-slate-600">
             <Link href="/login" className="font-semibold text-brand-teal hover:underline">
@@ -223,6 +301,7 @@ export default function FlashcardsBrowsePage() {
                   key={card.id}
                   card={card}
                   mode="browse"
+                  expandablePreview
                   isSaved={savedIds.has(card.id)}
                   saveLoading={saveBusyId === card.id}
                   onToggleSave={() => onToggleSave(card.id)}
